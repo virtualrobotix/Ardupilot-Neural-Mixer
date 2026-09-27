@@ -7,7 +7,8 @@
 
 The policy runs exactly as on the autopilot (int8 forward, firmware gravity
 filter, PWM encoding). Default sequence: forward 5 s, turn right 3 s, turn
-left until the trunk has yawed 180 degrees, forward 5 s.
+left until the trunk has yawed 180 degrees, forward 5 s. --full adds backward
+5 s and lateral 4 s after the first forward phase.
 
     .venv/bin/mjpython tools/robots/play_policy.py --robot microban --nnm robots/microban/policies/walk.nnm
     .venv/bin/python   tools/robots/play_policy.py --robot microban --nnm a.nnm b.nnm --headless
@@ -170,7 +171,18 @@ def main() -> None:
     ap.add_argument("--wz", type=float, default=0.8)
     ap.add_argument("--headless", action="store_true")
     ap.add_argument("--video", type=Path, default=None)
+    ap.add_argument("--vy", type=float, default=0.1, help="lateral speed of the --full sequence")
+    ap.add_argument("--full", action="store_true",
+                    help="every command: forward, backward, lateral left, turn right, turn left 180°, forward")
     args = ap.parse_args()
+    phases = None
+    if args.full:
+        phases = [("avanti 5 s", "time", (args.vx, 0.0, 0.0), 5.0),
+                  ("indietro 5 s", "time", (-args.vx, 0.0, 0.0), 5.0),
+                  ("laterale sx 4 s", "time", (0.0, args.vy, 0.0), 4.0),
+                  ("destra 3 s", "time", (0.0, 0.0, -args.wz), 3.0),
+                  ("sinistra 180°", "yaw", (0.0, 0.0, args.wz), 180.0),
+                  ("avanti 5 s", "time", (args.vx, 0.0, 0.0), 5.0)]
 
     for nnm in args.nnm:
         if args.video:
@@ -182,14 +194,14 @@ def main() -> None:
                                      "-s", "960x540", "-r", "25", "-i", "-", "-pix_fmt", "yuv420p",
                                      str(args.video)], stdin=subprocess.PIPE)
             # the renderer needs the env that is stepped: run() builds its own env, so render from that one
-            res = _run_with_video(args, nnm, cam, proc)
+            res = _run_with_video(args, nnm, cam, proc, phases=phases)
             proc.stdin.close(); proc.wait()
             print(f"video: {args.video}")
         elif args.headless:
-            res = run(args.robot, nnm, args.vx, args.wz)
+            res = run(args.robot, nnm, args.vx, args.wz, phases=phases)
         else:
             import mujoco.viewer
-            res = _run_with_viewer(args, nnm)
+            res = _run_with_viewer(args, nnm, phases=phases)
         print(f"{res['policy']}: {'CADUTO' if res['fell'] else 'ok'} a t={res['t_end']:.1f}s  "
               f"percorso {res['path_m']:.2f} m  spostamento netto {res['net_displacement_m']:.2f} m  "
               f"imbardata totale {res['yaw_total_deg']:+.0f}°")
@@ -197,7 +209,7 @@ def main() -> None:
             print(f"    {lbl:14s} {a:5.1f}-{b:5.1f}s  imbardata {y:+6.1f}°")
 
 
-def _run_with_viewer(args, nnm):
+def _run_with_viewer(args, nnm, phases=None):
     import mujoco.viewer
 
     cfg = load_ppo_config(args.robot)
@@ -214,7 +226,7 @@ def _run_with_viewer(args, nnm):
 
     NNMixerEnv.reset = reset_and_launch
     try:
-        res = run(args.robot, nnm, args.vx, args.wz, viewer=_LazyViewer(holder), realtime=True)
+        res = run(args.robot, nnm, args.vx, args.wz, viewer=_LazyViewer(holder), realtime=True, phases=phases)
         time.sleep(2.0)
     finally:
         NNMixerEnv.reset = orig_reset

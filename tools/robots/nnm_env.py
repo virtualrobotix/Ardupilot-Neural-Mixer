@@ -17,6 +17,7 @@ sensors are added to the trunk at load time.
 from __future__ import annotations
 
 import math
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,11 +48,22 @@ class RewardWeights:
     # trotting robot swings its speed within every step: the instantaneous error punished a gait at the right
     # mean speed more than standing still.
     tracking_filter_s: float = 0.0
+    # extra error folded into the tracking kernel, on top of the command error. A bouncing or wobbling
+    # step then drives exp() to zero, so the policy gets no gradient toward the command. Set to 0 when
+    # vertical speed and roll/pitch already have their own penalties.
+    tracking_lin_z: float = 2.0
+    tracking_ang_rp: float = 0.05
     # gait terms of the MicroDuck mjlab task; active only when the profile lists sim.feet
     air_time: float = 0.0
     air_time_min_s: float = 0.1
     air_time_max_s: float = 0.5
     air_time_mode: str = "touchdown"        # "in_range": mjlab feet_air_time, per step while airborne in range
+    # touchdown mode: flights shorter than this are contact bounces of a foot in stance, not steps; they
+    # neither pay nor cost (walk_v18: each 0.02 s bounce cost 0.5 and the clipped step lost its gradient)
+    air_time_debounce_s: float = 0.0
+    # per step and foot airborne longer than air_time_max_s while commanded to move (negative weight):
+    # walk_v19 turned by pivoting on two diagonal feet with a rear foot held in the air for whole seconds
+    foot_hold: float = 0.0
     foot_clearance: float = 0.0
     swing_height_m: float = 0.03
     foot_swing_height: float = 0.0          # mjlab: (peak / target - 1)^2 at landing
@@ -89,6 +101,20 @@ class RewardWeights:
     joint_vel: float = 0.0
     # one-off reward when the episode ends by a fall (negative): falling never pays to end a costly episode
     termination: float = 0.0
+    # quadratic posture penalty mean(((q - q0) / std)^2) with the pose_std tables (negative weight): unlike the
+    # exponential pose term it keeps a gradient far from q0, where exp() is already zero
+    pose_l2: float = 0.0
+    # Go1 / Go2 (MuJoCo Playground, unitree_rl_lab) terms:
+    # only_positive: the step reward is clipped at 0, so ending an episode never pays (legged_gym
+    # only_positive_rewards). Tracking must stay inside the clip: with tracking added after it, every
+    # penalty was clipped away and walk_v13 splayed its rear hips to the joint limit. orientation:
+    # |g_xy|^2 of the true trunk tilt; stand_still: sum |q - q0| with a
+    # zero command; air_time_variance: variance over the feet of the last air and contact times (clipped at
+    # 0.5 s), which asks for a regular gait
+    only_positive: bool = False
+    orientation: float = 0.0
+    stand_still: float = 0.0
+    air_time_variance: float = 0.0
     # standing still while commanded to move (negative weight): 1 - progress, with progress the share of the
     # commanded velocity actually achieved (filtered twist projected on the command, clipped to [0, 1]),
     # averaged over the commanded linear and yaw parts
@@ -135,6 +161,14 @@ class NNMixerEnv:
         self.p_zero_cmd = float(env_cfg.get("p_zero_command", 0.2))
         self.p_no_vy = float(env_cfg.get("p_no_lateral", 0.3))
         self.p_single_axis = float(env_cfg.get("p_single_axis", 0.0))
+        # single-axis command mix: probabilities of [+vx, -vx, +vy, -vy, +wz, -wz]; None = uniform
+        saw = env_cfg.get("single_axis_weights")
+        self.single_axis_p = np.array(saw, float) / np.sum(saw) if saw else None
+        self.penalty_scale = 1.0
+        self.terminate_illegal = bool(env_cfg.get("terminate_on_illegal_contact", False))
+        # hard posture limits that end the episode: trunk lower than min_height_m, or a joint further than
+        # max_dev (regex -> rad) from q0
+        self.posture_limits = env_cfg.get("posture_limits") or {}
         self.episode_s = float(env_cfg.get("episode_s", 20.0))
         self.gyro_noise = float(env_cfg.get("gyro_noise", 0.02))
         self.accel_noise = float(env_cfg.get("accel_noise", 0.05))
@@ -249,7 +283,6 @@ class NNMixerEnv:
         self.soft_lo, self.soft_hi = np.array(rng_lo), np.array(rng_hi)
 
         def stds(table):
-            import re
             if not table:
                 return None
             out = []
@@ -259,9 +292,17 @@ class NNMixerEnv:
             return np.array(out)
         self.pose_std_stand = stds(self.w.pose_std_standing)
         self.pose_std_walk = stds(self.w.pose_std_walking)
+        dev = self.posture_limits.get("max_dev")
+        self.max_dev = None
+        if dev:
+            self.max_dev = np.array([next((v for pat, v in dev.items() if re.fullmatch(pat, n)), np.inf)
+                                     for n in names])
         # geoms of the robot (every body under the free-joint body) for self-collision counting
         robot_bodies = {b for b in range(m.nbody) if self._is_under(b, self.trunk_id)}
         self.robot_geom = np.array([m.geom_bodyid[g] in robot_bodies for g in range(m.ngeom)])
+        # everything above the shank (the foot body) ends the episode when terminate_on_illegal_contact is set
+        self.illegal_geom = self.robot_geom & np.array([m.geom_bodyid[g] not in self.foot_body_ids
+                                                        for g in range(m.ngeom)])
         pd = self.sim.get("pd", {})
         self.kp = float(pd.get("kp", 0.0))
         self.kd = float(pd.get("kd", 0.0))
@@ -286,9 +327,13 @@ class NNMixerEnv:
         r = self.cmd_ranges
         if self.rng.random() < self.p_single_axis:
             # one axis, one sign, between half and full range: every direction gets clear commands
-            axis = int(self.rng.integers(3))
+            if self.single_axis_p is not None:
+                k = int(self.rng.choice(6, p=self.single_axis_p))
+                axis, positive = k // 2, k % 2 == 0
+            else:
+                axis, positive = int(self.rng.integers(3)), self.rng.random() < 0.5
             lo, hi = r[("vx", "vy", "wz")[axis]]
-            limit = hi if self.rng.random() < 0.5 else lo
+            limit = hi if positive else lo
             t = np.zeros(3, np.float32)
             t[axis] = limit * self.rng.uniform(0.5, 1.0)
             return dc.saturate_twist(self.contract, t)
@@ -353,6 +398,7 @@ class NNMixerEnv:
         self.command = self._sample_command()
         self.steps = 0
         self._ep_terms: dict[str, float] = {}
+        self._ep_return = 0.0
         self._last_raw_action = np.zeros(c.n_joints, np.float32)
         self.twist_filt = np.zeros(4)
         nf = len(self.feet)
@@ -366,6 +412,11 @@ class NNMixerEnv:
         self.last_touchdown = -1
         self.last_footfall = -1
         self.foot_air_prev_seq = np.zeros(nf)
+        self.last_air_t = np.zeros(nf)
+        self.last_contact_t = np.zeros(nf)
+        self.foot_contact_t = np.zeros(nf)
+        self.foot_air_prev_var = np.zeros(nf)
+        self.foot_contact_prev_var = np.ones(nf, bool)
         self.last_step_peak = 0.0
         self.last_step_air = 0.0
         self.next_resample = self._next_resample()
@@ -416,15 +467,23 @@ class NNMixerEnv:
             self.next_push = self.steps + int(self.rng.uniform(*self.push_interval) * c.rate_hz)
         reward, info = self._reward(action)
         fell = self.tilt_deg() > self.fall_tilt_deg
+        if self.terminate_illegal and not fell and self._illegal_contact():
+            fell = True
+        if self.posture_limits and not fell and self._posture_violated():
+            fell = True
         if fell and self.w.termination:
             info["terms"]["termination"] = self.w.termination
             reward += self.w.termination
+        if self.w.only_positive:
+            reward = max(reward, 0.0)
         timeout = self.steps >= self.max_steps
         for k, v in info["terms"].items():
             self._ep_terms[k] = self._ep_terms.get(k, 0.0) + v
+        self._ep_return += reward
         if fell or timeout:
             # rsl_rl convention: Episode_Reward/<term> = episode sum / max episode length (s)
             info["episode"] = {k: v / self.episode_s for k, v in self._ep_terms.items()}
+            info["episode_return"] = self._ep_return        # the reward the policy is trained on
             info["reason"] = "fell_over" if fell else "time_out"
         obs = self._observe()
         return obs, reward, fell, timeout, info
@@ -448,6 +507,38 @@ class NNMixerEnv:
             elif m.geom_bodyid[g] in index:
                 touch[index[m.geom_bodyid[g]]] = True
         return touch
+
+    def _illegal_contact(self) -> bool:
+        """Trunk, head, hip or thigh on the floor (mjlab / unitree_rl_lab illegal_contact termination)."""
+        d = self.data
+        for k in range(d.ncon):
+            con = d.contact[k]
+            g1, g2 = con.geom1, con.geom2
+            g = g2 if g1 in self.floor_geoms else (g1 if g2 in self.floor_geoms else -1)
+            if g >= 0 and self.illegal_geom[g]:
+                return True
+        return False
+
+    def _posture_violated(self) -> bool:
+        d = self.data
+        h = self.posture_limits.get("min_height_m")
+        if h is not None and float(d.qpos[self.free_qpos + 2]) < h:
+            return True
+        if self.max_dev is not None:
+            return bool(np.any(np.abs(d.qpos[self.qpos_idx] - self.contract.q0) > self.max_dev))
+        return False
+
+    def privileged(self) -> np.ndarray:
+        """Critic-only state (asymmetric actor-critic, as the Playground Go1 privileged_state): true base
+        twist, true gravity, trunk height, foot contacts and air times. Never reaches the policy."""
+        d = self.data
+        v_body, wz = self._base_vel_body()
+        g_true = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
+        z = float(d.qpos[self.free_qpos + 2]) - self.home_z
+        parts = [v_body, [wz], g_true, [10.0 * z]]
+        if self.feet:
+            parts += [self._feet_contact().astype(float), np.clip(self.foot_air, 0.0, 1.0)]
+        return np.concatenate([np.asarray(p, float) for p in parts]).astype(np.float32)
 
     def _undesired_contacts(self) -> int:
         """Robot geoms other than the feet touching the floor (legged_gym collision penalty)."""
@@ -479,8 +570,10 @@ class NNMixerEnv:
         else:
             air = 0.0
             for i in np.flatnonzero(first):
-                air += min(self.foot_air_prev[i] if hasattr(self, "foot_air_prev") else 0.0,
-                           w.air_time_max_s) - w.air_time_min_s
+                flight = self.foot_air_prev[i] if hasattr(self, "foot_air_prev") else 0.0
+                if flight < w.air_time_debounce_s:
+                    continue
+                air += min(flight, w.air_time_max_s) - w.air_time_min_s
         self.foot_air_prev = self.foot_air.copy()
         self.foot_contact_prev = contact
         # height above the foot's last stance position (flat floor: the mjlab height scan)
@@ -496,6 +589,9 @@ class NNMixerEnv:
         out = {"air_time": w.air_time * air * moving * dt,
                "foot_clearance": w.foot_clearance * clearance * dt,
                "foot_slip": w.foot_slip * slip * dt}
+        if w.foot_hold:
+            held = int(np.sum((~contact) & (self.foot_air > w.air_time_max_s)))
+            out["foot_hold"] = w.foot_hold * held * moving * dt
         if w.single_stance:
             # one foot down, the other airborne for less than air_time_max_s (a step, not standing on one leg)
             step_now = contact.sum() == len(contact) - 1 and bool(np.all(self.foot_air[~contact] < w.air_time_max_s))
@@ -530,6 +626,15 @@ class NNMixerEnv:
         if w.foot_swing_height:
             out["foot_swing_height"] = w.foot_swing_height * swing * dt
         n_feet = len(contact)
+        if w.air_time_variance:
+            lifted = ~contact & self.foot_contact_prev_var
+            self.last_air_t = np.where(first, np.minimum(self.foot_air_prev_var, 0.5), self.last_air_t)
+            self.last_contact_t = np.where(lifted, np.minimum(self.foot_contact_t, 0.5), self.last_contact_t)
+            self.foot_contact_t = np.where(contact, self.foot_contact_t + dt, 0.0)
+            self.foot_air_prev_var = self.foot_air.copy()
+            self.foot_contact_prev_var = contact.copy()
+            out["air_time_variance"] = w.air_time_variance * float(
+                np.var(self.last_air_t) + np.var(self.last_contact_t)) * dt
         if w.three_stance and n_feet == 4:
             one_up = contact.sum() == 3 and bool(np.all(self.foot_air[~contact] < w.air_time_max_s))
             out["three_stance"] = w.three_stance * float(one_up) * moving * dt
@@ -557,7 +662,10 @@ class NNMixerEnv:
             out["trot"] = w.trot * float(trot_now) * moving * dt
         return out
 
-    def set_curriculum(self, action_rate: float | None = None, standing_envs: float | None = None) -> None:
+    def set_curriculum(self, action_rate: float | None = None, standing_envs: float | None = None,
+                       penalty_scale: float | None = None) -> None:
+        if penalty_scale is not None:
+            self.penalty_scale = float(penalty_scale)
         """MicroDuck curriculum knobs: action_rate_l2 weight and share of zero-command (standing) episodes."""
         if action_rate is not None:
             self.w.action_rate = float(action_rate)
@@ -577,8 +685,8 @@ class NNMixerEnv:
             v_track, wz_track = self.twist_filt[:3], float(self.twist_filt[3])
         else:
             v_track, wz_track = v_body, wz
-        lin_err = float(np.sum((cmd[:2] - v_track[:2]) ** 2)) + 2.0 * float(v_track[2] ** 2)
-        ang_err = float((cmd[2] - wz_track) ** 2) + 0.05 * float(np.sum(w_body[:2] ** 2))
+        lin_err = float(np.sum((cmd[:2] - v_track[:2]) ** 2)) + w.tracking_lin_z * float(v_track[2] ** 2)
+        ang_err = float((cmd[2] - wz_track) ** 2) + w.tracking_ang_rp * float(np.sum(w_body[:2] ** 2))
         q = d.qpos[self.qpos_idx]
         if w.upright_std:
             g_true = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
@@ -591,6 +699,9 @@ class NNMixerEnv:
             pose = math.exp(-float(np.mean(((q - self.contract.q0) / std) ** 2)))
         else:
             pose = math.exp(-float(np.sum((q - self.contract.q0) ** 2)))
+        if w.pose_l2 and self.pose_std_stand is not None:
+            std_l2 = self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk
+            pose_l2 = float(np.mean(((q - self.contract.q0) / std_l2) ** 2))
         rate = float(np.sum((np.asarray(action) - self._last_raw_action) ** 2))
         self._last_raw_action = np.asarray(action, dtype=np.float32).copy()
         dt = 1.0 / self.contract.rate_hz
@@ -603,6 +714,13 @@ class NNMixerEnv:
         }
         if w.alive:
             terms["alive"] = w.alive * dt
+        if w.pose_l2 and self.pose_std_stand is not None:
+            terms["pose_l2"] = w.pose_l2 * pose_l2 * dt
+        if w.orientation:
+            g_t = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
+            terms["orientation"] = w.orientation * float(np.sum(g_t[:2] ** 2)) * dt
+        if w.stand_still and float(np.linalg.norm(cmd)) < 0.01:
+            terms["stand_still"] = w.stand_still * float(np.sum(np.abs(q - self.contract.q0))) * dt
         if w.body_ang_vel:
             terms["body_ang_vel"] = w.body_ang_vel * float(np.sum(w_body[:2] ** 2)) * dt
         if w.angular_momentum:
@@ -639,6 +757,12 @@ class NNMixerEnv:
             terms["self_collisions"] = w.self_collisions * n_self * dt
         if self.feet:
             terms.update(self._gait_terms(dt))
+        if self.penalty_scale != 1.0:
+            # curriculum: shaping penalties start small so a flailing policy is not better off falling;
+            # action_rate has its own curriculum
+            for k, v in terms.items():
+                if v < 0.0 and k != "action_rate_l2":
+                    terms[k] = v * self.penalty_scale
         info = {"terms": terms, "error_vel_xy": math.sqrt(lin_err), "error_vel_yaw": math.sqrt(ang_err),
                 "vx": float(v_body[0]), "upright": float(up)}
         return sum(terms.values()), info

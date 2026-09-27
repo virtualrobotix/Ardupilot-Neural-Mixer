@@ -13,8 +13,10 @@ network:
   - 256
   - 128
   activation: elu
-  init_noise_std: 0.3
+  init_noise_std: 0.8
   obs_normalization: true
+  action_scale: 0.25
+  privileged_critic: true
 quantization:
   weights: int8_per_row
   qat: true
@@ -59,71 +61,83 @@ env:
   accel_noise: 0.05
   obs_delay_steps_max: 1
   reward:
-    track_lin_vel: 3.0
-    track_ang_vel: 3.0
-    upright: 1.0
-    pose: 0.5
+    track_lin_vel: 6.0
+    track_ang_vel: 5.0
+    upright: 0.0
+    pose: 0.3
     action_rate: -0.1
-    tracking_sigma: 0.005
-    tracking_sigma_ang: 0.05
+    tracking_sigma: 0.01
+    tracking_sigma_ang: 0.15
+    only_positive: true
     tracking_filter_s: 0.25
-    upright_std: 0.2236
+    tracking_lin_z: 0.0
+    tracking_ang_rp: 0.0
+    no_progress: -2.5
+    orientation: -5.0
     walking_threshold: 0.01
     pose_std_standing:
       .*hip_roll: 0.05
       .*hip_pitch: 0.1
       .*knee: 0.1
     pose_std_walking:
-      .*hip_roll: 0.15
-      .*hip_pitch: 0.4
-      .*knee: 0.4
-    alive: 1.0
+      .*hip_roll: 0.08
+      .*hip_pitch: 0.35
+      .*knee: 0.35
+    pose_l2: -0.3
+    stand_still: -1.0
+    alive: 0.0
     body_ang_vel: -0.05
-    dof_pos_limits: -1.0
+    dof_pos_limits: -10.0
     self_collisions: -1.0
-    air_time: 10.0
+    joint_torque: -0.05
+    joint_vel: -0.001
+    air_time: 5.0
     air_time_mode: touchdown
-    air_time_min_s: 0.15
-    air_time_max_s: 0.45
+    air_time_min_s: 0.12
+    air_time_max_s: 0.35
+    air_time_debounce_s: 0.04
+    foot_hold: -2.0
+    air_time_variance: -1.0
     foot_clearance: -2.0
-    foot_swing_height: -0.25
+    foot_swing_height: -1.0
     swing_height_m: 0.015
     foot_slip: -0.1
-    trot: 0.0
-    footfall_sequence: 0.5
-    alternation_min_air_s: 0.2
+    footfall_sequence: 0.1
+    alternation_min_air_s: 0.12
     alternation_min_height_frac: 0.5
-    joint_vel: -0.001
-    termination: -10.0
-    no_progress: -5.0
-    no_progress_min_cmd: 0.03
-    three_stance: 4.0
-    all_stance: -2.0
-    under_stance: -4.0
-    under_stance_feet: 2
-    undesired_contacts: -3.0
-    base_height: 2.0
+    undesired_contacts: -1.0
+    base_height: 0.3
     base_height_target_m: 0.1
-    base_height_std_m: 0.01
-    joint_torque: -0.05
+    base_height_std_m: 0.015
   resample_s:
   - 3.0
   - 8.0
   p_single_axis: 0.8
+  single_axis_weights:
+  - 0.15
+  - 0.3
+  - 0.1
+  - 0.1
+  - 0.175
+  - 0.175
   push:
     interval_s:
     - 4.0
     - 8.0
     vel_xy: 0.05
+  terminate_on_illegal_contact: true
+  posture_limits:
+    min_height_m: 0.085
+    max_dev:
+      .*hip_roll: 0.5
+      .*hip_pitch: 0.7
   curriculum:
     action_rate_stages:
     - - 0
       - -0.1
-    - - 26400
+    - - 24000
       - -0.2
-    - - 28800
-      - -0.3
-    - - 31200
+    - - 36000
       - -0.4
     standing_stages:
     - - 0

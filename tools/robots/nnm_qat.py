@@ -98,14 +98,22 @@ def actor_linears(actor: nn.Module) -> list[nn.Linear]:
     return lins
 
 
-def export_nnm_from_actor(actor: nn.Module, obs_mean, obs_std, q0, robot_id: str, path) -> bytes:
-    """Write the .nnm the firmware loads. Weights are the int8 values used in training."""
+def export_nnm_from_actor(actor: nn.Module, obs_mean, obs_std, q0, robot_id: str, path,
+                          action_scale: float = 1.0) -> bytes:
+    """Write the .nnm the firmware loads. Weights are the int8 values used in training.
+
+    action_scale (rsl_rl / Go2 action_scale, radians per network unit) is folded into the last layer:
+    the per-row scales and the bias are multiplied, the int8 values are unchanged, so the firmware
+    outputs radians around q0 as before."""
     lins = actor_linears(actor)
     qlayers = []
     for i, lin in enumerate(lins):
         q, scale = quantize_rows_torch(lin.weight.detach().float().cpu())
         bias = (lin.bias.detach().float().cpu().numpy() if lin.bias is not None
                 else np.zeros(lin.out_features, dtype=np.float32))
+        if i == len(lins) - 1 and action_scale != 1.0:
+            scale = scale * float(action_scale)
+            bias = bias * np.float32(action_scale)
         qlayers.append({
             "Wq": q.numpy().astype(np.int8),
             "w_scale": scale.numpy().astype(np.float32),

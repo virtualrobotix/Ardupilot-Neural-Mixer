@@ -159,20 +159,29 @@ class RunningNorm:
 
 
 def _step_envs(envs, actions):
-    """Step each env; on fall/timeout return the terminal obs and reset."""
-    obs, rew, fell, tout, term, infos = [], [], [], [], [], []
+    """Step each env; on fall/timeout return the terminal obs and reset. Also the critic-only state."""
+    obs, rew, fell, tout, term, priv, tpriv, infos = [], [], [], [], [], [], [], []
     for e, a in zip(envs, actions):
         o2, r, f, t, info = e.step(a)
         term.append(o2)
+        tp = e.privileged()
+        tpriv.append(tp)
         if f or t:
             o2 = e.reset()
-        obs.append(o2); rew.append(r); fell.append(f); tout.append(t); infos.append(info)
-    return np.stack(obs), np.array(rew), np.array(fell), np.array(tout), np.stack(term), infos
+            tp = e.privileged()
+        obs.append(o2); rew.append(r); fell.append(f); tout.append(t); priv.append(tp); infos.append(info)
+    return (np.stack(obs), np.array(rew), np.array(fell), np.array(tout), np.stack(term), np.stack(priv),
+            np.stack(tpriv), infos)
+
+
+def _reset_envs(envs):
+    obs = np.stack([e.reset() for e in envs])
+    return obs, np.stack([e.privileged() for e in envs])
 
 
 def _worker(conn, robot, cfg, seeds):
     envs = [NNMixerEnv(robot, cfg, seed=s) for s in seeds]
-    conn.send(np.stack([e.reset() for e in envs]))
+    conn.send(_reset_envs(envs))
     while True:
         cmd, data = conn.recv()
         if cmd == "step":
@@ -195,7 +204,7 @@ class VecEnv:
         self.local = None
         if workers == 1:
             self.local = [NNMixerEnv(robot, cfg, seed=i) for i in range(n_envs)]
-            self.first_obs = np.stack([e.reset() for e in self.local])
+            self.first_obs, self.first_priv = _reset_envs(self.local)
             return
         import multiprocessing as mp
         ctx = mp.get_context("spawn")
@@ -206,7 +215,9 @@ class VecEnv:
             p = ctx.Process(target=_worker, args=(b, robot, cfg, [int(s) for s in ch]), daemon=True)
             p.start()
             self.conns.append(a); self.procs.append(p); self.sizes.append(len(ch))
-        self.first_obs = np.concatenate([c.recv() for c in self.conns])
+        first = [c.recv() for c in self.conns]
+        self.first_obs = np.concatenate([f[0] for f in first])
+        self.first_priv = np.concatenate([f[1] for f in first])
 
     def set_curriculum(self, **kw):
         if self.local is not None:
@@ -223,8 +234,8 @@ class VecEnv:
         for c, s in zip(self.conns, self.sizes):
             c.send(("step", actions[k:k + s])); k += s
         parts = [c.recv() for c in self.conns]
-        arrays = tuple(np.concatenate([p[i] for p in parts]) for i in range(5))
-        infos = [i for p in parts for i in p[5]]
+        arrays = tuple(np.concatenate([p[i] for p in parts]) for i in range(7))
+        infos = [i for p in parts for i in p[7]]
         return (*arrays, infos)
 
     def close(self):
@@ -256,17 +267,31 @@ def train(args) -> None:
     qat = bool(cfg.get("quantization", {}).get("qat", True))
     actor = build_actor([obs_dim, *net["actor_hidden"], n], net.get("activation", "elu"), qat=qat)
     critic_layers: list[nn.Module] = []
-    dims = [obs_dim, *net["critic_hidden"], 1]
+    # asymmetric actor-critic: the critic also sees the simulator state the autopilot cannot measure
+    priv_critic = bool(net.get("privileged_critic", False))
+    priv_dim = venv.first_priv.shape[1] if priv_critic else 0
+
+    def cin(o_norm, pr):
+        return np.concatenate([o_norm, pr], axis=1).astype(np.float32) if priv_critic else o_norm
+
+    dims = [obs_dim + priv_dim, *net["critic_hidden"], 1]
     for i in range(len(dims) - 1):
         critic_layers.append(nn.Linear(dims[i], dims[i + 1]))
         if i < len(dims) - 2:
             critic_layers.append(nn.ELU())
     critic = nn.Sequential(*critic_layers)
     log_std = nn.Parameter(torch.full((n,), float(np.log(net.get("init_noise_std", 1.0)))))
+    # rsl_rl / Go2 action_scale: the network works in units of act_scale radians; folded into the last
+    # layer at export, so the .nnm still outputs radians. With raw radians (scale 1) an Adam step of the
+    # output layer moved the action 4x further than Go2's, the KL overshot and the adaptive learning
+    # rate sat at its 1e-5 floor for whole runs.
+    act_scale = float(net.get("action_scale", 1.0))
     norm = RunningNorm(obs_dim)
     freeze_norm = False
     if args.init_onnx:
         # fine-tune an upstream policy on the ArduPilot contract: same weights, same normalizer
+        if act_scale != 1.0:
+            raise SystemExit("--init-onnx: upstream networks output radians, set network.action_scale to 1")
         from export_nnm import parse_onnx
         mean, std, layers, _, _ = parse_onnx(args.init_onnx)
         lins = [m for m in actor.modules() if isinstance(m, nn.Linear)]
@@ -288,7 +313,13 @@ def train(args) -> None:
         # continue a run: same networks, exploration noise and normalizer statistics
         blob = torch.load(args.resume, map_location="cpu", weights_only=False)
         actor.load_state_dict(blob["actor"])
-        critic.load_state_dict(blob["critic"])
+        if float(blob.get("action_scale", 1.0)) != act_scale:
+            raise SystemExit(f"{args.resume}: trained with action_scale {blob.get('action_scale', 1.0)}, "
+                             f"ppo.yaml has {act_scale}")
+        try:
+            critic.load_state_dict(blob["critic"])
+        except RuntimeError:
+            print("critic input differs from the checkpoint (privileged critic): critic starts fresh")
         with torch.no_grad():
             log_std.copy_(torch.as_tensor(blob["log_std"]))
         norm.mean = np.asarray(blob["norm_mean"], np.float64)
@@ -324,8 +355,11 @@ def train(args) -> None:
     def curriculum_at(it: int) -> dict:
         if "action_rate_stages" in cur:
             step = it * T                           # mjlab common_step_counter: policy steps per env
-            return {"action_rate": staged(cur["action_rate_stages"], step),
-                    "standing_envs": staged(cur["standing_stages"], step)}
+            out = {"action_rate": staged(cur["action_rate_stages"], step),
+                   "standing_envs": staged(cur["standing_stages"], step)}
+            if "penalty_stages" in cur:
+                out["penalty_scale"] = staged(cur["penalty_stages"], step)
+            return out
         f = 1.0 if ramp_iters == 0 else min(it / ramp_iters, 1.0)
         return {k: cur[k][0] + f * (cur[k][1] - cur[k][0]) for k in ("action_rate", "standing_envs")}
 
@@ -348,9 +382,10 @@ def train(args) -> None:
 
     def checkpoint(tag: str) -> Path:
         path = run_dir / f"{out.stem}_{tag}.nnm"
-        export_nnm_from_actor(actor, norm.mean, norm.std, c.q0, args.robot, path)
+        export_nnm_from_actor(actor, norm.mean, norm.std, c.q0, args.robot, path, action_scale=act_scale)
         torch.save({"actor": actor.state_dict(), "critic": critic.state_dict(), "log_std": log_std.detach(),
-                    "norm_mean": norm.mean, "norm_std": norm.std}, run_dir / f"{out.stem}_{tag}.pt")
+                    "norm_mean": norm.mean, "norm_std": norm.std, "action_scale": act_scale},
+                   run_dir / f"{out.stem}_{tag}.pt")
         return path
 
     scores: list[tuple[float, int, Path]] = []
@@ -380,13 +415,15 @@ def train(args) -> None:
         evaluate_checkpoint(0, checkpoint("it0000"))   # the untrained network: first frame of the evolution video
 
     obs = venv.first_obs
+    priv = venv.first_priv
     ep_len = np.zeros(args.envs, int)
     t_start = time.time()
     for it in range(start_iter, args.iters):
         cv = curriculum_at(it)
         venv.set_curriculum(**cv)
         t_col = time.time()
-        buf_o, buf_a, buf_lp, buf_r, buf_v, buf_d = [], [], [], [], [], []
+        buf_o, buf_a, buf_lp, buf_r, buf_v, buf_d, buf_c, buf_mu = [], [], [], [], [], [], [], []
+        sigma_old = log_std.exp().detach().clone()
         ep_rewards, ep_lengths, term_counts = [], [], {"time_out": 0, "fell_over": 0}
         ep_terms: dict[str, list[float]] = {}
         err_xy, err_yaw = [], []
@@ -395,21 +432,22 @@ def train(args) -> None:
             if not freeze_norm:
                 norm.update(obs)
             on = norm(obs)
+            cn = cin(on, priv)
             with torch.no_grad():
                 ot = torch.from_numpy(on)
                 mu = actor(ot)
                 dist = torch.distributions.Normal(mu, log_std.exp())
                 a = dist.sample()
                 lp = dist.log_prob(a).sum(-1)
-                v = critic(ot).squeeze(-1)
-            nxt, rew, fell, tout, term, infos = venv.step(a.numpy())
+                v = critic(torch.from_numpy(cn)).squeeze(-1)
+            nxt, rew, fell, tout, term, nxt_priv, term_priv, infos = venv.step((a * act_scale).numpy())
             ep_len += 1
             done = fell | tout
             tval = np.zeros(args.envs)
             boot = tout & ~fell
             if boot.any():
                 with torch.no_grad():
-                    tval[boot] = critic(torch.from_numpy(norm(term[boot]))).squeeze(-1).numpy()
+                    tval[boot] = critic(torch.from_numpy(cin(norm(term[boot]), term_priv[boot]))).squeeze(-1).numpy()
             step_rewards.append(rew)
             for i, info in enumerate(infos):
                 err_xy.append(info["error_vel_xy"]); err_yaw.append(info["error_vel_yaw"])
@@ -417,17 +455,20 @@ def train(args) -> None:
                     term_counts[info["reason"]] += 1
                     for k, val in info["episode"].items():
                         ep_terms.setdefault(k, []).append(val)
-                    ep_rewards.append(sum(info["episode"].values()) * (cfg["env"]["episode_s"]))
+                    ep_rewards.append(info.get("episode_return",
+                                               sum(info["episode"].values()) * cfg["env"]["episode_s"]))
                     ep_lengths.append(ep_len[i])
                     ep_len[i] = 0
             buf_o.append(on); buf_a.append(a.numpy()); buf_lp.append(lp.numpy()); buf_v.append(v.numpy())
+            buf_c.append(cn); buf_mu.append(mu.numpy())
             buf_r.append(rew + gamma * tval); buf_d.append(done.astype(float))
             obs = nxt
+            priv = nxt_priv
         collection_time = time.time() - t_col
 
         t_learn = time.time()
         with torch.no_grad():
-            last_v = critic(torch.from_numpy(norm(obs))).squeeze(-1).numpy()
+            last_v = critic(torch.from_numpy(cin(norm(obs), priv))).squeeze(-1).numpy()
         R = np.array(buf_r); V = np.array(buf_v); D = np.array(buf_d)
         adv = np.zeros_like(R)
         gae = np.zeros(args.envs)
@@ -438,7 +479,9 @@ def train(args) -> None:
             adv[t] = gae
         ret = adv + V
         O = torch.from_numpy(np.concatenate(buf_o)); A = torch.from_numpy(np.concatenate(buf_a))
+        C = torch.from_numpy(np.concatenate(buf_c))
         LP = torch.from_numpy(np.concatenate(buf_lp)); RET = torch.from_numpy(ret.reshape(-1)).float()
+        MU = torch.from_numpy(np.concatenate(buf_mu))
         ADV = torch.from_numpy(adv.reshape(-1)).float()
         ADV = (ADV - ADV.mean()) / (ADV.std() + 1e-8)
         N = O.shape[0]
@@ -449,13 +492,29 @@ def train(args) -> None:
             perm = torch.randperm(N)
             for s in range(0, N, mb):
                 idx = perm[s:s + mb]
-                dist = torch.distributions.Normal(actor(O[idx]), log_std.exp())
+                mu_new = actor(O[idx])
+                dist = torch.distributions.Normal(mu_new, log_std.exp())
                 lp_new = dist.log_prob(A[idx]).sum(-1)
+                if ppo.get("schedule") == "adaptive" and it >= warmup:
+                    # rsl_rl: analytic KL(old || new) between the diagonal Gaussians, learning rate adapted
+                    # per mini-batch. The previous estimate, the mean log-ratio of the last mini-batch, read
+                    # up to 21 and drove the learning rate to its 1e-5 floor from the first iterations.
+                    with torch.no_grad():
+                        s_new = log_std.exp()
+                        kl = (torch.log(s_new / sigma_old + 1e-5)
+                              + (sigma_old ** 2 + (MU[idx] - mu_new) ** 2) / (2.0 * s_new ** 2) - 0.5).sum(-1)
+                        kl_mean = float(kl.mean())
+                    if kl_mean > 2 * float(ppo["desired_kl"]):
+                        lr = max(lr / 1.5, 1e-5)
+                    elif 0 < kl_mean < float(ppo["desired_kl"]) / 2:
+                        lr = min(lr * 1.5, 1e-2)
+                    for g in opt.param_groups:
+                        g["lr"] = lr
                 ratio = (lp_new - LP[idx]).exp()
                 s1 = ratio * ADV[idx]
                 s2 = ratio.clamp(1 - clip, 1 + clip) * ADV[idx]
                 surrogate = -torch.min(s1, s2).mean()
-                v_loss = ((critic(O[idx]).squeeze(-1) - RET[idx]) ** 2).mean()
+                v_loss = ((critic(C[idx]).squeeze(-1) - RET[idx]) ** 2).mean()
                 entropy = dist.entropy().sum(-1).mean()
                 loss = surrogate + float(ppo["value_loss_coef"]) * v_loss - float(ppo["entropy_coef"]) * entropy
                 opt.zero_grad()
@@ -466,16 +525,8 @@ def train(args) -> None:
                         p_.grad = None
                 nn.utils.clip_grad_norm_(params, float(ppo["max_grad_norm"]))
                 opt.step()
-                with torch.no_grad():
-                    kl_mean = float((LP[idx] - lp_new).mean())
-                l_val += float(v_loss); l_sur += float(surrogate); l_ent += float(entropy); n_upd += 1
-        if ppo.get("schedule") == "adaptive" and it >= warmup:
-            if kl_mean > 2 * float(ppo["desired_kl"]):
-                lr = max(lr / 1.5, 1e-5)
-            elif 0 < kl_mean < float(ppo["desired_kl"]) / 2:
-                lr = min(lr * 1.5, 1e-2)
-            for g in opt.param_groups:
-                g["lr"] = lr
+                l_val += float(v_loss.detach()); l_sur += float(surrogate.detach())
+                l_ent += float(entropy.detach()); n_upd += 1
         learning_time = time.time() - t_learn
 
         el = time.time() - t_start
@@ -499,6 +550,7 @@ def train(args) -> None:
             "Perf/learning_time": learning_time,
             "Curriculum/action_rate_weight": cv["action_rate"],
             "Curriculum/standing_envs": cv["standing_envs"],
+            "Curriculum/penalty_scale": cv.get("penalty_scale", 1.0),
             "time_s": el,
             "env_steps": (it + 1) * args.envs * T,
         }
@@ -552,11 +604,12 @@ def train(args) -> None:
     blob = out.read_bytes()
     pk = unpack_nnm(blob)
     print(f"policy file {out} = checkpoint of iteration {best_it} (score {best_score:.3f})")
-    blob_train = export_nnm_from_actor(actor, norm.mean, norm.std, c.q0, args.robot, run_dir / "_last.nnm")
+    blob_train = export_nnm_from_actor(actor, norm.mean, norm.std, c.q0, args.robot, run_dir / "_last.nnm",
+                                       action_scale=act_scale)
     pk_last = unpack_nnm(blob_train)
     probe = norm.mean + norm.std * np.random.default_rng(0).normal(size=(32, obs_dim))
     with torch.no_grad():
-        y_train = actor(torch.from_numpy(norm(probe))).numpy()
+        y_train = actor(torch.from_numpy(norm(probe))).numpy() * act_scale
     y_nnm = np.stack([dc.int8_forward(pk_last["layers"], pk_last["mean"], pk_last["std"], p.astype(np.float32))
                       for p in probe])
     (run_dir / "_last.nnm").unlink()

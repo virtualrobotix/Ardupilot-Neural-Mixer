@@ -573,56 +573,78 @@ ROBOTS["freenove"] = {
     # Tracking uses the base twist low-passed over 0.25 s: on the instantaneous twist the upstream gait at the
     # right mean speed scored less than standing still. Checked on the model at 0.05 and 0.15 m/s: upstream
     # gait > standing > the vibrating policy of iteration 300.
+    # Go2 / Go1 recipe (unitree_rl_lab Go2 velocity_env_cfg, MuJoCo Playground Go1 joystick, mjlab go2_velocity),
+    # scaled to a 0.55 kg robot with 0.15 m/s commands. Replaces walk_v1..v11, where a growing list of gait
+    # shaping terms (three/all/under stance, no-progress, alive, fall penalty, penalty curriculum) fought
+    # velocity tracking and the best policy moved at a third of the command. Differences taken from Go2/Go1:
+    # - step reward clipped at 0 (legged_gym only_positive_rewards, Playground clip): ending an episode never
+    #   pays, so alive, the fall penalty and the penalty curriculum are no longer needed
+    # - illegal contact ends the episode (trunk, head, hips, thighs on the floor), as mjlab / unitree_rl_lab
+    # - privileged critic (Playground privileged_state): true base twist, gravity, height, foot contacts
+    # - tracking weights raised after walk_v12: at the errors the policy actually had (0.15 m/s, 1.5 rad/s)
+    #   exp(-err²/0.005) was ~1% and the yaw kernel was ~0 because roll/pitch sat inside it. The step reward
+    #   was clipped to 0, so velocity had no advantage. std is now half the command (0.14 m/s, 0.5 rad/s)
+    #   and the kernel is the command error only.
+    # - walk_v13 added tracking after the only_positive clip: every penalty was clipped away, it walked at
+    #   the command but with the rear hips splayed to +/-1.13 rad and the trunk at 83 mm. The clip is on the
+    #   whole step again, and the posture is a hard limit that ends the episode (trunk under 85 mm, hip
+    #   abduction over 0.5 rad, hip pitch over 0.7 rad from the stand pose). The walk_v12 gait, upright
+    #   and on its feet, reached 0.36 rad of abduction and 0.46 rad of hip pitch in its first steps.
+    # - regular gait from air_time_variance (Go2 -1.0) instead of stance-count terms; air time at touchdown
+    # - flat orientation penalty (Go2 -2.5, Go1 -5) instead of the upright reward; stand_still (Go1 -1)
+    # Kept from the Freenove runs: filtered twist for tracking, foot-only contacts, posture penalty, joint
+    # limit penalty, joint speed and action rate for a smooth gait, single-axis commands, 0.15 s steps.
     "reward": {
-        # walk_v2 stood still for 300 iterations: its velocity error (0.129 m/s) was the error of standing
-        # still over the command distribution (0.128). Tighter tracking (std 0.07 m/s, 0.22 rad/s) on the
-        # filtered twist leaves standing almost nothing at 0.15 m/s (0.16 of 15 per episode).
-        "track_lin_vel": 3.0, "tracking_sigma": 0.005, "tracking_filter_s": 0.25,
-        "track_ang_vel": 3.0, "tracking_sigma_ang": 0.05,
-        "upright": 1.0, "upright_std": 0.2236,
-        "pose": 0.5, "walking_threshold": 0.01,
+        "only_positive": True,
+        "track_lin_vel": 6.0, "tracking_sigma": 0.01, "tracking_filter_s": 0.25,
+        # walk_v19 iteration 3000 turned at 0.25 rad/s by pivoting on two diagonal feet, one rear foot held
+        # in the air, the other front foot shuffling at 6 mm; backward it stood still. In a pure turn the
+        # linear term paid its full 6/s for standing in place while the yaw term was worth 3 at most, and
+        # holding a foot up cost nothing: yaw weight 5, foot_hold penalty, more backward commands.
+        "track_ang_vel": 5.0, "tracking_sigma_ang": 0.15,
+        "tracking_lin_z": 0.0, "tracking_ang_rp": 0.0,
+        # walk_v14 stood still on every command (vx 0.000, survival 100%): standing paid 32% of the linear
+        # tracking, height and posture, at no risk. Kernel std now 0.1 m/s / 0.39 rad/s (standing at 0.15
+        # m/s pays 10%), the positive posture terms are small, and no_progress takes the standing reward
+        # away while a move is commanded (vanishes once the command is followed).
+        "no_progress": -2.5,
+        "upright": 0.0, "orientation": -5.0,
+        "pose": 0.3, "walking_threshold": 0.01,
         "pose_std_standing": {".*hip_roll": 0.05, ".*hip_pitch": 0.1, ".*knee": 0.1},
-        "pose_std_walking": {".*hip_roll": 0.15, ".*hip_pitch": 0.4, ".*knee": 0.4},
-        "action_rate": -0.1,
-        # with tracking tight, standing no longer pays and the penalties outweighed the rewards (-0.09 per
-        # second): episodes got shorter. alive keeps surviving positive; walking vs standing is unchanged.
-        "alive": 1.0,
-        "body_ang_vel": -0.05, "dof_pos_limits": -1.0, "self_collisions": -1.0,
-        "air_time": 10.0, "air_time_mode": "touchdown", "air_time_min_s": 0.15, "air_time_max_s": 0.45,
-        "foot_clearance": -2.0, "foot_swing_height": -0.25, "swing_height_m": 0.015, "foot_slip": -0.1,
-        # walk_v3 at iteration 600 still stood still, crouched at 7.5 cm (stand 10 cm) with the knees folded
-        # 0.85 rad: the four-beat dog walk replaces the trot (legs lifted one after the other, rear-left,
-        # front-left, rear-right, front-right), all four feet down while commanded to move costs, and the
-        # trunk is rewarded at the stand height.
-        "trot": 0.0,
-        # walk_v5 walked from iteration 900 with the dog sequence but frantically: joints at 7.7 rad/s rms
-        # (servo no-load 8.7), 29 touchdowns per second, 0.08 s swings. A step now needs 0.12 s airborne to
-        # count, joint speed is penalised and the action rate starts at -0.4 instead of -0.1.
-        # walk_v7 walked forward at iteration 2700 with 0.14 s swings and ~20 touchdowns per second (a dog
-        # walks at 4-6): a step counts from 0.2 s airborne, air time is paid between 0.15 and 0.45 s
-        "footfall_sequence": 0.5, "alternation_min_air_s": 0.2, "alternation_min_height_frac": 0.5,
-        "joint_vel": -0.001,
-        # resuming the frantic policy under the new penalties made falling pay (episodes of 27 steps): a fall
-        # now costs 10 and the action rate ramps from -0.1 to -0.4 over 300 iterations after iteration 1000
-        "termination": -10.0,
-        # walk_v6 slowed down to standing still (iteration 1100-1300, 0.002 m/s on every command): standing
-        # while commanded costs 5 per second, scaled by the share of the command not achieved
-        "no_progress": -5.0, "no_progress_min_cmd": 0.03,
-        # walk_v4 moved from iteration 900 (0.10 m/s forward, 0.13 backward) by hopping and spinning: one foot
-        # down 55% of the time, none 14%, three only 4%. A walking dog never has fewer than two feet down.
-        "three_stance": 4.0, "all_stance": -2.0, "under_stance": -4.0, "under_stance_feet": 2,
-        "undesired_contacts": -3.0,     # shank, thigh, servo, trunk or head on the floor
-        "base_height": 2.0, "base_height_target_m": 0.10, "base_height_std_m": 0.01,
-        "joint_torque": -0.05,
+        "pose_std_walking": {".*hip_roll": 0.08, ".*hip_pitch": 0.35, ".*knee": 0.35},
+        "pose_l2": -0.3, "stand_still": -1.0,
+        "action_rate": -0.1, "alive": 0.0,
+        "body_ang_vel": -0.05, "dof_pos_limits": -10.0, "self_collisions": -1.0,
+        "joint_torque": -0.05, "joint_vel": -0.001,
+        # walk_v15 / v16 (iterations 500-1600) turned at the command but crept forward at 0.03 m/s with
+        # 5-8 foot lifts per second per foot: a tremble, not steps. air_time at weight 2 cost it 0.02/s
+        # against 2.5/s of tracking. Weight 5 with a 0.10 s minimum: a 0.04 s hop costs 0.3, a 0.25 s
+        # step pays 0.75 (Go2: 0.25 * (air - 0.5) per touchdown against 1.5/s of tracking).
+        # walk_v17 iteration 2000 (score 0.73, forward at the command): 263 touchdowns in 10 s, 6.6 per
+        # foot per second, flights of 0.08 s, 10 mm lift, in the right footfall order. A scurry: the
+        # per-touchdown footfall_sequence reward (2.1/s) paid for cadence. 0.15 m/s with 5.5 cm leg
+        # segments is about 3 steps per second per foot (5 cm stride): flights of 0.12-0.25 s. Only such
+        # steps count for air_time and footfall_sequence, and the sequence reward is halved.
+        # Contact timelines at iteration 2000/2100: a 4 Hz trot with 22-33 mm lifts (v17), then a walk
+        # with the rear feet dragged at 5-9 mm (v18); isolated contact bounces inside a phase counted as
+        # 0.02 s steps. Bounces under 0.04 s are ignored; landing with a low peak costs more.
+        "air_time": 5.0, "air_time_mode": "touchdown", "air_time_min_s": 0.12, "air_time_max_s": 0.35,
+        "air_time_debounce_s": 0.04, "foot_hold": -2.0,
+        "air_time_variance": -1.0,
+        "foot_clearance": -2.0, "foot_swing_height": -1.0, "swing_height_m": 0.015, "foot_slip": -0.1,
+        "footfall_sequence": 0.1, "alternation_min_air_s": 0.12, "alternation_min_height_frac": 0.5,
+        "undesired_contacts": -1.0,
+        "base_height": 0.3, "base_height_target_m": 0.10, "base_height_std_m": 0.015,
     },
     "env": {
-        # walk_v7 learned forward only: backward, lateral and turn stayed at zero from iteration 1900. With
-        # three random axes at once a clean backward or turn command was rare; 80% of the commands are now on
-        # one axis (forward, backward, left, right, turn left, turn right), 50-100% of the range.
         "resample_s": [3.0, 8.0], "p_zero_command": 0.02, "p_no_lateral": 0.1, "p_single_axis": 0.8,
+        # [+vx, -vx, +vy, -vy, +wz, -wz]: backward and the turns, still untracked at walk_v19, are drawn more
+        "single_axis_weights": [0.15, 0.30, 0.10, 0.10, 0.175, 0.175],
         "push": {"interval_s": [4.0, 8.0], "vel_xy": 0.05},
+        "terminate_on_illegal_contact": True,
+        "posture_limits": {"min_height_m": 0.085, "max_dev": {".*hip_roll": 0.5, ".*hip_pitch": 0.7}},
         "curriculum": {
-            "action_rate_stages": [[0, -0.1], [26400, -0.2], [28800, -0.3], [31200, -0.4]],
+            "action_rate_stages": [[0, -0.1], [24000, -0.2], [36000, -0.4]],
             "standing_stages": [[0, 0.02], [12000, 0.05], [18000, 0.1], [24000, 0.15],
                                 [36000, 0.2], [48000, 0.25]],
         },
@@ -630,12 +652,31 @@ ROBOTS["freenove"] = {
                        "backward_0.15": [-0.15, 0.0, 0.0], "lateral_0.1": [0.0, 0.1, 0.0],
                        "turn_0.6": [0.0, 0.0, 0.6]},
     },
-    # actions are raw radians around q0 (servo range +/-1.26 rad): std 1.0 would throw the legs to the limits
-    "init_noise_std": 0.3,
+    "privileged_critic": True,
+    # Go2 action scale: the network works in units of 0.25 rad (folded into the exported .nnm), the
+    # exploration std is 0.8 units = 0.2 rad. With raw radians the adaptive learning rate sat at its
+    # 1e-5 floor from the first iterations of every run (KL overshoot on each Adam step). 0.4 rad of
+    # noise broke the 0.5 rad hip posture limit within 8 steps.
+    "action_scale": 0.25,
+    "init_noise_std": 0.8,
     "servos": "12× EMAX ES08MA II (12 g, analogici, 1,6 kgf·cm a 4,8 V) su PCA9685 0x40 a 50 Hz; "
               "Raspberry Pi, IMU MPU6050",
     "link": "pwm",
     "policies": {
+        "walk_v20_it3400.nnm": "policy di riferimento: ricetta Go2 (only_positive, contatti illegali e limiti "
+                               "di postura che chiudono l'episodio, critico privilegiato, action_scale 0,25) "
+                               "ripresa da walk_v15 → v19 con air time a touchdown, debounce dei contatti, "
+                               "foot_hold e no_progress. Iterazione 3400 (17000 epoche PPO, punteggio 0,86). "
+                               "Sopravvive sempre, tronco a 10 cm, zampe chiuse: avanti 0,14 m/s a comando "
+                               "0,15, rotazione 0,80 rad/s a comando 0,6, indietro 0,08 m/s, laterale 0,07 "
+                               "m/s. Passo a quattro zampe in ogni direzione (2–3 Hz per zampa).",
+        "walk_v20.nnm": "stesso run, iterazione 5000 (punteggio 0,865, il massimo): avanti 0,15 m/s esatto, "
+                        "rotazione 0,56 rad/s, indietro 0,07, laterale 0,06. Con l'esplorazione ormai a 0,06 "
+                        "rad il passo è diventato asimmetrico (avanza soprattutto con FR e RL, FL e RR quasi "
+                        "sempre a terra): punteggio pari a walk_v20_it3400 ma passo meno naturale.",
+        "walk_v19.nnm": "iterazione 3000 di walk_v19 (punteggio 0,61), il checkpoint da cui è partito walk_v20: "
+                        "avanti 0,11 m/s con passo a 2 Hz e sollevamenti di 27–29 mm davanti; ruotava "
+                        "strisciando su una zampa e indietro stava fermo.",
         "walk_v7.nnm": "addestrata da zero sul contratto ArduPilot in int8 (QAT), ambiente walk_v7 "
                        "(passo da cane, un comando per asse). Checkpoint dell'iterazione 3000 "
                        "(15000 epoche PPO, punteggio 0,59). In valutazione sopravvive sempre: "
@@ -643,12 +684,55 @@ ROBOTS["freenove"] = {
     },
     # Each clip is the int8 policy. "env" is that run's reward configuration; one iteration is 5 PPO epochs.
     "videos": [{
+        "env": "walk_v20",
+        "iteration": "3400",
+        "epochs": "17000",
+        "latest": True,
+        "mp4": "freenove_walk_v20_it3400_full.mp4",
+        "caption": "Policy di riferimento, sequenza completa (play_policy.py --full): avanti 5 s (+7°), "
+                   "indietro 5 s a 0,14 m/s, laterale 4 s, destra 3 s (−134°), sinistra 180° in 4,1 s, "
+                   "avanti 5 s. Percorso 3,05 m, nessuna caduta, tutte e quattro le zampe in ogni direzione.",
+    }, {
+        "env": "walk_v20",
+        "iteration": "5000",
+        "epochs": "25000",
+        "mp4": "freenove_walk_v20_it5000_full.mp4",
+        "caption": "Ultimo checkpoint (punteggio 0,865): avanti a 0,15 m/s esatti e indietro dritto (+3°), "
+                   "ma il passo usa soprattutto la coppia FR+RL.",
+    }, {
+        "env": "walk_v19",
+        "iteration": "3000",
+        "epochs": "15000",
+        "mp4": "freenove_walk_v19_it3000.mp4",
+        "caption": "Passo a 2 Hz con appoggi lunghi, avanti perfettamente dritto (−2°, 0°); la rotazione a "
+                   "sinistra non arriva a 180° in 10 s: ruotava strisciando su una zampa.",
+    }, {
+        "env": "walk_v17",
+        "iteration": "1800",
+        "epochs": "9000",
+        "mp4": "freenove_walk_v17_it1800.mp4",
+        "caption": "Primo checkpoint che segue la velocità: 1,06 m netti in 17 s, ma con un trotto a 4 Hz "
+                   "(air_time da 2 a 5). La ricetta Go2 con il kernel del tracking allargato.",
+    }, {
+        "env": "walk_v15",
+        "iteration": "1100",
+        "epochs": "5500",
+        "mp4": "freenove_walk_v15_it1100.mp4",
+        "caption": "Postura alta e zampe chiuse imposte dai limiti di postura (tronco > 85 mm, anche entro "
+                   "0,5/0,7 rad). Rotazioni complete, avanti a un terzo del comando.",
+    }, {
+        "env": "walk_v12",
+        "iteration": "1500",
+        "epochs": "7500",
+        "mp4": "freenove_walk_v12_it1500.mp4",
+        "caption": "Prima ricetta Go2 (only_positive, contatti illegali, critico privilegiato): in piedi e "
+                   "alto, ma con il kernel del tracking a 0,07 m/s il reward di velocità era ~0 e stava fermo.",
+    }, {
         "env": "walk_v7",
         "iteration": "2700",
         "epochs": "13500",
-        "latest": True,
         "mp4": "freenove_walk_v7_it2700.mp4",
-        "caption": "Ultimo video di comportamento, prima del checkpoint pubblicato (iterazione 3000). "
+        "caption": "Ultimo video della serie v1–v7 (shaping incrementale). "
                    "Non cade, tronco a 10 cm. Avanti dritto a circa 0,2 m/s; indietro, laterale e "
                    "rotazione restano fermi. Circa 20 atterraggi al secondo.",
     }, {

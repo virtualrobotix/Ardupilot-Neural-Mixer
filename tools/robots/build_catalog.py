@@ -60,9 +60,11 @@ def ppo_for(rid: str, r: dict) -> dict:
         "network": {
             "actor_hidden": list(MLP_HIDDEN), "critic_hidden": list(MLP_HIDDEN), "activation": "elu",
             "init_noise_std": r.get("init_noise_std", 1.0), "obs_normalization": True,
+            **({"action_scale": r["action_scale"]} if r.get("action_scale") else {}),
+            **({"privileged_critic": True} if r.get("privileged_critic") else {}),
         },
         "quantization": {"weights": "int8_per_row", "qat": True, "activations": "float32"},
-        "ppo": dict(PPO_DEFAULTS),
+        "ppo": {**PPO_DEFAULTS, **r.get("ppo", {})},
         "env": {**{
             "policy_hz": r["rate_hz"], "loop_hz": 200, "gravity_source": "ap_imu_filter",
             "att_tau": 0.5, "act_max": 2.0, "pwm_quantization": True,

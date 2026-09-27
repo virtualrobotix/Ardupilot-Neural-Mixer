@@ -89,6 +89,9 @@ Cartella: [`robots/freenove/policies/`](../../robots/freenove/policies/) → sul
 
 | File | Dimensione | Descrizione |
 |---|---:|---|
+| `walk_v19.nnm` | 192 KB | iterazione 3000 di walk_v19 (punteggio 0,61), il checkpoint da cui è partito walk_v20: avanti 0,11 m/s con passo a 2 Hz e sollevamenti di 27–29 mm davanti; ruotava strisciando su una zampa e indietro stava fermo. |
+| `walk_v20.nnm` | 192 KB | stesso run, iterazione 5000 (punteggio 0,865, il massimo): avanti 0,15 m/s esatto, rotazione 0,56 rad/s, indietro 0,07, laterale 0,06. Con l'esplorazione ormai a 0,06 rad il passo è diventato asimmetrico (avanza soprattutto con FR e RL, FL e RR quasi sempre a terra): punteggio pari a walk_v20_it3400 ma passo meno naturale. |
+| `walk_v20_it3400.nnm` | 192 KB | policy di riferimento: ricetta Go2 (only_positive, contatti illegali e limiti di postura che chiudono l'episodio, critico privilegiato, action_scale 0,25) ripresa da walk_v15 → v19 con air time a touchdown, debounce dei contatti, foot_hold e no_progress. Iterazione 3400 (17000 epoche PPO, punteggio 0,86). Sopravvive sempre, tronco a 10 cm, zampe chiuse: avanti 0,14 m/s a comando 0,15, rotazione 0,80 rad/s a comando 0,6, indietro 0,08 m/s, laterale 0,07 m/s. Passo a quattro zampe in ogni direzione (2–3 Hz per zampa). |
 | `walk_v7.nnm` | 192 KB | addestrata da zero sul contratto ArduPilot in int8 (QAT), ambiente walk_v7 (passo da cane, un comando per asse). Checkpoint dell'iterazione 3000 (15000 epoche PPO, punteggio 0,59). In valutazione sopravvive sempre: avanti 0,21 m/s a comando 0,15; indietro, laterale e rotazione non ancora seguiti. |
 
 ### Risultati per versione di ambiente ed epoca
@@ -97,7 +100,13 @@ Ogni link è la policy int8, quella che gira sull'autopilota, a quel checkpoint.
 
 | Versione ambiente | Iterazione | Epoche PPO | Video | Risultato |
 |---|---:|---:|---|---|
-| `walk_v7` | 2700 | 13500 | [`freenove_walk_v7_it2700.mp4`](../media/freenove_walk_v7_it2700.mp4) | Ultimo video di comportamento, prima del checkpoint pubblicato (iterazione 3000). Non cade, tronco a 10 cm. Avanti dritto a circa 0,2 m/s; indietro, laterale e rotazione restano fermi. Circa 20 atterraggi al secondo. |
+| `walk_v20` | 3400 | 17000 | [`freenove_walk_v20_it3400_full.mp4`](../media/freenove_walk_v20_it3400_full.mp4) | Policy di riferimento, sequenza completa (play_policy.py --full): avanti 5 s (+7°), indietro 5 s a 0,14 m/s, laterale 4 s, destra 3 s (−134°), sinistra 180° in 4,1 s, avanti 5 s. Percorso 3,05 m, nessuna caduta, tutte e quattro le zampe in ogni direzione. |
+| `walk_v20` | 5000 | 25000 | [`freenove_walk_v20_it5000_full.mp4`](../media/freenove_walk_v20_it5000_full.mp4) | Ultimo checkpoint (punteggio 0,865): avanti a 0,15 m/s esatti e indietro dritto (+3°), ma il passo usa soprattutto la coppia FR+RL. |
+| `walk_v19` | 3000 | 15000 | [`freenove_walk_v19_it3000.mp4`](../media/freenove_walk_v19_it3000.mp4) | Passo a 2 Hz con appoggi lunghi, avanti perfettamente dritto (−2°, 0°); la rotazione a sinistra non arriva a 180° in 10 s: ruotava strisciando su una zampa. |
+| `walk_v17` | 1800 | 9000 | [`freenove_walk_v17_it1800.mp4`](../media/freenove_walk_v17_it1800.mp4) | Primo checkpoint che segue la velocità: 1,06 m netti in 17 s, ma con un trotto a 4 Hz (air_time da 2 a 5). La ricetta Go2 con il kernel del tracking allargato. |
+| `walk_v15` | 1100 | 5500 | [`freenove_walk_v15_it1100.mp4`](../media/freenove_walk_v15_it1100.mp4) | Postura alta e zampe chiuse imposte dai limiti di postura (tronco > 85 mm, anche entro 0,5/0,7 rad). Rotazioni complete, avanti a un terzo del comando. |
+| `walk_v12` | 1500 | 7500 | [`freenove_walk_v12_it1500.mp4`](../media/freenove_walk_v12_it1500.mp4) | Prima ricetta Go2 (only_positive, contatti illegali, critico privilegiato): in piedi e alto, ma con il kernel del tracking a 0,07 m/s il reward di velocità era ~0 e stava fermo. |
+| `walk_v7` | 2700 | 13500 | [`freenove_walk_v7_it2700.mp4`](../media/freenove_walk_v7_it2700.mp4) | Ultimo video della serie v1–v7 (shaping incrementale). Non cade, tronco a 10 cm. Avanti dritto a circa 0,2 m/s; indietro, laterale e rotazione restano fermi. Circa 20 atterraggi al secondo. |
 | `walk_v7` | 2000 | 10000 | [`freenove_walk_v7_it2000.mp4`](../media/freenove_walk_v7_it2000.mp4) | Cammina avanti, alto sui piedi, più calmo di walk_v5: giunti 4,5 rad/s, due o più piedi a terra l'80% del tempo. |
 | `walk_v7` | 1600 | 8000 | [`freenove_walk_v7_it1600.mp4`](../media/freenove_walk_v7_it1600.mp4) | Ripresa da walk_v6 con la penalità per lo stare fermo. Ancora poco spostamento nella direzione comandata. |
 | `walk_v5` | 900 | 4500 | [`freenove_walk_v5_it0900.mp4`](../media/freenove_walk_v5_it0900.mp4) | Primo checkpoint che avanza (0,17 m/s) con la sequenza dei passi del cane, ma frenetico: 7,7 rad/s e circa 260° di rotazione nei 5 s di avanti. |
