@@ -33,6 +33,7 @@ from nnm_env import NNMixerEnv, load_ppo_config  # noqa: E402
 
 SIGNATURE = "Realizzati da Roberto Navoni — DelphyAI LAB"
 GESTURE: str | None = None      # --gesture: env clip whose clock channels the policy expects
+POSE_MAVLINK: str | None = None  # listen for DEBUG_FLOAT_ARRAY NNM_POSE (pure-sim teleop)
 
 
 def yaw_of(q) -> float:
@@ -70,14 +71,46 @@ class Sequence:
         return None, None
 
 
+def _open_pose_mavlink(conn: str):
+    """Listen for DEBUG_FLOAT_ARRAY name NNM_POSE (same stream the firmware consumes)."""
+    import os
+    os.environ.setdefault("MAVLINK20", "1")
+    from pymavlink import mavutil
+    return mavutil.mavlink_connection(conn)
+
+
+def _poll_pose(master) -> np.ndarray | None:
+    if master is None:
+        return None
+    msg = master.recv_match(type="DEBUG_FLOAT_ARRAY", blocking=False)
+    latest = None
+    while msg is not None:
+        name = msg.name
+        if isinstance(name, bytes):
+            name = name.split(b"\0", 1)[0].decode("ascii", "ignore")
+        else:
+            name = str(name).split("\0", 1)[0]
+        if name.startswith("NNM_POSE"):
+            latest = np.asarray(msg.data[:8], dtype=np.float32)
+        msg = master.recv_match(type="DEBUG_FLOAT_ARRAY", blocking=False)
+    return latest
+
+
 def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None, video=None,
-        realtime: bool = False, phases=None, title: str = "", hold_after_fall_s: float = 0.0) -> dict:
+        realtime: bool = False, phases=None, title: str = "", hold_after_fall_s: float = 0.0,
+        pose_err_log: list | None = None) -> dict:
     cfg = load_ppo_config(robot)
-    if GESTURE:
-        cfg.setdefault("env", {})["gesture"] = GESTURE    # the env then supplies the clock channels
+    gesture = GESTURE
+    if POSE_MAVLINK and not gesture:
+        gesture = "pose_cmd"
+    if gesture:
+        cfg.setdefault("env", {})["gesture"] = gesture    # the env then supplies the clock / pose channels
     pk = unpack_nnm(nnm.read_bytes())
     env = NNMixerEnv(robot, cfg, seed=0)
     env.max_steps = 10 ** 9
+    pose_link = _open_pose_mavlink(POSE_MAVLINK) if POSE_MAVLINK else None
+    if pose_link is not None:
+        print(f"listening for NNM_POSE on {POSE_MAVLINK}")
     obs = env.reset()
     seq = Sequence(vx, wz, phases)
     fall_steps = 0
@@ -101,9 +134,17 @@ def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None,
         label, twist = seq.command(t, dyaw)
         if label is None:
             break
+        pose = _poll_pose(pose_link)
+        if pose is not None and getattr(env, "pose_cmd", False):
+            env.set_pose_external(pose)
         env.command = twist
         obs[env.contract.twist_offset:env.contract.twist_offset + 3] = twist
         obs, _, fell, _, info = env.step(dc.int8_forward(pk["layers"], pk["mean"], pk["std"], obs))
+        if pose_err_log is not None and getattr(env, "pose_cmd", False):
+            q = d.qpos[env.qpos_idx]
+            q_ref = env._gesture_reference(q)
+            err = float(np.mean(np.abs(q[env.gesture_ids] - q_ref[env.gesture_ids])))
+            pose_err_log.append((t, err))
         xy = d.qpos[env.free_qpos:env.free_qpos + 2].copy()
         path_len += float(np.linalg.norm(xy - xy_prev))
         xy_prev = xy
@@ -226,12 +267,19 @@ def main() -> None:
     ap.add_argument("--stand", type=float, default=0.0,
                     help="seconds standing with a zero command (a gesture policy)")
     ap.add_argument("--gesture", default=None, help="gesture clip whose clock the env feeds (e.g. wave_right)")
+    ap.add_argument("--pose-mavlink", default=None, metavar="CONN",
+                    help="listen for NNM_POSE on this MAVLink endpoint (implies --gesture pose_cmd)")
     args = ap.parse_args()
-    global GESTURE
+    global GESTURE, POSE_MAVLINK
     GESTURE = args.gesture
+    POSE_MAVLINK = args.pose_mavlink
+    if POSE_MAVLINK and not GESTURE:
+        GESTURE = "pose_cmd"
     phases = None
     if args.stand > 0:
         phases = [("in piedi", "time", (0.0, 0.0, 0.0), args.stand)]
+    elif POSE_MAVLINK:
+        phases = [("teleop pose", "time", (0.0, 0.0, 0.0), 60.0)]
     elif args.full:
         phases = [("avanti 5 s", "time", (args.vx, 0.0, 0.0), 5.0),
                   ("indietro 5 s", "time", (-args.vx, 0.0, 0.0), 5.0),
@@ -254,7 +302,7 @@ def main() -> None:
             proc.stdin.close(); proc.wait()
             print(f"video: {args.video}")
         elif args.headless:
-            res = run(args.robot, nnm, args.vx, args.wz, phases=phases)
+            res = run(args.robot, nnm, args.vx, args.wz, phases=phases, realtime=bool(POSE_MAVLINK))
         else:
             import mujoco.viewer
             res = _run_with_viewer(args, nnm, phases=phases)
@@ -316,9 +364,10 @@ def _run_with_video(args, nnm, cam, proc, phases=None, title="", hold_after_fall
 
     NNMixerEnv.reset = reset_and_render
     try:
+        # a MAVLink pose stream arrives in wall time: step the sim in real time to match it
         res = run(args.robot, nnm, args.vx, args.wz, renderer=_LazyRenderer(holder),
                   video={"cam": cam, "proc": proc}, phases=phases, title=title,
-                  hold_after_fall_s=hold_after_fall_s)
+                  hold_after_fall_s=hold_after_fall_s, realtime=bool(POSE_MAVLINK))
     finally:
         NNMixerEnv.reset = orig_reset
     return res

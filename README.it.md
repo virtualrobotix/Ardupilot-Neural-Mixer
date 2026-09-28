@@ -78,6 +78,7 @@ Si copiano da [`sitl/APM/nnm/`](sitl/APM/nnm/) oppure da `robots/<id>/robot/robo
 | `NNM_ROBOT` | indice del robot nel [catalogo](docs/robots/README.md) (MicroDuck 0) | topologia, letta al boot |
 | `NNM_POLICY` | 0 | indice del file policy in ordine alfabetico; si cambia a caldo |
 | `NNM_CLOCK_HZ` | 0 | orologio dei gesti per le policy a imitazione di clip (Microban saluto 0,5, balletto 0,625); 0 per camminare |
+| `NNM_POSE_WD` / `NNM_POSE_TAU` | 500 ms / 0,15 s | teleoperazione della posa via MAVLink (`DEBUG_FLOAT_ARRAY` nome `NNM_POSE`, Microban `pose_cmd.nnm`): watchdog oltre il quale gli 8 canali di posa tornano a riposo, e il passa-basso su di essi. Vedi [gesture_imitation.md](docs/robots/gesture_imitation.md#teleoperazione-posa-in-ingresso-via-mavlink) |
 | `SERVO1..14_FUNCTION` | 94..107 | uscite dei giunti (Scripting1..14) |
 | `INS_GYRO_FILTER` | 0 | la policy vuole il gyro grezzo; i 4 Hz di default di Rover fanno cadere il bipede |
 | `SCHED_LOOP_RATE` | 200 | filtro di gravità a 200 Hz, come in training |

@@ -1,0 +1,61 @@
+{
+  "policy": "pose_cmd.nnm",
+  "eval": {
+    "stand": {
+      "mean_return": 89.2673637200082,
+      "std_return": 11.749055832355227,
+      "mean_upright": 0.9634345670146665,
+      "survival": 1.0,
+      "mean_vx": 0.006194524526790816,
+      "mean_vy": -0.0003719529387110713,
+      "mean_wz": -0.002349349604185192,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "walk_0.3": {
+      "mean_return": 88.8380209973786,
+      "std_return": 11.323754373086812,
+      "mean_upright": 0.9640526328079394,
+      "survival": 1.0,
+      "mean_vx": 0.006183358293079955,
+      "mean_vy": -0.0003637464101384039,
+      "mean_wz": -0.0012597565579855917,
+      "command_vx": 0.3,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "lateral_0.2": {
+      "mean_return": 89.21907352629509,
+      "std_return": 11.751827170680311,
+      "mean_upright": 0.9638713215289592,
+      "survival": 1.0,
+      "mean_vx": 0.006169064257671732,
+      "mean_vy": -0.0003774200674492303,
+      "mean_wz": -0.0014804858902166544,
+      "command_vx": 0.0,
+      "command_vy": 0.2,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "turn_0.8": {
+      "mean_return": 89.05922133290635,
+      "std_return": 11.580387483868954,
+      "mean_upright": 0.9646050708479605,
+      "survival": 1.0,
+      "mean_vx": 0.006197279424973157,
+      "mean_vy": -0.0003961555451392476,
+      "mean_wz": -0.00047501235511933793,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.8,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    }
+  }
+}

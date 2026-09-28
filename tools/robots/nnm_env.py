@@ -314,6 +314,22 @@ class NNMixerEnv:
         self.kd = float(pd.get("kd", 0.0))
 
     # ------------------------------------------------------------------ gesture
+    # Pose-command layout after the clock (extra[2:10]): offsets from q0 unless noted.
+    POSE_ARM_NAMES = (
+        "right_shoulder_pitch", "right_shoulder_roll", "right_elbow",
+        "left_shoulder_pitch", "left_shoulder_roll", "left_elbow",
+    )
+    # knee_bend k -> knee +k, hip_pitch -0.48k, ankle_pitch -0.56k (ballet ratios on the MJCF)
+    POSE_KNEE_HIP = -0.48
+    POSE_KNEE_ANKLE = -0.56
+    POSE_KNEE_DROP_M_PER_RAD = 0.0145   # trunk height lost per rad of knee_bend (flat foot)
+    POSE_RANGES = np.array([
+        [-1.55, 0.15], [-1.15, 0.05], [-1.35, -0.05],
+        [-1.55, 0.15], [-0.05, 1.15], [-1.35, -0.05],
+        [0.0, 0.55], [-0.15, 0.15],
+    ], np.float32)
+    POSE_TAU_S = 0.15
+
     def _setup_gesture(self, name: str | None) -> None:
         """Motion imitation of a short clip while standing (DeepMimic style, as the G1 dances).
 
@@ -322,11 +338,20 @@ class NNMixerEnv:
         channels (the firmware fills them at NNM_CLOCK_HZ). The reward tracks the reference pose of
         the current phase, dense and unambiguous, so the policy has nothing to discover about timing.
         Joint signs are from the Microban MJCF: negative shoulder pitch brings the hand forward and
-        up; the right shoulder roll abducts outward for negative angles."""
+        up; the right shoulder roll abducts outward for negative angles.
+
+        pose_cmd: the target is an 8-channel pose (6 arm offsets, knee_bend, sway) held as episode
+        state and streamed into the extra observation channels after the clock — what a MAVLink
+        teleop GCS will send. Random poses, zero-command, and clip-as-stream cover the domain."""
         self.gesture_spec = None
         self.gesture_ids: np.ndarray | None = None
         self.clip_phase = 0.0
+        self.pose_cmd = False
+        self.pose_external: np.ndarray | None = None
         if not name:
+            return
+        if name == "pose_cmd":
+            self._setup_pose_cmd()
             return
         presets = {
             # keyframes: phase in [0, 1) -> joint angle; the clip is periodic
@@ -408,6 +433,158 @@ class NNMixerEnv:
         if not self.w.gesture_pose:
             self.w.gesture_pose = 8.0
 
+    def _setup_pose_cmd(self) -> None:
+        """Stand and track an 8-channel pose command (MAVLink teleop domain)."""
+        if self.contract.extra_cmd_dim < 10:
+            raise ValueError(f"pose_cmd needs extra_cmd_dim >= 10, this robot has {self.contract.extra_cmd_dim}")
+        names = self.profile["joint_names"]
+        index = {n: i for i, n in enumerate(names)}
+        tracked = list(self.POSE_ARM_NAMES)
+        for side in ("right", "left"):
+            tracked += [f"{side}_knee", f"{side}_hip_pitch", f"{side}_ankle_pitch",
+                        f"{side}_hip_roll", f"{side}_ankle_roll"]
+        missing = [n for n in tracked if n not in index]
+        if missing:
+            raise ValueError(f"pose_cmd: joints not on this robot: {missing}")
+        # keys dict keeps the green overlay and gesture_ids path working
+        self.gesture_spec = {"mode": "pose_cmd", "hz": 0.0, "keys": {n: [(0.0, 0.0)] for n in tracked}}
+        self.gesture_index = index
+        self.gesture_ids = np.array([index[n] for n in tracked])
+        self.pose_cmd = True
+        self.pose_cmd_cur = np.zeros(8, np.float32)
+        self.pose_cmd_tgt = np.zeros(8, np.float32)
+        self.pose_cmd_filt = np.zeros(8, np.float32)
+        self.pose_cmd_rate = 1.0
+        self.pose_delay_buf: list[np.ndarray] = []
+        self.pose_delay_ticks = 0
+        self.next_pose_resample = 0
+        self.pose_stream = "zero"  # zero | random | clip
+        self.pose_clip_keys = None
+        self.p_zero_cmd = 1.0
+        self.push_vel = 0.0
+        self.w.action_rate = -0.02
+        if not self.w.gesture_pose:
+            self.w.gesture_pose = 8.0
+        if not self.w.base_height:
+            # gentle: the leg joints are already tracked by the gesture term
+            self.w.base_height = 0.5
+            self.w.base_height_std_m = 0.02
+
+    def _sample_pose_target(self) -> np.ndarray:
+        """Random pose in the contract ranges, or zero (rest)."""
+        lo, hi = self.POSE_RANGES[:, 0], self.POSE_RANGES[:, 1]
+        return (lo + self.rng.random(8) * (hi - lo)).astype(np.float32)
+
+    def _pose_from_clip(self, clip_name: str, phase: float) -> np.ndarray:
+        """Convert a scripted clip at `phase` into the 8-channel pose command (offsets from q0)."""
+        # local minimal key tables (same numbers as the dance/wave presets)
+        clips = {
+            "wave_right": {
+                "right_shoulder_pitch": [(0.0, -1.10)],
+                "right_elbow": [(0.0, -1.00)],
+                "right_shoulder_roll": [(0.0, -0.25), (0.5, -1.05)],
+            },
+            "dance": {
+                "right_shoulder_pitch": [(0.0, -1.40), (0.5, -0.20)],
+                "left_shoulder_pitch": [(0.0, -0.20), (0.5, -1.40)],
+                "right_shoulder_roll": [(0.0, -0.75), (0.5, -0.25)],
+                "left_shoulder_roll": [(0.0, 0.25), (0.5, 0.75)],
+                "right_elbow": [(0.0, -1.20), (0.5, -0.45)],
+                "left_elbow": [(0.0, -0.45), (0.5, -1.20)],
+                "right_knee": [(0.0, 0.15), (0.25, 0.55), (0.5, 0.15), (0.75, 0.55)],
+                "left_knee": [(0.0, 0.15), (0.25, 0.55), (0.5, 0.15), (0.75, 0.55)],
+                "right_hip_roll": [(0.0, 0.033), (0.5, -0.207)],
+                "left_hip_roll": [(0.0, 0.207), (0.5, -0.033)],
+            },
+        }
+        keys = clips[clip_name]
+        q0 = np.asarray(self.contract.q0, dtype=np.float64)
+        idx = self.gesture_index
+        out = np.zeros(8, np.float32)
+        for i, n in enumerate(self.POSE_ARM_NAMES):
+            if n in keys:
+                out[i] = self._clip_value(keys[n], phase) - q0[idx[n]]
+        if "right_knee" in keys:
+            rk = self._clip_value(keys["right_knee"], phase) - q0[idx["right_knee"]]
+            lk = self._clip_value(keys["left_knee"], phase) - q0[idx["left_knee"]]
+            out[6] = 0.5 * (rk + lk)
+        if "right_hip_roll" in keys:
+            # sway ≈ mean hip-roll offset (dance uses opposite signs that average near the sway)
+            rr = self._clip_value(keys["right_hip_roll"], phase) - q0[idx["right_hip_roll"]]
+            lr = self._clip_value(keys["left_hip_roll"], phase) - q0[idx["left_hip_roll"]]
+            out[7] = float(np.clip(0.5 * (rr + lr), -0.15, 0.15))
+        return np.clip(out, self.POSE_RANGES[:, 0], self.POSE_RANGES[:, 1]).astype(np.float32)
+
+    def _apply_pose_offsets(self, ref: np.ndarray, pose: np.ndarray) -> None:
+        """Write q0 + pose mapping (arms direct, legs from knee_bend/sway) into `ref`."""
+        idx = self.gesture_index
+        q0 = np.asarray(self.contract.q0, dtype=np.float64)
+        for i, n in enumerate(self.POSE_ARM_NAMES):
+            ref[idx[n]] = q0[idx[n]] + float(pose[i])
+        k = float(pose[6])
+        d = float(pose[7])
+        for side in ("right", "left"):
+            ref[idx[f"{side}_knee"]] = q0[idx[f"{side}_knee"]] + k
+            ref[idx[f"{side}_hip_pitch"]] = q0[idx[f"{side}_hip_pitch"]] + self.POSE_KNEE_HIP * k
+            ref[idx[f"{side}_ankle_pitch"]] = q0[idx[f"{side}_ankle_pitch"]] + self.POSE_KNEE_ANKLE * k
+            ref[idx[f"{side}_hip_roll"]] = q0[idx[f"{side}_hip_roll"]] + d
+            ref[idx[f"{side}_ankle_roll"]] = q0[idx[f"{side}_ankle_roll"]] - d
+
+    def set_pose_external(self, values: np.ndarray | None) -> None:
+        """GCS / play_policy injects an 8-vector (or None to resume env sampling)."""
+        if values is None:
+            self.pose_external = None
+            return
+        v = np.asarray(values, dtype=np.float32).reshape(-1)[:8]
+        if v.size < 8:
+            pad = np.zeros(8, np.float32)
+            pad[:v.size] = v
+            v = pad
+        self.pose_external = np.clip(v, self.POSE_RANGES[:, 0], self.POSE_RANGES[:, 1]).astype(np.float32)
+
+    def _advance_pose_cmd(self) -> None:
+        """Move the episode pose toward its target (or follow an external/clip stream)."""
+        dt = 1.0 / self.contract.rate_hz
+        if self.pose_external is not None:
+            self.pose_cmd_cur = self.pose_external.copy()
+            self.pose_cmd_tgt = self.pose_cmd_cur.copy()
+        elif self.pose_stream == "clip":
+            hz = 0.5 if self.pose_clip_name == "wave_right" else 0.625
+            self.clip_phase = (self.clip_phase + hz * dt) % 1.0
+            self.pose_cmd_cur = self._pose_from_clip(self.pose_clip_name, self.clip_phase)
+            self.pose_cmd_tgt = self.pose_cmd_cur.copy()
+        else:
+            if self.steps >= self.next_pose_resample:
+                if self.pose_stream == "zero":
+                    self.pose_cmd_tgt = np.zeros(8, np.float32)
+                else:
+                    self.pose_cmd_tgt = self._sample_pose_target()
+                # sometimes snap (webcam jitter), usually ease at 0.3–3 rad/s
+                if self.rng.random() < 0.15:
+                    self.pose_cmd_cur = self.pose_cmd_tgt.copy()
+                    self.pose_cmd_rate = 10.0
+                else:
+                    self.pose_cmd_rate = float(self.rng.uniform(0.3, 3.0))
+                self.next_pose_resample = self.steps + int(self.rng.uniform(1.0, 4.0) * self.contract.rate_hz)
+            delta = self.pose_cmd_tgt - self.pose_cmd_cur
+            step = self.pose_cmd_rate * dt
+            nrm = float(np.linalg.norm(delta))
+            if nrm <= step:
+                self.pose_cmd_cur = self.pose_cmd_tgt.copy()
+            else:
+                self.pose_cmd_cur = self.pose_cmd_cur + delta * (step / nrm)
+        # firmware-style low-pass; observation uses the delayed filtered value
+        alpha = min(1.0, dt / self.POSE_TAU_S)
+        self.pose_cmd_filt += alpha * (self.pose_cmd_cur - self.pose_cmd_filt)
+        self.pose_delay_buf.append(self.pose_cmd_filt.copy())
+        self.pose_delay_buf = self.pose_delay_buf[-(self.pose_delay_ticks + 1):]
+
+    def _pose_observed(self) -> np.ndarray:
+        buf = self.pose_delay_buf
+        delayed = buf[max(0, len(buf) - 1 - self.pose_delay_ticks)] if buf else self.pose_cmd_filt
+        noise = self.rng.normal(0.0, 0.01, 8).astype(np.float32)
+        return np.clip(delayed + noise, self.POSE_RANGES[:, 0], self.POSE_RANGES[:, 1]).astype(np.float32)
+
     @staticmethod
     def _clip_value(keys: list[tuple[float, float]], phase: float) -> float:
         """Periodic cosine interpolation between keyframes (phase, value) sorted by phase."""
@@ -428,6 +605,11 @@ class NNMixerEnv:
         if self.gesture_spec is None or self.contract.extra_cmd_dim < 2:
             return None
         extra = np.zeros(self.contract.extra_cmd_dim, np.float32)
+        if self.pose_cmd:
+            # clock channels stay at zero; pose fills extra[2:10]
+            if self.contract.extra_cmd_dim >= 10:
+                extra[2:10] = self._pose_observed()
+            return extra
         if self.gesture_spec["hz"]:
             extra[0] = math.sin(2 * math.pi * self.clip_phase)
             extra[1] = math.cos(2 * math.pi * self.clip_phase)
@@ -437,6 +619,9 @@ class NNMixerEnv:
         ref = np.array(self.contract.q0, dtype=np.float64, copy=True)
         spec = self.gesture_spec
         if spec is None:
+            return ref
+        if self.pose_cmd:
+            self._apply_pose_offsets(ref, self.pose_cmd_cur)
             return ref
         for n, keys in spec["keys"].items():
             ref[self.gesture_index[n]] = self._clip_value(keys, self.clip_phase)
@@ -535,6 +720,28 @@ class NNMixerEnv:
         self.command = self._sample_command()
         # a random start phase: the policy must join the clip anywhere, as on the robot
         self.clip_phase = float(self.rng.random()) if self.gesture_spec else 0.0
+        if self.pose_cmd:
+            # 15% rest, 20% clip-as-stream, rest random poses (as the webcam will send)
+            r = float(self.rng.random())
+            if self.pose_external is not None:
+                self.pose_stream = "external"
+                self.pose_cmd_cur = self.pose_external.copy()
+            elif r < 0.15:
+                self.pose_stream = "zero"
+                self.pose_cmd_cur = np.zeros(8, np.float32)
+            elif r < 0.35:
+                self.pose_stream = "clip"
+                self.pose_clip_name = "wave_right" if self.rng.random() < 0.5 else "dance"
+                self.pose_cmd_cur = self._pose_from_clip(self.pose_clip_name, self.clip_phase)
+            else:
+                self.pose_stream = "random"
+                self.pose_cmd_cur = self._sample_pose_target()
+            self.pose_cmd_tgt = self.pose_cmd_cur.copy()
+            self.pose_cmd_filt = self.pose_cmd_cur.copy()
+            self.pose_delay_ticks = int(self.rng.integers(0, 4))
+            self.pose_delay_buf = [self.pose_cmd_filt.copy()]
+            self.pose_cmd_rate = float(self.rng.uniform(0.3, 3.0))
+            self.next_pose_resample = int(self.rng.uniform(1.0, 4.0) * self.contract.rate_hz)
         self.steps = 0
         self._ep_terms: dict[str, float] = {}
         self._ep_return = 0.0
@@ -604,7 +811,10 @@ class NNMixerEnv:
             self.next_resample = self._next_resample()
         if self.gesture_spec is not None:
             self.command = np.zeros(3, np.float32)
-            self.clip_phase = (self.clip_phase + self.gesture_spec["hz"] / c.rate_hz) % 1.0
+            if self.pose_cmd:
+                self._advance_pose_cmd()
+            elif self.gesture_spec["hz"]:
+                self.clip_phase = (self.clip_phase + self.gesture_spec["hz"] / c.rate_hz) % 1.0
         if self.steps >= self.next_push:
             d.qvel[self.free_qvel:self.free_qvel + 2] += self.rng.uniform(-self.push_vel, self.push_vel, 2)
             self.next_push = self.steps + int(self.rng.uniform(*self.push_interval) * c.rate_hz)
@@ -904,7 +1114,12 @@ class NNMixerEnv:
         if w.undesired_contacts:
             terms["undesired_contacts"] = w.undesired_contacts * self._undesired_contacts() * dt
         if w.base_height:
-            dz = float(d.qpos[self.free_qpos + 2]) - w.base_height_target_m
+            target_z = w.base_height_target_m
+            if self.pose_cmd:
+                # knee_bend with the hip/ankle ratios keeps the foot flat: the trunk drops only
+                # 0.8 cm at 0.55 rad (mj_kinematics on the MJCF), i.e. 1.45 cm/rad
+                target_z = float(self.home_z) - self.POSE_KNEE_DROP_M_PER_RAD * float(self.pose_cmd_cur[6])
+            dz = float(d.qpos[self.free_qpos + 2]) - target_z
             terms["base_height"] = w.base_height * math.exp(-(dz / w.base_height_std_m) ** 2) * dt
         if w.joint_torque:
             tau = d.actuator_force[self.act_idx] / self.force_limit

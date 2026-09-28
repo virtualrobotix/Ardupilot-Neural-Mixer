@@ -41,6 +41,37 @@ from nnm_env import NNMixerEnv, load_ppo_config  # noqa: E402
 
 # MicroDuck mjlab curriculum (Curriculum/* in W&B run mjlab_microduck/vfaof1ds)
 DEFAULT_CURRICULUM = {"action_rate": [-0.1, -1.0], "standing_envs": [0.02, 0.2], "ramp_fraction": 0.5}
+
+
+def pad_checkpoint_obs(blob: dict, obs_dim: int) -> dict:
+    """Widen a .pt actor/critic/normalizer when the robot gained extra observation channels.
+
+    Same idea as pad_nnm_obs: zero-weight columns on the first layer, mean 0 / std 1 on the
+    new channels, so the network output is unchanged for any value of the new inputs.
+    """
+    import torch
+
+    mean = np.asarray(blob["norm_mean"], np.float64)
+    old = int(mean.size)
+    if old == obs_dim:
+        return blob
+    if old > obs_dim:
+        raise SystemExit(f"checkpoint obs {old} is wider than the profile {obs_dim}")
+    add = obs_dim - old
+    blob = dict(blob)
+    blob["norm_mean"] = np.concatenate([mean, np.zeros(add)])
+    blob["norm_std"] = np.concatenate([np.asarray(blob["norm_std"], np.float64), np.ones(add)])
+    for key in ("actor", "critic"):
+        sd = dict(blob[key])
+        w = sd.get("0.weight")
+        if w is None:
+            raise SystemExit(f"checkpoint {key}: missing 0.weight")
+        if tuple(w.shape)[1] != old:
+            raise SystemExit(f"checkpoint {key} input {w.shape[1]} != norm {old}")
+        sd["0.weight"] = torch.cat([w, torch.zeros(w.shape[0], add, dtype=w.dtype)], dim=1)
+        blob[key] = sd
+    print(f"padded checkpoint obs {old} -> {obs_dim}")
+    return blob
 EVAL_MODES = {"stand": (0.0, 0.0, 0.0), "walk_0.3": (0.3, 0.0, 0.0),
               "lateral_0.2": (0.0, 0.2, 0.0), "turn_0.8": (0.0, 0.0, 0.8)}
 REWARD_TERMS = ["track_linear_velocity", "track_angular_velocity", "upright", "pose", "action_rate_l2",
@@ -340,6 +371,7 @@ def train(args) -> None:
     if args.resume:
         # continue a run: same networks, exploration noise and normalizer statistics
         blob = torch.load(args.resume, map_location="cpu", weights_only=False)
+        blob = pad_checkpoint_obs(blob, obs_dim)
         actor.load_state_dict(blob["actor"])
         if float(blob.get("action_scale", 1.0)) != act_scale:
             raise SystemExit(f"{args.resume}: trained with action_scale {blob.get('action_scale', 1.0)}, "
@@ -368,7 +400,19 @@ def train(args) -> None:
             std[j] = 0.30 if ("shoulder" in names[j] or "elbow" in names[j]) else 0.12
         with torch.no_grad():
             log_std.copy_(torch.from_numpy(np.log(std)).float())
-        print(f"gesture {args.gesture}: std {np.round(std, 2).tolist()}, fixed learning rate")
+        # --std-cap holds exploration at the start value. Off by default: on pose_cmd the free std
+        # drifted 0.17 -> 0.37 over 800 iterations and tracked better (0.10 rad) than capped (0.18).
+        std_cap = torch.from_numpy(np.log(std)).float() if args.std_cap else None
+        with torch.no_grad():
+            if args.resume and args.keep_std:
+                # continuing the same gesture run: keep the exploration it had reached
+                log_std.copy_(torch.as_tensor(blob["log_std"]))
+            elif args.reset_std:
+                log_std.fill_(float(np.log(args.reset_std)))
+        print(f"gesture {args.gesture}: std {np.round(log_std.exp().detach().numpy(), 2).tolist()}"
+              f"{' (capped)' if args.std_cap else ''}, fixed learning rate")
+    else:
+        std_cap = None
     params = list(actor.parameters()) + list(critic.parameters()) + [log_std]
     if args.resume:
         lr = float(args.lr or ppo["learning_rate"])
@@ -564,6 +608,11 @@ def train(args) -> None:
                         p_.grad = None
                 nn.utils.clip_grad_norm_(params, float(ppo["max_grad_norm"]))
                 opt.step()
+                if std_cap is not None:
+                    # gesture fine-tune: the entropy bonus must not inflate exploration beyond the
+                    # start value (pose_cmd v1 drifted 0.17 -> 0.37 while the tracking error stalled)
+                    with torch.no_grad():
+                        log_std.clamp_(max=std_cap)
                 l_val += float(v_loss.detach()); l_sur += float(surrogate.detach())
                 l_ent += float(entropy.detach()); n_upd += 1
         learning_time = time.time() - t_learn
@@ -693,8 +742,9 @@ def main() -> None:
     ap.add_argument("--wandb", action="store_true", help="log to Weights & Biases (project mjlab_<robot>)")
     ap.add_argument("--wandb-project", default=None)
     ap.add_argument("--eval", type=Path, default=None, help="evaluate a .nnm (stand / walk) and exit")
-    ap.add_argument("--gesture", default=None, choices=("arms_up", "wave_right", "dance_arms", "dance"),
-                    help="stand and track a scripted arm pose (same observation as the walk)")
+    ap.add_argument("--gesture", default=None,
+                    choices=("arms_up", "wave_right", "dance_arms", "dance", "pose_cmd"),
+                    help="stand and track a scripted clip, or pose_cmd (8-channel MAVLink teleop)")
     ap.add_argument("--init-nnm", type=Path, default=None,
                     help="fine-tune from a .nnm of this robot (dequantized weights and normalizer)")
     ap.add_argument("--init-onnx", type=Path, default=None,
@@ -710,6 +760,10 @@ def main() -> None:
     ap.add_argument("--start-iter", type=int, default=0, help="iteration number of the --resume checkpoint")
     ap.add_argument("--wandb-id", default=None, help="continue this W&B run id")
     ap.add_argument("--reset-std", type=float, default=None, help="exploration std after --resume")
+    ap.add_argument("--std-cap", action="store_true",
+                    help="with --gesture: clamp the exploration std at its start value")
+    ap.add_argument("--keep-std", action="store_true",
+                    help="with --gesture --resume: keep the checkpoint's std instead of the gesture template")
     args = ap.parse_args()
     if args.eval:
         cfg = load_ppo_config(args.robot)

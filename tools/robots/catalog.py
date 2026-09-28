@@ -81,8 +81,11 @@ ROBOTS: dict[str, dict] = {
         # gesture clock: sin and cos of a phase the firmware advances at NNM_CLOCK_HZ (0 = channels at
         # zero, the walk). A timed gesture (the wave) is a motion-imitation task: the policy tracks the
         # reference pose of the current phase, so it must see the phase.
-        "extra_cmd_dim": 2,
-        "extra_cmd_desc": "orologio dei gesti sin, cos 2 (`NNM_CLOCK_HZ`; zero per la camminata)",
+        # channels: sin, cos of the gesture clock, then 8 pose-command offsets from q0
+        # (right/left shoulder pitch, roll, elbow; knee_bend; lateral sway). Zero = stand still.
+        "extra_cmd_dim": 10,
+        "extra_cmd_desc": "orologio sin, cos 2 (`NNM_CLOCK_HZ`) + posa comandata 8 "
+                          "(braccia 6, piegamento, ondeggiamento; via MAVLink `NNM_POSE`)",
         "rate_hz": 50,
         "command_ranges": {"vx": [-0.3, 0.3], "vy": [-0.2, 0.2], "wz": [-1.0, 1.0]},
         "upstream": {
@@ -171,14 +174,54 @@ ROBOTS: dict[str, dict] = {
                                   "ginocchia due volte per ciclo (anca e caviglia coordinate, piede piatto) e "
                                   "ondeggiamento laterale del bacino di 2,4 cm (`NNM_CLOCK_HZ 0.625`). Da dance_arms, "
                                   "checkpoint 400: errore 0,00-0,05 rad su tutti i giunti della coreografia, nessuna "
-                                  "caduta, resta sul posto. W&B mjlab_microban/o57v0gih."},
+                                  "caduta, resta sul posto. W&B mjlab_microban/o57v0gih.",
+                     "pose_cmd.nnm": "teleoperazione: esegue una posa comandata in tempo reale via MAVLink "
+                                     "(`DEBUG_FLOAT_ARRAY` nome `NNM_POSE`, 8 canali dopo l'orologio: 6 offset delle "
+                                     "braccia, piegamento delle ginocchia 0-0,55 rad, ondeggiamento ±0,15 rad) tenendo "
+                                     "l'equilibrio (vedi gesture_imitation.md). Addestrata da dance it0400 su pose "
+                                     "casuali, comando zero e stream delle clip, con ritardo 0-3 tick e passa-basso "
+                                     "0,15 s come il firmware (`NNM_POSE_WD 500`, `NNM_POSE_TAU 0.15`, "
+                                     "`NNM_CLOCK_HZ 0`). Checkpoint 1800 di 2000 (800 + 1200 dopo la correzione di "
+                                     "`base_height`): errore medio sui 16 giunti su pose tenute 0,03 rad, saluto in "
+                                     "streaming a 40 Hz 0,04 rad sulle braccia, nessuna caduta. Il selettore "
+                                     "stand/walk del trainer non misura la posa: il file è scelto sul tracking."},
         # Each clip is the int8 policy on the ArduPilot contract. "env" is the reward/config
         # version of that run; one training iteration is 5 PPO epochs.
         "videos": [{
+            "env": "pose_cmd (MAVLink)",
+            "iteration": "1800",
+            "epochs": "9000",
+            "latest": True,
+            "mp4": "microban_pose_cmd_mavlink_wave.mp4",
+            "caption": "Teleoperazione: `tools/mocap/mocap_gcs.py --source clip` manda il saluto come stream "
+                       "`NNM_POSE` a 40 Hz via UDP; `play_policy.py --pose-mavlink` lo riceve e la policy "
+                       "`pose_cmd.nnm` lo esegue in tempo reale (errore braccia 0,04 rad). In verde la posa comandata.",
+        }, {
+            "env": "pose_cmd",
+            "iteration": "1800",
+            "epochs": "9000",
+            "mp4": "microban_pose_cmd_it1800.mp4",
+            "caption": "Pose comandate da script (`pose_cmd.nnm`): braccia alzate, piegamento 0,45 rad, "
+                       "ondeggiamento ±0,12, posa completa. Errore medio 0,06 rad lungo la sequenza, transizioni "
+                       "incluse; 0,03 rad a regime.",
+        }, {
+            "env": "pose_cmd",
+            "iteration": "400",
+            "epochs": "2000",
+            "mp4": "microban_pose_cmd_it0400.mp4",
+            "caption": "Stesso run alla 400 (prima della correzione di `base_height`): braccia seguite, ginocchia "
+                       "ancora piegate a comando zero, errore 0,13 rad.",
+        }, {
+            "env": "pose_cmd",
+            "iteration": "100",
+            "epochs": "500",
+            "mp4": "microban_pose_cmd_demo.mp4",
+            "caption": "Stessa sequenza alla 100: le braccia seguono grosso modo, le ginocchia restano piegate "
+                       "(prior del balletto), errore 0,27 rad.",
+        }, {
             "env": "dance",
             "iteration": "400",
             "epochs": "2000",
-            "latest": True,
             "mp4": "microban_dance_it0400.mp4",
             "caption": "Balletto a corpo intero per imitazione di clip (`dance.nnm`). In verde il corpo di "
                        "riferimento della clip in quell'istante. Braccia, molleggio e ondeggiamento seguono la "
@@ -270,10 +313,12 @@ ROBOTS: dict[str, dict] = {
         "notes": [
             "L'osservazione dell'ONNX è gyro, gravità proiettata, q−q0, q̇, azione precedente, twist: il formato "
             "NNMixer con 18 giunti, quindi la policy pubblicata si converte senza riaddestrarla.",
-            "18 giunti superano le 16 funzioni servo Scripting consecutive: il firmware rifiuta questa "
-            "topologia finché non esiste un backend bus Dynamixel. Simulazione e training funzionano già.",
-            "L'osservazione è 65: i due canali dopo il twist sono seno e coseno dell'orologio dei gesti "
-            "(`NNM_CLOCK_HZ`, 0 per la camminata). Saluto e balletto sono policy per imitazione di clip, "
+            "18 giunti superano le 16 funzioni servo Scripting consecutive: il firmware carica la topologia "
+            "(`NNM_MAX_JOINTS` 20) e gira in SITL, ma sul robot servono le uscite del backend bus Dynamixel. "
+            "Simulazione e training funzionano già.",
+            "L'osservazione è 73: dopo il twist ci sono seno e coseno dell'orologio dei gesti "
+            "(`NNM_CLOCK_HZ`, 0 per la camminata) e otto canali di posa comandata via MAVLink (`NNM_POSE`; "
+            "a zero = riposo, quindi walk e clip non ne risentono). Saluto, balletto e teleoperazione sono "
             "selezionabili con `NNM_POLICY`: vedi [gesture_imitation.md](gesture_imitation.md).",
         ],
     },

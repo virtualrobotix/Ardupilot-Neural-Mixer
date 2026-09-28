@@ -95,7 +95,7 @@ python tools/robots/pack_robot_bin.py --robot zeroth          # robot.bin dal pr
 # microSD: /APM/nnm/zeroth/robot.bin  e  /APM/nnm/zeroth/policies/*.nnm
 ```
 
-Con 20 giunti il firmware attuale rifiuta `robot.bin` (massimo 16 funzioni servo Scripting). Il deploy richiede il backend bus; simulazione, training e file `.nnm` sono già pronti.
+Con 20 giunti il firmware carica `robot.bin` e le policy (fino a 20 giunti, `NNM_MAX_JOINTS`) e gira in SITL, ma le uscite PWM coprono al massimo 16 funzioni servo Scripting: il deploy sul robot richiede il backend bus. Simulazione, training e file `.nnm` sono già pronti.
 
 ## Note
 

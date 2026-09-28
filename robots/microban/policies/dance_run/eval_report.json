@@ -1,0 +1,61 @@
+{
+  "policy": "dance.nnm",
+  "eval": {
+    "stand": {
+      "mean_return": 110.91922888333968,
+      "std_return": 0.0784416911192836,
+      "mean_upright": 0.9668708262022208,
+      "survival": 1.0,
+      "mean_vx": 0.0016671631582227788,
+      "mean_vy": 0.000866390838323021,
+      "mean_wz": 0.0018998615558550108,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "walk_0.3": {
+      "mean_return": 110.92280910248444,
+      "std_return": 0.08346313242944922,
+      "mean_upright": 0.9667844318933119,
+      "survival": 1.0,
+      "mean_vx": 0.0016665366774669327,
+      "mean_vy": 0.0008665706167875999,
+      "mean_wz": 0.001223843423282094,
+      "command_vx": 0.3,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "lateral_0.2": {
+      "mean_return": 110.91823907686219,
+      "std_return": 0.0894689880189699,
+      "mean_upright": 0.966903547314127,
+      "survival": 1.0,
+      "mean_vx": 0.0016563677047453447,
+      "mean_vy": 0.000861242913576318,
+      "mean_wz": 0.001586248644486285,
+      "command_vx": 0.0,
+      "command_vy": 0.2,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "turn_0.8": {
+      "mean_return": 110.92267222912454,
+      "std_return": 0.08142351418329355,
+      "mean_upright": 0.9667348718825799,
+      "survival": 1.0,
+      "mean_vx": 0.0016730972464747704,
+      "mean_vy": 0.0008666711184021249,
+      "mean_wz": 0.0014938208454272199,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.8,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    }
+  }
+}

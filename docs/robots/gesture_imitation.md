@@ -33,7 +33,7 @@ i termini di equilibrio della camminata.
 
 ```mermaid
 flowchart LR
-  clock["NNM_CLOCK_HZ: fase"] --> obs["osservazione 65: IMU, giunti, azione, twist, sin, cos"]
+  clock["NNM_CLOCK_HZ: fase"] --> obs["osservazione 73: IMU, giunti, azione, twist, sin, cos, posa×8"]
   obs --> mlp["MLP int8 (la stessa della walk)"]
   mlp --> servo["q0 + azione sui 18 servo"]
   clip["clip: pose chiave interpolate"] --> ref["posa di riferimento della fase"]
@@ -136,14 +136,106 @@ non cambia.
 
 ## Deploy
 
-| Parametro | Camminata | Saluto | Balletto |
-|---|---|---|---|
-| `NNM_POLICY` | indice di `walk_md.nnm` | indice di `wave_right.nnm` | indice di `dance.nnm` |
-| `NNM_CLOCK_HZ` | 0 | 0,5 | 0,625 |
+| Parametro | Camminata | Saluto | Balletto | Teleop posa |
+|---|---|---|---|---|
+| `NNM_POLICY` | indice di `walk_md.nnm` | indice di `wave_right.nnm` | indice di `dance.nnm` | indice di `pose_cmd.nnm` |
+| `NNM_CLOCK_HZ` | 0 | 0,5 | 0,625 | 0 |
+| `NNM_POSE_WD` | — | — | — | 500 ms (watchdog stream) |
+| `NNM_POSE_TAU` | — | — | — | 0,15 s (passa-basso) |
 
 Il firmware fa avanzare la fase di `2π · NNM_CLOCK_HZ / rate_hz` a ogni tick della policy e scrive seno e
 coseno nei due canali dopo il twist. A `NNM_CLOCK_HZ 0` i canali restano a zero, che è quello su cui le
 walk sono state addestrate. Il cambio di policy usa il cross-fade di `NNM_BLEND_MS` come oggi.
+
+## Teleoperazione: posa in ingresso via MAVLink
+
+Oltre alle clip a orologio, Microban può eseguire una **posa comandata in tempo reale**. Una ground station
+stima la posa di una persona, la riadatta a otto numeri e li manda al firmware; la policy
+[`pose_cmd.nnm`](../../robots/microban/policies/pose_cmd.nnm) li esegue tenendo l'equilibrio.
+
+### Flusso
+
+```mermaid
+flowchart LR
+  cam["webcam"] --> mp["MediaPipe Pose: 33 punti 3D"]
+  mp --> rt["riadattamento: 6 angoli braccia + piegamento + ondeggiamento"]
+  rt --> tx["pymavlink: DEBUG_FLOAT_ARRAY name NNM_POSE"]
+  tx --> fw["AP_NNMixer: watchdog + passa-basso → extra[2:10]"]
+  fw --> mlp["pose_cmd.nnm (obs 73)"]
+  mlp --> servo["18 servo, gambe bilanciano"]
+```
+
+Tutta l'intelligenza (stima, riadattamento, limiti) sta sulla GCS. Il firmware copia i numeri
+nell'osservazione dopo l'orologio; se lo stream smette (`NNM_POSE_WD`), i canali decadono a zero con lo
+stesso filtro e il robot torna in posa di riposo senza scatti.
+
+### Layout dei canali (dopo sin, cos)
+
+| idx | canale | unità / range |
+|---|---|---|
+| 0–2 | `right_shoulder_pitch/roll/elbow` | rad, offset da `q0` |
+| 3–5 | `left_shoulder_pitch/roll/elbow` | rad, offset da `q0` |
+| 6 | `knee_bend` | rad, 0…0,55 → ginocchio +k, anca −0,48k, caviglia −0,56k |
+| 7 | `sway` | rad, ±0,15 → anche +d, caviglie −d |
+
+### Ground station
+
+```bash
+# dipendenze: mediapipe, opencv-python (in requirements.txt)
+.venv/bin/python tools/mocap/mocap_gcs.py --source camera --conn udp:127.0.0.1:14550
+.venv/bin/python tools/mocap/mocap_gcs.py --source clip --clip wave_right   # prova senza webcam
+.venv/bin/python tools/mocap/mocap_gcs.py --source keyboard
+```
+
+Con `--source camera`, `c` calibra la posa in piedi (baseline del piegamento), `0` manda la posa di
+riposo, `q` esce. Opzione `--mirror` scambia destra/sinistra.
+
+### Simulazione pura (senza firmware)
+
+```bash
+# terminale A: ascolta NNM_POSE e guida la policy in MuJoCo (verde = corpo comandato)
+.venv/bin/python tools/robots/play_policy.py --robot microban \
+    --nnm robots/microban/policies/pose_cmd.nnm \
+    --pose-mavlink udp:127.0.0.1:14550 --stand 60 \
+    --video docs/media/microban_pose_cmd_mavlink_wave.mp4
+
+# terminale B: stream della clip (o della webcam). Senza firmware nessuno parla per primo alla GCS,
+# quindi qui serve `udpout:` (destinazione esplicita); verso SITL/MAVProxy basta `udp:127.0.0.1:14550`
+.venv/bin/python tools/mocap/mocap_gcs.py --source clip --clip wave_right --conn udpout:127.0.0.1:14550
+```
+
+Sul firmware la ricezione si vede dal `NAMED_VALUE_FLOAT` `PPO_POSE0` (primo canale filtrato): segue lo
+stream e, a GCS spenta, torna a zero in `NNM_POSE_WD` + qualche `NNM_POSE_TAU`.
+
+### Training
+
+```bash
+.venv/bin/python tools/robots/train_velocity.py --robot microban --gesture pose_cmd \
+    --resume robots/microban/policies/dance_run/dance_it0400.pt \
+    --envs 512 --workers 8 --iters 2000 --save-every 200 --name pose_cmd --lr 2e-4
+```
+
+Il trainer allarga automaticamente un checkpoint `.pt` da 65 a 73 ingressi (stessa logica di
+`pad_nnm_obs`). L'ambiente campiona pose casuali, episodi a comando zero e il 20 % di stream dalle clip
+`wave_right`/`dance`, con ritardo 0–3 tick e passa-basso 0,15 s come il firmware.
+
+Cosa è successo nei run (`pose_cmd_v1_run`, `pose_cmd_v2_run`, `pose_cmd_run`):
+
+- **v1** (800 iter): il premio `base_height` chiedeva 4 cm di abbassamento a piegamento pieno, ma la
+  cinematica con piede piatto ne dà 0,8: il robot si accovacciava contro la posa di riferimento e le
+  ginocchia restavano piegate anche a comando zero. Errore a it800: 0,10 rad. La std di esplorazione
+  saliva da 0,17 a 0,37.
+- **v2** (800 iter, `--std-cap`): std bloccata a 0,17 e `base_height` corretto, ma a it800 l'errore era
+  0,18 rad: l'esplorazione libera del v1 era utile, non un difetto. Il tappo resta disponibile ma è
+  disattivato di default.
+- **v3** (= `pose_cmd_run`, 800→2000 da v1 it800 con `--keep-std` e `base_height` corretto): 0,048 rad a
+  it1200, 0,030 a it1800. Il selettore "best" del trainer usa il punteggio stand/walk, che qui non
+  misura nulla: `pose_cmd.nnm` è il checkpoint 1800 scelto sul tracking delle pose.
+
+Misure con `pose_cmd.nnm`: cinque pose tenute 3 s (riposo, braccia, piegamento 0,45, ondeggiamento
+0,12, posa completa) errore medio 0,026–0,038 rad; saluto in streaming MAVLink a 40 Hz 0,043 rad sulle
+braccia; watchdog firmware su SITL: a stream fermo il canale passa da −1,0 a −0,02 in 0,95 s
+(500 ms di attesa + costante 0,15 s), zero cadute.
 
 ## Limiti
 
@@ -151,5 +243,5 @@ walk sono state addestrate. Il cambio di policy usa il cross-fade di `NNM_BLEND_
   che il firmware oggi non fa.
 - Le gambe nella clip restano piccoli spostamenti a piedi fermi. Passi, salti o giri richiedono il tracking
   anche della posa del tronco, come nei lavori sul G1, e un premio che tolleri il contatto che cambia.
-- Le pose chiave sono scritte a mano. Da un video di una persona servono ancora la stima della posa (per
-  esempio GVHMR) e il riadattamento ai giunti del robot.
+- Le pose chiave delle clip sono scritte a mano; la teleoperazione via MediaPipe le sostituisce in tempo
+  reale, ma resta un riadattamento cinematico semplificato (non un IK a corpo intero).
