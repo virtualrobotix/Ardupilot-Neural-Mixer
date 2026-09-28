@@ -29,7 +29,7 @@ rete → MuJoCo). Hardware-in-the-loop su Pixhawk 6C: [`docs/media/pixhawk6c_mlp
 | MicroDuck su Pixhawk 6C Mini (hardware-in-the-loop, build float32) | 15 s in piedi, forward p50 4,9 ms, CPU 32,8% |
 | Policy da microSD, due slot int8, switch con fusione di 0,5 s | SITL: batteria 8/8 PASS con `walk.nnm` da SD (parità firmware vs `.nnm` 2,7e-7), test di switch 5/5; Pixhawk 6C: compila, non ancora provato sulla scheda |
 | Twist da stick in MANUAL, HOLD, GUIDED / AUTO / RTL / SMART_RTL | nel firmware |
-| Altri robot | profili, configurazioni PPO, scene MuJoCo. Microban `walk_md` cammina in simulazione ([it. 3000](docs/media/microban_walk_md_it3000.mp4)); Freenove Robot Dog `walk_v7` cammina in avanti ([it. 2700](docs/media/freenove_walk_v7_it2700.mp4)). I video dei checkpoint sono nella [scheda di ogni robot](docs/robots/README.md) |
+| Altri robot | profili, configurazioni PPO, scene MuJoCo. Microban `walk_md` cammina in simulazione ([it. 3000](docs/media/microban_walk_md_it3000.mp4)), saluta ([`wave_right`](docs/media/microban_wave_right_clip_it0300.mp4)) e balla ([`dance`](docs/media/microban_dance_it0400.mp4)) per imitazione di clip con un orologio dei gesti ([come](docs/robots/gesture_imitation.md)); Freenove Robot Dog `walk_v7` cammina in avanti ([it. 2700](docs/media/freenove_walk_v7_it2700.mp4)). I video dei checkpoint sono nella [scheda di ogni robot](docs/robots/README.md) |
 | Robot reale senza simulatore | serve un backend bus servo (Dynamixel / Feetech) per il feedback giunti, non ancora scritto |
 
 ---
@@ -77,6 +77,7 @@ Si copiano da [`sitl/APM/nnm/`](sitl/APM/nnm/) oppure da `robots/<id>/robot/robo
 | `NNM_ENABLE` | 1 | attiva il task |
 | `NNM_ROBOT` | indice del robot nel [catalogo](docs/robots/README.md) (MicroDuck 0) | topologia, letta al boot |
 | `NNM_POLICY` | 0 | indice del file policy in ordine alfabetico; si cambia a caldo |
+| `NNM_CLOCK_HZ` | 0 | orologio dei gesti per le policy a imitazione di clip (Microban saluto 0,5, balletto 0,625); 0 per camminare |
 | `SERVO1..14_FUNCTION` | 94..107 | uscite dei giunti (Scripting1..14) |
 | `INS_GYRO_FILTER` | 0 | la policy vuole il gyro grezzo; i 4 Hz di default di Rover fanno cadere il bipede |
 | `SCHED_LOOP_RATE` | 200 | filtro di gravità a 200 Hz, come in training |
@@ -118,7 +119,7 @@ dimensioni di ingresso e uscita.
 | `NNM_ROBOT` | Robot | Tipo | Giunti | Obs | Policy nel repo | Ultimo video di training |
 |---:|---|---|---:|---:|---|---|
 | 0 | [MicroDuck](docs/robots/microduck.md) | bipede | 14 | 61 | `walk.nnm` | — |
-| 1 | [Microban](docs/robots/microban.md) | umanoide | 18 | 63 | `walk.nnm`, `walk_md.nnm` | [`walk_md`, it. 3000, 15000 epoche](docs/robots/microban.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 1 | [Microban](docs/robots/microban.md) | umanoide | 18 | 65 | `walk.nnm`, `walk_md.nnm`, `wave_right.nnm`, `dance_arms.nnm`, `dance.nnm` | [`dance`, it. 400, 2000 epoche](docs/robots/microban.md#risultati-per-versione-di-ambiente-ed-epoca) |
 | 2 | [Zeroth-01](docs/robots/zeroth.md) | umanoide | 20 | 69 | — | — |
 | 3 | [Bimo](docs/robots/bimo.md) | bipede | 8 | 33 | — | — |
 | 4 | [Legolas](docs/robots/legolas.md) | bipede | 10 | 39 | — | — |
@@ -176,6 +177,7 @@ protocollo SITL, modifiche ad ArduPilot e risultati — è nel [documento di rif
 | [docs/reference/microduck-ppo.it.md](docs/reference/microduck-ppo.it.md) ([EN](docs/reference/microduck-ppo.md)) | integrazione MicroDuck in dettaglio, risultati, glossario |
 | [docs/robots/README.md](docs/robots/README.md) | configurazioni dei robot e pagine per robot |
 | [docs/robots/training.md](docs/robots/training.md) | training MuJoCo compatibile con ArduPilot, int8 |
+| [docs/robots/gesture_imitation.md](docs/robots/gesture_imitation.md) | gesti per imitazione di clip (saluto, balletto): orologio dei gesti, reward, perché il reward scritto a mano falliva |
 | [docs/architettura-integrazione.pdf](docs/architettura-integrazione.pdf) / [.pptx](docs/architettura-integrazione.pptx) | slide dell'architettura |
 | [docs/progetto-nnmixer-ardupilot-ppo.md](docs/progetto-nnmixer-ardupilot-ppo.md) | documento di progetto |
 

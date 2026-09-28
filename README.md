@@ -29,7 +29,7 @@ network → MuJoCo). Pixhawk 6C hardware-in-the-loop: [`docs/media/pixhawk6c_mlp
 | MicroDuck on a Pixhawk 6C Mini (hardware-in-the-loop, float32 build) | 15 s standing, forward pass p50 4.9 ms, CPU 32.8% |
 | Policies from microSD, two int8 slots, switch with 0.5 s blend | SITL: battery 8/8 PASS with `walk.nnm` from SD (firmware vs `.nnm` parity 2.7e-7), switch test 5/5; Pixhawk 6C: builds, not yet run on the board |
 | Twist from MANUAL sticks, HOLD, GUIDED / AUTO / RTL / SMART_RTL | in firmware |
-| Other robots | profiles, PPO configs, MuJoCo scenes. Microban `walk_md` walks in sim ([it. 3000](docs/media/microban_walk_md_it3000.mp4)); Freenove Robot Dog `walk_v7` walks forward ([it. 2700](docs/media/freenove_walk_v7_it2700.mp4)). Checkpoint videos are on each [robot page](docs/robots/README.md) |
+| Other robots | profiles, PPO configs, MuJoCo scenes. Microban `walk_md` walks in sim ([it. 3000](docs/media/microban_walk_md_it3000.mp4)), waves ([`wave_right`](docs/media/microban_wave_right_clip_it0300.mp4)) and dances ([`dance`](docs/media/microban_dance_it0400.mp4)) by clip imitation with a gesture clock ([how](docs/robots/gesture_imitation.md)); Freenove Robot Dog `walk_v7` walks forward ([it. 2700](docs/media/freenove_walk_v7_it2700.mp4)). Checkpoint videos are on each [robot page](docs/robots/README.md) |
 | Real robot without the simulator | needs a servo-bus backend (Dynamixel / Feetech) for joint feedback, not written yet |
 
 ---
@@ -77,6 +77,7 @@ Copy them from [`sitl/APM/nnm/`](sitl/APM/nnm/) or from `robots/<id>/robot/robot
 | `NNM_ENABLE` | 1 | run the task |
 | `NNM_ROBOT` | robot index from [the catalog](docs/robots/README.md) (MicroDuck 0) | topology, read at boot |
 | `NNM_POLICY` | 0 | policy file index in alphabetical order; can change at runtime |
+| `NNM_CLOCK_HZ` | 0 | gesture clock for clip-imitation policies (Microban wave 0.5, dance 0.625); 0 for walking |
 | `SERVO1..14_FUNCTION` | 94..107 | joint outputs (Scripting1..14) |
 | `INS_GYRO_FILTER` | 0 | the policy needs the raw gyro; Rover's default 4 Hz makes the biped fall |
 | `SCHED_LOOP_RATE` | 200 | gravity filter at 200 Hz, as in training |
@@ -118,7 +119,7 @@ change.
 | `NNM_ROBOT` | Robot | Type | Joints | Obs | Policy in repo | Latest training video |
 |---:|---|---|---:|---:|---|---|
 | 0 | [MicroDuck](docs/robots/microduck.md) | biped | 14 | 61 | `walk.nnm` | — |
-| 1 | [Microban](docs/robots/microban.md) | humanoid | 18 | 63 | `walk.nnm`, `walk_md.nnm` | [`walk_md`, it. 3000, 15000 epochs](docs/robots/microban.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 1 | [Microban](docs/robots/microban.md) | humanoid | 18 | 65 | `walk.nnm`, `walk_md.nnm`, `wave_right.nnm`, `dance_arms.nnm`, `dance.nnm` | [`dance`, it. 400, 2000 epochs](docs/robots/microban.md#risultati-per-versione-di-ambiente-ed-epoca) |
 | 2 | [Zeroth-01](docs/robots/zeroth.md) | humanoid | 20 | 69 | — | — |
 | 3 | [Bimo](docs/robots/bimo.md) | biped | 8 | 33 | — | — |
 | 4 | [Legolas](docs/robots/legolas.md) | biped | 10 | 39 | — | — |
@@ -174,6 +175,7 @@ ArduPilot changes and results — is in the [reference document](docs/reference/
 | [docs/reference/microduck-ppo.md](docs/reference/microduck-ppo.md) ([IT](docs/reference/microduck-ppo.it.md)) | MicroDuck integration in depth, results, glossary |
 | [docs/robots/README.md](docs/robots/README.md) | robot configurations and per-robot pages |
 | [docs/robots/training.md](docs/robots/training.md) | ArduPilot-compatible MuJoCo training, int8 |
+| [docs/robots/gesture_imitation.md](docs/robots/gesture_imitation.md) | gestures by clip imitation (wave, dance): gesture clock, reward, why the hand-written reward failed (Italian) |
 | [docs/architecture-integration.pptx](docs/architecture-integration.pptx), [IT pdf](docs/architettura-integrazione.pdf) | architecture slides |
 | [docs/progetto-nnmixer-ardupilot-ppo.md](docs/progetto-nnmixer-ardupilot-ppo.md) | project document (Italian) |
 

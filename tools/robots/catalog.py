@@ -78,7 +78,11 @@ ROBOTS: dict[str, dict] = {
         ],
         "q0": [0.0, -10 * DEG, -20 * DEG, 0.0, -5 * DEG, -10 * DEG, 0.0, 0.0, 5 * DEG,
                0.0, 10 * DEG, -20 * DEG, 0.0, 5 * DEG, -10 * DEG, 0.0, 0.0, -5 * DEG],
-        "extra_cmd_dim": 0,
+        # gesture clock: sin and cos of a phase the firmware advances at NNM_CLOCK_HZ (0 = channels at
+        # zero, the walk). A timed gesture (the wave) is a motion-imitation task: the policy tracks the
+        # reference pose of the current phase, so it must see the phase.
+        "extra_cmd_dim": 2,
+        "extra_cmd_desc": "orologio dei gesti sin, cos 2 (`NNM_CLOCK_HZ`; zero per la camminata)",
         "rate_hz": 50,
         "command_ranges": {"vx": [-0.3, 0.3], "vy": [-0.2, 0.2], "wz": [-1.0, 1.0]},
         "upstream": {
@@ -154,14 +158,82 @@ ROBOTS: dict[str, dict] = {
                                     "0,64). Sopravvivenza 100% in tutte le modalità; avanti/indietro ~0,16-0,19 m/s "
                                     "a comando 0,3; rotazione 0,68-0,87 rad/s a comando 0,8; laterale 0,04 m/s a "
                                     "comando 0,2; passo alternato e simmetrico (3-4 cm, 0,27-0,29 s per piede). "
-                                    "W&B mjlab_microban/h5e7djou."},
+                                    "W&B mjlab_microban/h5e7djou. Allargata a 65 ingressi con due colonne a zero "
+                                    "(uscita identica) quando Microban ha ricevuto i canali dell'orologio.",
+                     "wave_right.nnm": "saluto con la destra per imitazione di una clip (vedi gesture_imitation.md): "
+                                       "mano alta, la spalla porta la mano in fuori e la riporta, un'onda ogni 2 s "
+                                       "(`NNM_CLOCK_HZ 0.5`). Rifinita da walk_md, checkpoint 300: errore medio sui "
+                                       "tre giunti 0,01 rad, in piedi senza spostarsi. W&B mjlab_microban/fqp2z48h.",
+                     "dance_arms.nnm": "balletto delle sole braccia: le due braccia pompano in alternanza, ciclo di "
+                                       "1,6 s (`NNM_CLOCK_HZ 0.625`). Da wave_right, checkpoint 200: errore "
+                                       "0,01-0,05 rad su sei giunti. W&B mjlab_microban/pa1otmey.",
+                     "dance.nnm": "balletto a corpo intero, 16 giunti su 18: braccia di dance_arms, molleggio sulle "
+                                  "ginocchia due volte per ciclo (anca e caviglia coordinate, piede piatto) e "
+                                  "ondeggiamento laterale del bacino di 2,4 cm (`NNM_CLOCK_HZ 0.625`). Da dance_arms, "
+                                  "checkpoint 400: errore 0,00-0,05 rad su tutti i giunti della coreografia, nessuna "
+                                  "caduta, resta sul posto. W&B mjlab_microban/o57v0gih."},
         # Each clip is the int8 policy on the ArduPilot contract. "env" is the reward/config
         # version of that run; one training iteration is 5 PPO epochs.
         "videos": [{
+            "env": "dance",
+            "iteration": "400",
+            "epochs": "2000",
+            "latest": True,
+            "mp4": "microban_dance_it0400.mp4",
+            "caption": "Balletto a corpo intero per imitazione di clip (`dance.nnm`). In verde il corpo di "
+                       "riferimento della clip in quell'istante. Braccia, molleggio e ondeggiamento seguono la "
+                       "clip; 8 s sul posto senza cadere.",
+        }, {
+            "env": "dance",
+            "iteration": "100",
+            "epochs": "500",
+            "mp4": "microban_dance_it0100.mp4",
+            "caption": "Stesso run alla 100: le braccia seguono, le gambe fanno metà del molleggio e le "
+                       "caviglie restano ferme. Il tronco non oscilla ancora.",
+        }, {
+            "env": "dance_arms",
+            "iteration": "200",
+            "epochs": "1000",
+            "mp4": "microban_dance_arms_it0200.mp4",
+            "caption": "Balletto delle sole braccia (`dance_arms.nnm`), partito dal saluto: la clip è seguita "
+                       "entro 0,05 rad già alla 200.",
+        }, {
+            "env": "wave_right_clip",
+            "iteration": "300",
+            "epochs": "1500",
+            "mp4": "microban_wave_right_clip_it0300.mp4",
+            "caption": "Saluto per imitazione di clip (`wave_right.nnm`): mano alta, arco della spalla ogni "
+                       "2 s, quattro onde in 8 s, errore 0,01 rad.",
+        }, {
+            "env": "wave_right_clip",
+            "iteration": "100",
+            "epochs": "500",
+            "mp4": "microban_wave_right_clip_it0100.mp4",
+            "caption": "Stesso run alla 100: braccio alzato, l'arco non è ancora seguito.",
+        }, {
+            "env": "wave_right_v5 (senza orologio)",
+            "iteration": "100",
+            "epochs": "500",
+            "mp4": "microban_wave_right_v5_it0100.mp4",
+            "caption": "Ultimo tentativo con reward scritto a mano (fascia + velocità + arco): un solo arco, "
+                       "poi fermo. La rete senza fase non trova l'oscillazione.",
+        }, {
+            "env": "wave_right_v4 (senza orologio)",
+            "iteration": "100",
+            "epochs": "500",
+            "mp4": "microban_wave_right_v4_it0100.mp4",
+            "caption": "Reward su velocità del gomito: 38 inversioni in 8 s, uno scuotimento, non un saluto.",
+        }, {
+            "env": "wave_right (senza orologio)",
+            "iteration": "400",
+            "epochs": "2000",
+            "mp4": "microban_wave_right_it0400.mp4",
+            "caption": "Primo tentativo, bersaglio alternato per il gomito: sta in piedi e non muove il "
+                       "braccio. Il premio del gesto era già a zero a braccio abbassato.",
+        }, {
             "env": "walk_md",
             "iteration": "3000",
             "epochs": "15000",
-            "latest": True,
             "title": "Risultato dopo 3000 iterazioni (`walk_md.nnm`)",
             "gif": "microban_walk_md.gif",
             "mp4": "microban_walk_md_it3000.mp4",
@@ -200,6 +272,9 @@ ROBOTS: dict[str, dict] = {
             "NNMixer con 18 giunti, quindi la policy pubblicata si converte senza riaddestrarla.",
             "18 giunti superano le 16 funzioni servo Scripting consecutive: il firmware rifiuta questa "
             "topologia finché non esiste un backend bus Dynamixel. Simulazione e training funzionano già.",
+            "L'osservazione è 65: i due canali dopo il twist sono seno e coseno dell'orologio dei gesti "
+            "(`NNM_CLOCK_HZ`, 0 per la camminata). Saluto e balletto sono policy per imitazione di clip, "
+            "selezionabili con `NNM_POLICY`: vedi [gesture_imitation.md](gesture_imitation.md).",
         ],
     },
     "zeroth": {

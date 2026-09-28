@@ -134,6 +134,11 @@ class RewardWeights:
     soft_limit_factor: float = 0.9
     body_ang_vel: float = 0.0
     angular_momentum: float = 0.0
+    # exp(-mean(((q - q_ref) / std)^2)) on the joints of a scripted gesture (a wave, arms raised).
+    # q_ref replaces q0 in the posture terms for those joints. The reference is a function of the
+    # measured joint angle, so a feedforward policy can track it: the observation already has q and qd.
+    gesture_pose: float = 0.0
+    gesture_std: float = 0.12
 
 
 def _quat_rotate_inverse(q, v):
@@ -180,6 +185,7 @@ class NNMixerEnv:
         self.push_interval = tuple(push["interval_s"]) if push else None
         self.push_vel = float(push.get("vel_xy", 0.0)) if push else 0.0
         self.w = RewardWeights(**env_cfg.get("reward", {}))
+        self._setup_gesture(env_cfg.get("gesture"))
         self.actuator = actuator or sim.get("actuator", "position")
         self._load(Path(path))
         self.max_steps = int(self.episode_s * self.contract.rate_hz)
@@ -307,6 +313,135 @@ class NNMixerEnv:
         self.kp = float(pd.get("kp", 0.0))
         self.kd = float(pd.get("kd", 0.0))
 
+    # ------------------------------------------------------------------ gesture
+    def _setup_gesture(self, name: str | None) -> None:
+        """Motion imitation of a short clip while standing (DeepMimic style, as the G1 dances).
+
+        The clip is a few keyframes of arm joints over one period, interpolated with a cosine.
+        The phase advances at clip_hz; sin and cos of the phase go into the two extra observation
+        channels (the firmware fills them at NNM_CLOCK_HZ). The reward tracks the reference pose of
+        the current phase, dense and unambiguous, so the policy has nothing to discover about timing.
+        Joint signs are from the Microban MJCF: negative shoulder pitch brings the hand forward and
+        up; the right shoulder roll abducts outward for negative angles."""
+        self.gesture_spec = None
+        self.gesture_ids: np.ndarray | None = None
+        self.clip_phase = 0.0
+        if not name:
+            return
+        presets = {
+            # keyframes: phase in [0, 1) -> joint angle; the clip is periodic
+            "arms_up": {
+                "hz": 0.0,
+                "keys": {
+                    "right_shoulder_pitch": [(0.0, -1.05)], "left_shoulder_pitch": [(0.0, -1.05)],
+                    "right_elbow": [(0.0, -0.70)], "left_elbow": [(0.0, -0.70)],
+                },
+            },
+            "wave_right": {
+                # hand up (pitch + bent elbow) for the whole period, the shoulder roll carries it out
+                # to the right and back in: an arc of about 6 cm at 0.26 m height. One wave per 2 s.
+                "hz": 0.5,
+                "keys": {
+                    "right_shoulder_pitch": [(0.0, -1.10)],
+                    "right_elbow": [(0.0, -1.00)],
+                    "right_shoulder_roll": [(0.0, -0.25), (0.5, -1.05)],
+                },
+            },
+            "dance_arms": {
+                # both arms pump in alternation: one hand goes up and out while the other comes
+                # down and in, elbows bending with them. Period 1.6 s. Legs stay on q0.
+                "hz": 0.625,
+                "keys": {
+                    "right_shoulder_pitch": [(0.0, -1.40), (0.5, -0.20)],
+                    "left_shoulder_pitch": [(0.0, -0.20), (0.5, -1.40)],
+                    "right_shoulder_roll": [(0.0, -0.75), (0.5, -0.25)],
+                    "left_shoulder_roll": [(0.0, 0.25), (0.5, 0.75)],
+                    "right_elbow": [(0.0, -1.20), (0.5, -0.45)],
+                    "left_elbow": [(0.0, -0.45), (0.5, -1.20)],
+                },
+            },
+            "dance": {
+                # dance_arms plus the legs: a knee bob twice per period (knee 0.15 -> 0.55 rad with
+                # the hip and ankle pitch that keep the foot flat and under the hip, measured on the
+                # MJCF: hip -0.24, ankle -0.28 per 0.5 rad of knee) and a lateral sway once per
+                # period (hip roll +d, ankle roll -d on both legs shifts the trunk ~1.8 cm per 0.15
+                # rad, feet flat). The trunk leans toward the raised arm.
+                "hz": 0.625,
+                "keys": {
+                    "right_shoulder_pitch": [(0.0, -1.40), (0.5, -0.20)],
+                    "left_shoulder_pitch": [(0.0, -0.20), (0.5, -1.40)],
+                    "right_shoulder_roll": [(0.0, -0.75), (0.5, -0.25)],
+                    "left_shoulder_roll": [(0.0, 0.25), (0.5, 0.75)],
+                    "right_elbow": [(0.0, -1.20), (0.5, -0.45)],
+                    "left_elbow": [(0.0, -0.45), (0.5, -1.20)],
+                    "right_knee": [(0.0, 0.15), (0.25, 0.55), (0.5, 0.15), (0.75, 0.55)],
+                    "left_knee": [(0.0, 0.15), (0.25, 0.55), (0.5, 0.15), (0.75, 0.55)],
+                    "right_hip_pitch": [(0.0, -0.245), (0.25, -0.435), (0.5, -0.245), (0.75, -0.435)],
+                    "left_hip_pitch": [(0.0, -0.245), (0.25, -0.435), (0.5, -0.245), (0.75, -0.435)],
+                    "right_ankle_pitch": [(0.0, -0.06), (0.25, -0.30), (0.5, -0.06), (0.75, -0.30)],
+                    "left_ankle_pitch": [(0.0, -0.06), (0.25, -0.30), (0.5, -0.06), (0.75, -0.30)],
+                    "right_hip_roll": [(0.0, 0.033), (0.5, -0.207)],
+                    "left_hip_roll": [(0.0, 0.207), (0.5, -0.033)],
+                    "right_ankle_roll": [(0.0, -0.033), (0.5, 0.207)],
+                    "left_ankle_roll": [(0.0, -0.207), (0.5, 0.033)],
+                },
+            },
+        }
+        if name not in presets:
+            raise ValueError(f"unknown gesture {name!r}; known: {', '.join(presets)}")
+        spec = presets[name]
+        names = self.profile["joint_names"]
+        index = {n: i for i, n in enumerate(names)}
+        missing = [n for n in spec["keys"] if n not in index]
+        if missing:
+            raise ValueError(f"{name}: joints not on this robot: {missing}")
+        if spec["hz"] and self.contract.extra_cmd_dim < 2:
+            raise ValueError(f"{name}: a timed clip needs two extra observation channels "
+                             f"(extra_cmd_dim >= 2), this robot has {self.contract.extra_cmd_dim}")
+        self.gesture_spec = spec
+        self.gesture_index = index
+        self.gesture_ids = np.array([index[n] for n in spec["keys"]])
+        self.p_zero_cmd = 1.0
+        self.push_vel = 0.0
+        # a radian of arm motion must not be smoothed away, and the walk curriculum would raise this
+        self.w.action_rate = -0.02
+        if not self.w.gesture_pose:
+            self.w.gesture_pose = 8.0
+
+    @staticmethod
+    def _clip_value(keys: list[tuple[float, float]], phase: float) -> float:
+        """Periodic cosine interpolation between keyframes (phase, value) sorted by phase."""
+        if len(keys) == 1:
+            return keys[0][1]
+        n = len(keys)
+        for k in range(n):
+            p0, v0 = keys[k]
+            p1, v1 = keys[(k + 1) % n]
+            span = (p1 - p0) % 1.0 or 1.0
+            t = (phase - p0) % 1.0
+            if t <= span:
+                s = 0.5 - 0.5 * math.cos(math.pi * t / span)
+                return v0 + (v1 - v0) * s
+        return keys[-1][1]
+
+    def _gesture_extra(self) -> np.ndarray | None:
+        if self.gesture_spec is None or self.contract.extra_cmd_dim < 2:
+            return None
+        extra = np.zeros(self.contract.extra_cmd_dim, np.float32)
+        if self.gesture_spec["hz"]:
+            extra[0] = math.sin(2 * math.pi * self.clip_phase)
+            extra[1] = math.cos(2 * math.pi * self.clip_phase)
+        return extra
+
+    def _gesture_reference(self, q: np.ndarray) -> np.ndarray:
+        ref = np.array(self.contract.q0, dtype=np.float64, copy=True)
+        spec = self.gesture_spec
+        if spec is None:
+            return ref
+        for n, keys in spec["keys"].items():
+            ref[self.gesture_index[n]] = self._clip_value(keys, self.clip_phase)
+        return ref
+
     # ------------------------------------------------------------------ helpers
     def _is_under(self, body: int, root: int) -> bool:
         m = self.model
@@ -322,6 +457,8 @@ class NNMixerEnv:
         return self.steps + int(self.rng.uniform(*self.resample_s) * self.contract.rate_hz)
 
     def _sample_command(self) -> np.ndarray:
+        if self.gesture_spec is not None:
+            return np.zeros(3, np.float32)
         if self.rng.random() < self.p_zero_cmd:
             return np.zeros(3, np.float32)
         r = self.cmd_ranges
@@ -396,6 +533,8 @@ class NNMixerEnv:
         self.a_prev = dc.stand_action(c)
         self.q_wire = dc.apply_action(c, self.a_prev)[1]
         self.command = self._sample_command()
+        # a random start phase: the policy must join the clip anywhere, as on the robot
+        self.clip_phase = float(self.rng.random()) if self.gesture_spec else 0.0
         self.steps = 0
         self._ep_terms: dict[str, float] = {}
         self._ep_return = 0.0
@@ -443,7 +582,8 @@ class NNMixerEnv:
         d = self.data
         gyro_frd, _ = self._imu_frd()
         obs = dc.build_obs(c, dc.frd_to_flu(gyro_frd), self.gravity.gravity_flu(),
-                           d.qpos[self.qpos_idx], d.qvel[self.qvel_idx], self.a_prev, self.command)
+                           d.qpos[self.qpos_idx], d.qvel[self.qvel_idx], self.a_prev, self.command,
+                           self._gesture_extra())
         self._obs_hist.append(obs)
         self._obs_hist = self._obs_hist[-(self.obs_delay_max + 1):]
         delay = int(self.rng.integers(0, self.obs_delay_max + 1)) if self.obs_delay_max else 0
@@ -462,6 +602,9 @@ class NNMixerEnv:
         if self.steps >= self.next_resample:
             self.command = self._sample_command()
             self.next_resample = self._next_resample()
+        if self.gesture_spec is not None:
+            self.command = np.zeros(3, np.float32)
+            self.clip_phase = (self.clip_phase + self.gesture_spec["hz"] / c.rate_hz) % 1.0
         if self.steps >= self.next_push:
             d.qvel[self.free_qvel:self.free_qvel + 2] += self.rng.uniform(-self.push_vel, self.push_vel, 2)
             self.next_push = self.steps + int(self.rng.uniform(*self.push_interval) * c.rate_hz)
@@ -664,9 +807,11 @@ class NNMixerEnv:
 
     def set_curriculum(self, action_rate: float | None = None, standing_envs: float | None = None,
                        penalty_scale: float | None = None) -> None:
+        """MicroDuck curriculum knobs: action_rate_l2 weight and share of zero-command (standing) episodes."""
+        if self.gesture_spec is not None:
+            return
         if penalty_scale is not None:
             self.penalty_scale = float(penalty_scale)
-        """MicroDuck curriculum knobs: action_rate_l2 weight and share of zero-command (standing) episodes."""
         if action_rate is not None:
             self.w.action_rate = float(action_rate)
         if standing_envs is not None:
@@ -688,20 +833,29 @@ class NNMixerEnv:
         lin_err = float(np.sum((cmd[:2] - v_track[:2]) ** 2)) + w.tracking_lin_z * float(v_track[2] ** 2)
         ang_err = float((cmd[2] - wz_track) ** 2) + w.tracking_ang_rp * float(np.sum(w_body[:2] ** 2))
         q = d.qpos[self.qpos_idx]
+        q_ref = self._gesture_reference(q)
         if w.upright_std:
             g_true = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
             up = math.exp(-float(np.sum(g_true[:2] ** 2)) / w.upright_std ** 2)
         else:
             up = -self.gravity.gravity_flu()[2]            # 1 when upright
         moving = float(np.linalg.norm(cmd[:2]) + abs(cmd[2]))
+        # arm joints are scored only by the gesture term. Leaving them in the body pose zeroed that
+        # term a radian away (exp of a huge mean) and removed its gradient, so standing still paid
+        # in full and the arm never moved.
+        pose_sel = np.ones(q.shape[0], dtype=bool)
+        if self.gesture_ids is not None:
+            pose_sel[self.gesture_ids] = False
+        q_pose = q[pose_sel]
+        ref_pose = np.asarray(self.contract.q0, dtype=np.float64)[pose_sel]
         if self.pose_std_stand is not None:
-            std = self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk
-            pose = math.exp(-float(np.mean(((q - self.contract.q0) / std) ** 2)))
+            std = (self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk)[pose_sel]
+            pose = math.exp(-float(np.mean(((q_pose - ref_pose) / std) ** 2)))
         else:
-            pose = math.exp(-float(np.sum((q - self.contract.q0) ** 2)))
+            pose = math.exp(-float(np.sum((q_pose - ref_pose) ** 2)))
         if w.pose_l2 and self.pose_std_stand is not None:
-            std_l2 = self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk
-            pose_l2 = float(np.mean(((q - self.contract.q0) / std_l2) ** 2))
+            std_l2 = (self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk)[pose_sel]
+            pose_l2 = float(np.mean(((q_pose - ref_pose) / std_l2) ** 2))
         rate = float(np.sum((np.asarray(action) - self._last_raw_action) ** 2))
         self._last_raw_action = np.asarray(action, dtype=np.float32).copy()
         dt = 1.0 / self.contract.rate_hz
@@ -720,7 +874,17 @@ class NNMixerEnv:
             g_t = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
             terms["orientation"] = w.orientation * float(np.sum(g_t[:2] ** 2)) * dt
         if w.stand_still and float(np.linalg.norm(cmd)) < 0.01:
-            terms["stand_still"] = w.stand_still * float(np.sum(np.abs(q - self.contract.q0))) * dt
+            terms["stand_still"] = w.stand_still * float(np.sum(np.abs(q - q_ref))) * dt
+        if w.gesture_pose and self.gesture_ids is not None:
+            # linear in the joint error: exp(-err²) with std 0.12 was already 0 at 1 rad, so the
+            # arm had no gradient. 1 at the pose, 0 at 1.5 rad mean error, negative beyond that.
+            # motion tracking: mean joint error to the reference pose of this phase. Linear so
+            # the gradient reaches a lowered arm; a tighter exp() bonus rewards following the
+            # clip closely (DeepMimic pose term), which is what makes the wave visible.
+            err = q[self.gesture_ids] - q_ref[self.gesture_ids]
+            gap = float(np.mean(np.abs(err)))
+            terms["gesture"] = w.gesture_pose * (1.0 - gap / 1.5) * dt
+            terms["gesture_track"] = 0.5 * w.gesture_pose * math.exp(-float(np.mean(err ** 2)) / 0.02) * dt
         if w.body_ang_vel:
             terms["body_ang_vel"] = w.body_ang_vel * float(np.sum(w_body[:2] ** 2)) * dt
         if w.angular_momentum:

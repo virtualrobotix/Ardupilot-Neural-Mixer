@@ -35,7 +35,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import deploy_contract as dc  # noqa: E402
-from common import robot_dir  # noqa: E402
+from common import load_profile, robot_dir  # noqa: E402
 from export_nnm import unpack_nnm  # noqa: E402
 from nnm_env import NNMixerEnv, load_ppo_config  # noqa: E402
 
@@ -199,7 +199,9 @@ class VecEnv:
 
     def __init__(self, robot, cfg, n_envs, workers):
         self.n = n_envs
-        self.contract = NNMixerEnv(robot, cfg, seed=10_000).contract
+        probe = NNMixerEnv(robot, cfg, seed=10_000)
+        self.contract = probe.contract
+        self.gesture_ids = probe.gesture_ids       # joints of a --gesture clip (None otherwise)
         workers = max(1, min(workers, n_envs))
         self.local = None
         if workers == 1:
@@ -258,6 +260,8 @@ def train(args) -> None:
 
     torch.set_num_threads(max(1, args.torch_threads))
     cfg = load_ppo_config(args.robot)
+    if args.gesture:
+        cfg.setdefault("env", {})["gesture"] = args.gesture
     net, ppo = cfg["network"], cfg["ppo"]
     cur = {**DEFAULT_CURRICULUM, **cfg["env"].get("curriculum", {})}
     venv = VecEnv(args.robot, cfg, args.envs, args.workers)
@@ -308,6 +312,30 @@ def train(args) -> None:
         with torch.no_grad():
             log_std.fill_(float(np.log(args.init_std)))
         print(f"initialised actor and normalizer from {args.init_onnx}; exploration std {args.init_std}")
+    if args.init_nnm:
+        if args.resume or args.init_onnx:
+            raise SystemExit("--init-nnm replaces --resume and --init-onnx")
+        if act_scale != 1.0:
+            raise SystemExit("--init-nnm: this pack has no action_scale fold; set network.action_scale to 1")
+        from export_nnm import unpack_nnm as unpack_init
+        packed = unpack_init(Path(args.init_nnm).read_bytes())
+        lins = [m for m in actor.modules() if isinstance(m, nn.Linear)]
+        shapes = [tuple(l.weight.shape) for l in lins]
+        got = [tuple(int(x) for x in Wq.shape) for Wq, _, _, _ in packed["layers"]]
+        if shapes != got:
+            raise SystemExit(f"{args.init_nnm}: layer shapes {got} differ from the actor {shapes}")
+        with torch.no_grad():
+            for lin, (Wq, scale, b, _act) in zip(lins, packed["layers"]):
+                lin.weight.copy_(torch.from_numpy(Wq.astype(np.float32) * scale[:, None]))
+                lin.bias.copy_(torch.from_numpy(np.asarray(b, dtype=np.float32)))
+            log_std.fill_(float(np.log(args.init_std)))
+        norm.mean = packed["mean"].astype(np.float64)
+        norm.m2 = (packed["std"].astype(np.float64) ** 2) * 1e6
+        norm.n = 1_000_001
+        freeze_norm = True
+        print(f"initialised actor and normalizer from {args.init_nnm}; exploration std {args.init_std}")
+    if args.gesture:
+        ppo["schedule"] = "fixed"
     start_iter = 0
     if args.resume:
         # continue a run: same networks, exploration noise and normalizer statistics
@@ -330,17 +358,28 @@ def train(args) -> None:
             with torch.no_grad():
                 log_std.fill_(float(np.log(args.reset_std)))
         print(f"resumed from {args.resume} at iteration {start_iter}; std {log_std.exp().mean().item():.3f}")
+    if args.gesture:
+        # after --resume, so a checkpoint that learned to shake the elbow does not keep that noise.
+        # The roll sweeps; pitch and elbow only have to hold the raised hand.
+        std = np.full(n, 0.06, np.float32)
+        names = load_profile(args.robot)["joint_names"]
+        for j in venv.gesture_ids:
+            # arms can explore freely; a leg joint in the clip explores less, or the robot falls
+            std[j] = 0.30 if ("shoulder" in names[j] or "elbow" in names[j]) else 0.12
+        with torch.no_grad():
+            log_std.copy_(torch.from_numpy(np.log(std)).float())
+        print(f"gesture {args.gesture}: std {np.round(std, 2).tolist()}, fixed learning rate")
     params = list(actor.parameters()) + list(critic.parameters()) + [log_std]
     if args.resume:
         lr = float(args.lr or ppo["learning_rate"])
     else:
-        lr = float(ppo["learning_rate"]) if not args.init_onnx else float(args.lr or 1e-5)
+        lr = float(ppo["learning_rate"]) if not (args.init_onnx or args.init_nnm) else float(args.lr or 1e-5)
     opt = torch.optim.Adam(params, lr=lr)
-    warmup = args.critic_warmup if args.critic_warmup is not None else (10 if args.init_onnx else 0)
+    warmup = args.critic_warmup if args.critic_warmup is not None else (10 if (args.init_onnx or args.init_nnm) else 0)
     T = int(args.steps or ppo["num_steps_per_env"])
     gamma, lam, clip = float(ppo["gamma"]), float(ppo["lam"]), float(ppo["clip_param"])
     # an upstream policy has already been through its own curriculum: start at the final values
-    ramp_iters = 0 if (args.init_onnx and not args.curriculum_from_start) else int(cur["ramp_fraction"] * args.iters)
+    ramp_iters = 0 if ((args.init_onnx or args.init_nnm) and not args.curriculum_from_start) else int(cur["ramp_fraction"] * args.iters)
     if args.ramp_iters is not None:
         ramp_iters = args.ramp_iters
 
@@ -654,6 +693,10 @@ def main() -> None:
     ap.add_argument("--wandb", action="store_true", help="log to Weights & Biases (project mjlab_<robot>)")
     ap.add_argument("--wandb-project", default=None)
     ap.add_argument("--eval", type=Path, default=None, help="evaluate a .nnm (stand / walk) and exit")
+    ap.add_argument("--gesture", default=None, choices=("arms_up", "wave_right", "dance_arms", "dance"),
+                    help="stand and track a scripted arm pose (same observation as the walk)")
+    ap.add_argument("--init-nnm", type=Path, default=None,
+                    help="fine-tune from a .nnm of this robot (dequantized weights and normalizer)")
     ap.add_argument("--init-onnx", type=Path, default=None,
                     help="start from an upstream MLP ONNX (fine-tune on the ArduPilot contract, int8)")
     ap.add_argument("--init-std", type=float, default=0.1, help="exploration std when fine-tuning")

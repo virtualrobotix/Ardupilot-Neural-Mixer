@@ -139,10 +139,11 @@ def robot_page(rid: str, r: dict, status_text: dict, link_text: dict, repo_root:
         lines += ["", "Canale e verso vengono dal codice upstream: angolo servo = 90° + verso × q (in gradi), "
                       "più l'offset di calibrazione del singolo servo."]
     extra = r.get("extra_cmd_dim", 0)
+    extra_desc = r.get("extra_cmd_desc", f"comandi testa/corpo {extra} (zero sull'autopilota)")
     lines += [
         "",
         f"Osservazione ({od}): gyro FLU 3, gravità FLU 3, q−q0 {n}, q̇ {n}, azione precedente {n}, "
-        f"twist vx vy ωz 3" + (f", comandi testa/corpo {extra} (zero sull'autopilota)" if extra else "") + ".",
+        f"twist vx vy ωz 3" + (f", {extra_desc}" if extra else "") + ".",
         f"Azione ({n}): offset in radianti, `q_target = q0 + azione`.",
         "",
     ]
@@ -264,7 +265,8 @@ def index_page(robots: dict, status_text: dict, link_text: dict, repo_root: Path
     lines = [
         "# Robot supportati da AP_NNMixer",
         "",
-        "[README](../../README.it.md) · [Training compatibile con ArduPilot](training.md)",
+        "[README](../../README.it.md) · [Training compatibile con ArduPilot](training.md) · "
+        "[Gesti per imitazione di clip](gesture_imitation.md)",
         "",
         "Ogni robot ha una **topologia** fissata al boot (`NNM_ROBOT`) e **policy** proprie, scambiabili a "
         "caldo solo dentro la sua cartella (`NNM_POLICY`). Una policy di un altro robot viene rifiutata dal "

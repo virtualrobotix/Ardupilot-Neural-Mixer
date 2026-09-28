@@ -14,7 +14,7 @@
 | Progetto | Rhoban |
 | Stato | walk_md.nnm addestrata sul contratto ArduPilot; walk.nnm upstream da rifinire |
 | Giunti comandati | 18 |
-| Osservazione | 63 valori |
+| Osservazione | 65 valori |
 | Frequenza policy | 50 Hz |
 | Attuatori | 19× Dynamixel XL330-M288-T (bus); la testa non è comandata dalla policy |
 | Collegamento | servo su bus seriale: serve il backend bus nel firmware (non ancora scritto) |
@@ -61,12 +61,12 @@ File: [`robots/microban/robot/profile.json`](../../robots/microban/robot/profile
 | 16 | `left_ankle_pitch` | +0.0000 | oltre Scripting16: serve il backend bus |
 | 17 | `left_ankle_roll` | -0.0873 | oltre Scripting16: serve il backend bus |
 
-Osservazione (63): gyro FLU 3, gravità FLU 3, q−q0 18, q̇ 18, azione precedente 18, twist vx vy ωz 3.
+Osservazione (65): gyro FLU 3, gravità FLU 3, q−q0 18, q̇ 18, azione precedente 18, twist vx vy ωz 3, orologio dei gesti sin, cos 2 (`NNM_CLOCK_HZ`; zero per la camminata).
 Azione (18): offset in radianti, `q_target = q0 + azione`.
 
 ## Architettura PPO
 
-File: [`robots/microban/robot/ppo.yaml`](../../robots/microban/robot/ppo.yaml). Stessa rete di MicroDuck, già provata su Pixhawk 6C: **63 → 512 → 256 → 128 → 18**, ELU, normalizzazione dell'osservazione incorporata. Pesi int8 per riga addestrati sulla griglia int8 dalla prima iterazione (QAT), attivazioni float32. PPO: 2048 ambienti × 24 passi, 5 epoche, 4 minibatch, lr 1e-3 adattivo (KL 0,01), γ 0,99, λ 0,95, clip 0,2.
+File: [`robots/microban/robot/ppo.yaml`](../../robots/microban/robot/ppo.yaml). Stessa rete di MicroDuck, già provata su Pixhawk 6C: **65 → 512 → 256 → 128 → 18**, ELU, normalizzazione dell'osservazione incorporata. Pesi int8 per riga addestrati sulla griglia int8 dalla prima iterazione (QAT), attivazioni float32. PPO: 2048 ambienti × 24 passi, 5 epoche, 4 minibatch, lr 1e-3 adattivo (KL 0,01), γ 0,99, λ 0,95, clip 0,2.
 
 ## Policy
 
@@ -74,8 +74,11 @@ Cartella: [`robots/microban/policies/`](../../robots/microban/policies/) → sul
 
 | File | Dimensione | Descrizione |
 |---|---:|---|
-| `walk.nnm` | 201 KB | walk.onnx pubblicato da Rhoban (MLP 63-512-256-128-18, stesso contratto NNMixer) convertito in int8 per riga. Nell'ambiente a contratto: in piedi 10 s, avanti cade a 6,8 s, rotazione cade a 1 s. Con la gravità esatta del simulatore regge 10 s in avanti: la policy è stata addestrata senza il filtro IMU dell'autopilota. Da rifinire con --init-onnx prima dell'uso. |
-| `walk_md.nnm` | 201 KB | addestrata da zero sul contratto ArduPilot in int8 (QAT): reward e curriculum del task MicroDuck più premi sul passo (appoggio singolo, piede sollevato, alternanza, simmetria), 512 env × 3000 iterazioni, checkpoint 2700 (punteggio 0,64). Sopravvivenza 100% in tutte le modalità; avanti/indietro ~0,16-0,19 m/s a comando 0,3; rotazione 0,68-0,87 rad/s a comando 0,8; laterale 0,04 m/s a comando 0,2; passo alternato e simmetrico (3-4 cm, 0,27-0,29 s per piede). W&B mjlab_microban/h5e7djou. |
+| `dance.nnm` | 203 KB | balletto a corpo intero, 16 giunti su 18: braccia di dance_arms, molleggio sulle ginocchia due volte per ciclo (anca e caviglia coordinate, piede piatto) e ondeggiamento laterale del bacino di 2,4 cm (`NNM_CLOCK_HZ 0.625`). Da dance_arms, checkpoint 400: errore 0,00-0,05 rad su tutti i giunti della coreografia, nessuna caduta, resta sul posto. W&B mjlab_microban/o57v0gih. |
+| `dance_arms.nnm` | 203 KB | balletto delle sole braccia: le due braccia pompano in alternanza, ciclo di 1,6 s (`NNM_CLOCK_HZ 0.625`). Da wave_right, checkpoint 200: errore 0,01-0,05 rad su sei giunti. W&B mjlab_microban/pa1otmey. |
+| `walk.nnm` | 203 KB | walk.onnx pubblicato da Rhoban (MLP 63-512-256-128-18, stesso contratto NNMixer) convertito in int8 per riga. Nell'ambiente a contratto: in piedi 10 s, avanti cade a 6,8 s, rotazione cade a 1 s. Con la gravità esatta del simulatore regge 10 s in avanti: la policy è stata addestrata senza il filtro IMU dell'autopilota. Da rifinire con --init-onnx prima dell'uso. |
+| `walk_md.nnm` | 203 KB | addestrata da zero sul contratto ArduPilot in int8 (QAT): reward e curriculum del task MicroDuck più premi sul passo (appoggio singolo, piede sollevato, alternanza, simmetria), 512 env × 3000 iterazioni, checkpoint 2700 (punteggio 0,64). Sopravvivenza 100% in tutte le modalità; avanti/indietro ~0,16-0,19 m/s a comando 0,3; rotazione 0,68-0,87 rad/s a comando 0,8; laterale 0,04 m/s a comando 0,2; passo alternato e simmetrico (3-4 cm, 0,27-0,29 s per piede). W&B mjlab_microban/h5e7djou. Allargata a 65 ingressi con due colonne a zero (uscita identica) quando Microban ha ricevuto i canali dell'orologio. |
+| `wave_right.nnm` | 203 KB | saluto con la destra per imitazione di una clip (vedi gesture_imitation.md): mano alta, la spalla porta la mano in fuori e la riporta, un'onda ogni 2 s (`NNM_CLOCK_HZ 0.5`). Rifinita da walk_md, checkpoint 300: errore medio sui tre giunti 0,01 rad, in piedi senza spostarsi. W&B mjlab_microban/fqp2z48h. |
 
 ### Risultati per versione di ambiente ed epoca
 
@@ -83,6 +86,14 @@ Ogni link è la policy int8, quella che gira sull'autopilota, a quel checkpoint.
 
 | Versione ambiente | Iterazione | Epoche PPO | Video | Risultato |
 |---|---:|---:|---|---|
+| `dance` | 400 | 2000 | [`microban_dance_it0400.mp4`](../media/microban_dance_it0400.mp4) | Balletto a corpo intero per imitazione di clip (`dance.nnm`). In verde il corpo di riferimento della clip in quell'istante. Braccia, molleggio e ondeggiamento seguono la clip; 8 s sul posto senza cadere. |
+| `dance` | 100 | 500 | [`microban_dance_it0100.mp4`](../media/microban_dance_it0100.mp4) | Stesso run alla 100: le braccia seguono, le gambe fanno metà del molleggio e le caviglie restano ferme. Il tronco non oscilla ancora. |
+| `dance_arms` | 200 | 1000 | [`microban_dance_arms_it0200.mp4`](../media/microban_dance_arms_it0200.mp4) | Balletto delle sole braccia (`dance_arms.nnm`), partito dal saluto: la clip è seguita entro 0,05 rad già alla 200. |
+| `wave_right_clip` | 300 | 1500 | [`microban_wave_right_clip_it0300.mp4`](../media/microban_wave_right_clip_it0300.mp4) | Saluto per imitazione di clip (`wave_right.nnm`): mano alta, arco della spalla ogni 2 s, quattro onde in 8 s, errore 0,01 rad. |
+| `wave_right_clip` | 100 | 500 | [`microban_wave_right_clip_it0100.mp4`](../media/microban_wave_right_clip_it0100.mp4) | Stesso run alla 100: braccio alzato, l'arco non è ancora seguito. |
+| `wave_right_v5 (senza orologio)` | 100 | 500 | [`microban_wave_right_v5_it0100.mp4`](../media/microban_wave_right_v5_it0100.mp4) | Ultimo tentativo con reward scritto a mano (fascia + velocità + arco): un solo arco, poi fermo. La rete senza fase non trova l'oscillazione. |
+| `wave_right_v4 (senza orologio)` | 100 | 500 | [`microban_wave_right_v4_it0100.mp4`](../media/microban_wave_right_v4_it0100.mp4) | Reward su velocità del gomito: 38 inversioni in 8 s, uno scuotimento, non un saluto. |
+| `wave_right (senza orologio)` | 400 | 2000 | [`microban_wave_right_it0400.mp4`](../media/microban_wave_right_it0400.mp4) | Primo tentativo, bersaglio alternato per il gomito: sta in piedi e non muove il braccio. Il premio del gesto era già a zero a braccio abbassato. |
 | `walk_md` | 3000 | 15000 | [`microban_walk_md_it3000.mp4`](../media/microban_walk_md_it3000.mp4) | Ambiente allineato a MicroDuck più premi sul passo. Avanti 5 s a 0,3 m/s, destra 3 s, 180° a sinistra, avanti 5 s: nessuna caduta in 16,7 s, 2,4 m percorsi. |
 | `walk_md` | 0–3000 | 0–15000 | [`microban_md_evolution.mp4`](../media/microban_md_evolution.mp4) | Evoluzione dello stesso ambiente: stessi comandi sui checkpoint successivi. |
 | `walk_gait_v1` | 900 | 4500 | [`microban_gait_best_it900.mp4`](../media/microban_gait_best_it900.mp4) | Miglior checkpoint del run sul passo. Sta in piedi e ruota sul posto; l'avanzamento resta sotto 0,1 m. |
@@ -121,3 +132,4 @@ Con 18 giunti il firmware attuale rifiuta `robot.bin` (massimo 16 funzioni servo
 
 - L'osservazione dell'ONNX è gyro, gravità proiettata, q−q0, q̇, azione precedente, twist: il formato NNMixer con 18 giunti, quindi la policy pubblicata si converte senza riaddestrarla.
 - 18 giunti superano le 16 funzioni servo Scripting consecutive: il firmware rifiuta questa topologia finché non esiste un backend bus Dynamixel. Simulazione e training funzionano già.
+- L'osservazione è 65: i due canali dopo il twist sono seno e coseno dell'orologio dei gesti (`NNM_CLOCK_HZ`, 0 per la camminata). Saluto e balletto sono policy per imitazione di clip, selezionabili con `NNM_POLICY`: vedi [gesture_imitation.md](gesture_imitation.md).

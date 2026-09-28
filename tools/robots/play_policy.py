@@ -32,6 +32,7 @@ from export_nnm import unpack_nnm  # noqa: E402
 from nnm_env import NNMixerEnv, load_ppo_config  # noqa: E402
 
 SIGNATURE = "Realizzati da Roberto Navoni — DelphyAI LAB"
+GESTURE: str | None = None      # --gesture: env clip whose clock channels the policy expects
 
 
 def yaw_of(q) -> float:
@@ -72,6 +73,8 @@ class Sequence:
 def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None, video=None,
         realtime: bool = False, phases=None, title: str = "", hold_after_fall_s: float = 0.0) -> dict:
     cfg = load_ppo_config(robot)
+    if GESTURE:
+        cfg.setdefault("env", {})["gesture"] = GESTURE    # the env then supplies the clock channels
     pk = unpack_nnm(nnm.read_bytes())
     env = NNMixerEnv(robot, cfg, seed=0)
     env.max_steps = 10 ** 9
@@ -117,6 +120,8 @@ def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None,
         if renderer is not None and k % max(1, rate // 25) == 0:
             renderer.update_scene(d, camera=video["cam"])
             video["cam"].lookat[:] = d.qpos[env.free_qpos:env.free_qpos + 3]
+            if env.gesture_spec is not None:
+                _draw_reference_arm(env, renderer.scene)
             frame = renderer.render()
             video["proc"].stdin.write(_overlay(frame, label if not fell else "CADUTO", t, info, twist,
                                                title).tobytes())
@@ -134,6 +139,47 @@ def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None,
     return {"policy": nnm.name, "fell": fell, "t_end": k / rate, "path_m": path_len,
             "net_displacement_m": float(np.linalg.norm(disp)), "yaw_total_deg": math.degrees(yaw_total),
             "phases": [(lbl, round(a, 2), round(b, 2), round(math.degrees(y), 1)) for lbl, a, b, y in log]}
+
+
+def _draw_reference_arm(env, scn) -> None:
+    """Ghost of the gesture reference: the robot's own kinematics in the clip pose of this phase,
+    drawn as translucent green links over the rendered frame. Shows where the arm should be."""
+    import mujoco
+
+    m = env.model
+    ref = getattr(env, "_ref_data", None)
+    if ref is None:
+        ref = env._ref_data = mujoco.MjData(m)
+    ref.qpos[:] = env.data.qpos
+    q = env.data.qpos[env.qpos_idx]
+    q_ref = env._gesture_reference(q)
+    ref.qpos[env.qpos_idx] = q_ref
+    mujoco.mj_kinematics(m, ref)
+    joints = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, n) for n in env.gesture_spec["keys"]]
+    bodies = sorted({int(m.jnt_bodyid[j]) for j in joints}, key=lambda b: m.body_parentid[b])
+    rgba = np.array([0.2, 1.0, 0.3, 0.45], np.float32)
+
+    def add(kind, size, pos, mat=None):
+        if scn.ngeom >= scn.maxgeom:
+            return None
+        g = scn.geoms[scn.ngeom]
+        mujoco.mjv_initGeom(g, kind, np.asarray(size, np.float64), np.asarray(pos, np.float64),
+                            np.eye(3).flatten() if mat is None else np.asarray(mat, np.float64), rgba)
+        scn.ngeom += 1
+        return g
+
+    # links between consecutive arm bodies, then the collision geoms of each arm body
+    for b in bodies:
+        p = int(m.body_parentid[b])
+        if p in bodies:
+            g = add(mujoco.mjtGeom.mjGEOM_CAPSULE, [0.006, 0, 0], ref.xpos[b])
+            if g is not None:
+                mujoco.mjv_connector(g, mujoco.mjtGeom.mjGEOM_CAPSULE, 0.006, ref.xpos[p], ref.xpos[b])
+        for gi in range(m.ngeom):
+            if m.geom_bodyid[gi] == b and m.geom_group[gi] == 3:
+                g = add(m.geom_type[gi], m.geom_size[gi], ref.geom_xpos[gi], ref.geom_xmat[gi])
+                if g is not None:
+                    g.rgba[:] = rgba
 
 
 def _font(size: int):
@@ -159,6 +205,9 @@ def _overlay(frame: np.ndarray, label: str, t: float, info: dict, twist, title: 
     lateral = f" vy={twist[1]:+.2f}" if twist[1] else ""
     dr.text((10, y), f"t={t:5.1f}s  fase: {label}  cmd vx={twist[0]:+.2f}{lateral} m/s wz={twist[2]:+.2f} rad/s  "
                      f"vx reale={info['vx']:+.2f}", fill=(240, 240, 240, 255), font=_font(14))
+    if GESTURE:
+        dr.text((10, img.height - 44), f"verde: braccio di riferimento della clip '{GESTURE}'",
+                fill=(120, 255, 140, 255), font=_font(13))
     dr.text((10, img.height - 22), SIGNATURE, fill=(220, 220, 220, 255), font=_font(13))
     return np.asarray(img)
 
@@ -174,9 +223,16 @@ def main() -> None:
     ap.add_argument("--vy", type=float, default=0.1, help="lateral speed of the --full sequence")
     ap.add_argument("--full", action="store_true",
                     help="every command: forward, backward, lateral left, turn right, turn left 180°, forward")
+    ap.add_argument("--stand", type=float, default=0.0,
+                    help="seconds standing with a zero command (a gesture policy)")
+    ap.add_argument("--gesture", default=None, help="gesture clip whose clock the env feeds (e.g. wave_right)")
     args = ap.parse_args()
+    global GESTURE
+    GESTURE = args.gesture
     phases = None
-    if args.full:
+    if args.stand > 0:
+        phases = [("in piedi", "time", (0.0, 0.0, 0.0), args.stand)]
+    elif args.full:
         phases = [("avanti 5 s", "time", (args.vx, 0.0, 0.0), 5.0),
                   ("indietro 5 s", "time", (-args.vx, 0.0, 0.0), 5.0),
                   ("laterale sx 4 s", "time", (0.0, args.vy, 0.0), 4.0),
