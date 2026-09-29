@@ -978,6 +978,160 @@ ROBOTS["freenove"] = {
     ],
 }
 
+# Petoi Bittle (OpenCat): 8 leg servos, 2 per planar leg (shoulder pitch, knee), plus a head pan servo the
+# policy does not drive. MuJoCo model: MarcHesse/bittle-mujoco (Apache-2.0), Bittle X V1 with masses and
+# inertia measured on a real unit (273.5 g), IMU site, foot sites, `stand` keyframe = OpenCat pose `balance`
+# (30 deg on every leg servo), and the OpenCat gait tables (trot, walk, crawl, bound, gallop, jump) converted
+# to joint angles. Joint names in the MJCF are the URDF ones (shrfs_joint ...): fetch_upstream.py renames
+# them through upstream.joint_map and writes robots/bittle/robot/scene.xml with the servo torque limit.
+ROBOTS["bittle"] = {
+    "index": 11,
+    "class": "quadruped",
+    "display_name": "Petoi Bittle (OpenCat)",
+    "maker": "Petoi (kit Bittle / Bittle X)",
+    "status": "needs-training-mjcf",
+    # MJCF actuator order: RF, LF, RR, LR; shoulder = hip pitch, knee. Rear shoulders have the axis
+    # flipped in the MJCF, so +0.785 rear and -0.785 front are the same fore-aft angle.
+    "joint_names": [
+        "FR_shoulder", "FR_knee", "FL_shoulder", "FL_knee",
+        "RR_shoulder", "RR_knee", "RL_shoulder", "RL_knee",
+    ],
+    # OpenCat `balance`: 30 deg on every leg servo -> upper (30-75) deg, lower (30+55) deg
+    "q0": [-0.7854, 1.4835, -0.7854, 1.4835, 0.7854, 1.4835, 0.7854, 1.4835],
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    # planar legs (no abduction): no lateral speed. OpenCat gaits replayed on the model (notes): trot
+    # 0.086 m/s, walk 0.031, backward 0.050, pivot 0.28 rad/s -> commands a little above the tables.
+    "command_ranges": {"vx": [-0.12, 0.12], "vy": [0.0, 0.0], "wz": [-0.6, 0.6]},
+    "upstream": {
+        "repo": "https://github.com/PetoiCamp/OpenCat-Quadruped-Robot",
+        "branch": "main",
+        "license": "MIT (OpenCat, meshes ros_opencat); Apache-2.0 (MJCF bittle-mujoco)",
+        "model_repo": "https://github.com/MarcHesse/bittle-mujoco",
+        "sim_model": "bittle.xml",
+        "joint_map": {
+            "FR_shoulder": "shrfs_joint", "FR_knee": "shrft_joint",
+            "FL_shoulder": "shlfs_joint", "FL_knee": "shlft_joint",
+            "RR_shoulder": "shrrs_joint", "RR_knee": "shrrt_joint",
+            "RL_shoulder": "shlrs_joint", "RL_knee": "shlrt_joint",
+        },
+        "cad": "STL/OBJ delle parti in PetoiCamp/ros_opencat (mesh del modello); guscio stampabile del "
+               "successore Quaddle annunciato",
+        "bom": "kit Petoi (Bittle STEM/Robotics, Bittle X): 9 servo P1S/P1L, NyBoard o BiBoard ESP32, "
+               "batteria Li-ion 7,4 V 1000 mAh, IMU MPU6050/ICM42670",
+        "training": "nessuno upstream: OpenCat esegue tabelle di passo (src/InstinctBittle.h) con "
+                    "bilanciamento PID sull'IMU. RL della comunità: OpenCat Gym (PyBullet+SB3), "
+                    "Bittle_Symmetry_RL (Isaac Gym, simmetrie nel reward), BittleHRL (Isaac Lab, CPG+RL), "
+                    "MH-FLOCKE (MuJoCo, rete spiking con CPG, sim-to-real su Bittle X)",
+        "published_policy": "nessuna nel formato NNMixer",
+    },
+    "sim": {"actuator": "position", "trunk_body": "torso", "freejoint": "root",
+            "gyro_sensor": "imu_gyro", "accel_sensor": "imu_accel",
+            "home_z": 0.06,
+            # servo model: kp 40 (upstream) saturating at the P1S stall torque; the upstream damping 1.5 was
+            # tuned with unlimited torque and would freeze a 0.27 N.m joint (7.5 N.m at 5 rad/s). 0.03 gives
+            # a no-load speed of 9 rad/s (0.12 s/60 deg, a typical mini servo).
+            "force_limit": 0.27, "joint_damping": 0.03, "joint_frictionloss": 0.02, "joint_armature": 0.002,
+            # the shank bracket is the foot (the only leg part on the floor in stand)
+            "feet": [{"site": f"{leg}_foot_site", "body": f"shank_{leg}_1"} for leg in ("rf", "lf", "rr", "lr")],
+            "trot_pairs": [[0, 3], [1, 2]],                   # FR+RL, FL+RR
+            "footfall_cycle": [3, 1, 2, 0]},                  # dog walk: RL, FL, RR, FR
+    # Freenove walk_v20 recipe (Go2 terms) scaled to a 0.27 kg robot with 4.6 + 2.9 cm legs standing 4.7 cm
+    # high: heights and swing halved, posture regexes on shoulder/knee, no lateral commands.
+    "reward": {
+        "only_positive": True,
+        "track_lin_vel": 6.0, "tracking_sigma": 0.01, "tracking_filter_s": 0.25,
+        "track_ang_vel": 5.0, "tracking_sigma_ang": 0.15,
+        "tracking_lin_z": 0.0, "tracking_ang_rp": 0.0,
+        "no_progress": -2.5,
+        "upright": 0.0, "orientation": -5.0,
+        "pose": 0.3, "walking_threshold": 0.01,
+        "pose_std_standing": {".*shoulder": 0.1, ".*knee": 0.1},
+        "pose_std_walking": {".*shoulder": 0.35, ".*knee": 0.35},
+        "pose_l2": -0.3, "stand_still": -1.0,
+        "action_rate": -0.1, "alive": 0.0,
+        "body_ang_vel": -0.05, "dof_pos_limits": -10.0, "self_collisions": -1.0,
+        "joint_torque": -0.05, "joint_vel": -0.001,
+        "air_time": 5.0, "air_time_mode": "touchdown", "air_time_min_s": 0.10, "air_time_max_s": 0.35,
+        "air_time_debounce_s": 0.04, "foot_hold": -2.0,
+        "air_time_variance": -1.0,
+        "foot_clearance": -2.0, "foot_swing_height": -1.0, "swing_height_m": 0.008, "foot_slip": -0.1,
+        "footfall_sequence": 0.1, "alternation_min_air_s": 0.10, "alternation_min_height_frac": 0.5,
+        "undesired_contacts": -1.0,
+        "base_height": 0.3, "base_height_target_m": 0.044, "base_height_std_m": 0.01,
+    },
+    "env": {
+        "resample_s": [3.0, 8.0], "p_zero_command": 0.02, "p_no_lateral": 1.0, "p_single_axis": 0.8,
+        # [+vx, -vx, +vy, -vy, +wz, -wz]: no lateral axis on planar legs
+        "single_axis_weights": [0.25, 0.30, 0.0, 0.0, 0.225, 0.225],
+        "push": {"interval_s": [4.0, 8.0], "vel_xy": 0.05},
+        "terminate_on_illegal_contact": True,
+        "posture_limits": {"min_height_m": 0.028, "max_dev": {".*shoulder": 1.0}},
+        "curriculum": {
+            "action_rate_stages": [[0, -0.1], [24000, -0.2], [36000, -0.4]],
+            "standing_stages": [[0, 0.02], [12000, 0.05], [18000, 0.1], [24000, 0.15],
+                                [36000, 0.2], [48000, 0.25]],
+        },
+        "eval_modes": {"stand": [0.0, 0.0, 0.0], "forward_0.1": [0.1, 0.0, 0.0],
+                       "backward_0.1": [-0.1, 0.0, 0.0], "turn_0.5": [0.0, 0.0, 0.5]},
+    },
+    "privileged_critic": True,
+    "action_scale": 0.25,
+    "init_noise_std": 0.8,
+    "videos": [{
+        "env": "modello (passo OpenCat open-loop)",
+        "iteration": "—",
+        "epochs": "—",
+        "latest": True,
+        "mp4": "bittle_model_trot.mp4",
+        "caption": "Verifica del modello: la tabella `trF` di OpenCat (48 frame a 50 Hz) eseguita open-loop "
+                   "attraverso lo stesso percorso servo dell'ambiente (kp 40, coppia 0,27 N·m, damping 0,03): "
+                   "trotto a 0,086 m/s, tronco a 37 mm, errore di inseguimento 0,02 rad, nessuna caduta in 8 s. "
+                   "Poi `vtL` (pivot a sinistra, 0,28 rad/s) e `bkF` (indietro, 0,05 m/s).",
+    }],
+    "servos": "8× Petoi P1S (alloy) o P1L (plastic) sulle zampe, 270° di corsa, stallo 3,15 kg·cm a 8,4 V, "
+              "coreless; 1× sul collo (non comandato dalla policy). Upstream: NyBoard (ATmega328P) o "
+              "BiBoard (ESP32), IMU MPU6050",
+    "link": "pwm",
+    "policies": {},
+    "mechanics": {
+        "compare_with": "Freenove Robot Dog",
+        "rows": [
+            ("Gradi di libertà per zampa", "2: spalla (pitch), ginocchio", "3: abduzione, anca, ginocchio",
+             "MJCF bittle-mujoco"),
+            ("Giunti comandati", "8 (+1 collo)", "12", "OpenCat: PWM 8-15 zampe, 0 collo"),
+            ("Interasse spalle (x × y)", "119 × 72 mm", "136 × 76 mm", "posizioni `servo_*s` nel MJCF"),
+            ("Coscia / tibia", "46 / 29 mm (al punto di contatto)", "55 / 55 mm", "mj_kinematics in stand"),
+            ("Altezza del tronco in stand", "47 mm (spalle a 69 mm)", "101 mm", "settle sul modello"),
+            ("Massa", "273,5 g misurati (batteria 55 g)", "≈ 550 g stimati", "README bittle-mujoco"),
+            ("Servo", "P1S 270°, 3,15 kg·cm (≈ 0,27 N·m a 7,4 V)", "ES08MA II 0,16–0,20 N·m",
+             "specifiche Petoi"),
+            ("Attuatore nel MJCF", "posizione kp 40, coppia ±0,27 N·m (scene.xml)", "kp 2, ±0,17 N·m",
+             "bittle-mujoco; limite aggiunto da fetch_upstream"),
+            ("Contatti", "Newton, coni ellittici, impratio 100 (meno slittamento dei piedi)",
+             "default MuJoCo", "CHANGELOG bittle-mujoco 2026-09-19"),
+        ],
+    },
+    "notes": [
+        "Lo zero dei giunti è la posa `balance` di OpenCat (30° su tutti i servo delle zampe). Conversione "
+        "dalle tabelle OpenCat: rad = (gradi − riposo) × segno × π/180 con riposo 75° (coscia) e −55° "
+        "(tibia), segno −1 sulle spalle posteriori (gaits.py di bittle-mujoco).",
+        "Passi di riferimento: le tabelle di OpenCat (trotto, camminata, crawl, bound, galoppo, salto) sono "
+        "già in angoli MuJoCo in third_party/bittle_model/gaits.py: utilizzabili come clip di imitazione con "
+        "l'orologio `NNM_CLOCK_HZ`, come per i gesti di Microban. Riprodotte open-loop sul modello dell'ambiente "
+        "(rampa 2 s, poi 8 s): trotto `trF` 0,086 m/s, camminata `wkF` 0,031 m/s, indietro `bkF` 0,050 m/s, "
+        "trotto a sinistra `trL` 0,055 m/s e 3°/s, pivot `vtL` 16°/s; galoppo e bound cadono, il crawl si "
+        "sdraia. I limiti di postura dell'ambiente (tronco > 28 mm, spalle entro 1,0 rad da q0) sono tarati "
+        "perché questi passi non chiudano l'episodio.",
+        "Zampe planari: nessuna velocità laterale comandabile; il compito è avanti/indietro e rotazione.",
+        "Gli 8 servo P1S sono PWM e si collegano alle uscite dell'autopilota al posto della NyBoard/BiBoard "
+        "(8 ≤ 16). Scala da definire in robot.bin: 270° su 500–2500 µs ≈ 2,36 mrad/µs contro i 3 mrad/µs del "
+        "filo NNMixer, più l'offset di calibrazione OpenCat per servo.",
+        "Il modello ha coppia limitata a 0,27 N·m e kp 40 dell'upstream; i giunti hanno damping 1,5 e "
+        "frictionloss 0,15 tarati sul trotto open-loop. Le masse sono misurate, non stimate.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -993,6 +1147,8 @@ PHOTOS = {
     "openduck": ("robot montato", "https://github.com/apirrone/Open_Duck_Mini"),
     "freenove": ("render del client Freenove (Tutorial.pdf, capitolo 4)",
                  "https://github.com/Freenove/Freenove_Robot_Dog_Kit_for_Raspberry_Pi"),
+    "bittle": ("fotogramma del trotto del modello MuJoCo (demo.gif di bittle-mujoco, Apache-2.0)",
+               "https://github.com/MarcHesse/bittle-mujoco"),
 }
 
 STATUS_TEXT = {

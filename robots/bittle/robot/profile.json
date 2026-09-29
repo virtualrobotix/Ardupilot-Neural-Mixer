@@ -1,0 +1,100 @@
+{
+  "robot_id": "bittle",
+  "nnm_robot": 11,
+  "class": "quadruped",
+  "display_name": "Petoi Bittle (OpenCat)",
+  "n_joints": 8,
+  "obs_dim": 33,
+  "rate_hz": 50,
+  "q0": [
+    -0.7854,
+    1.4835,
+    -0.7854,
+    1.4835,
+    0.7854,
+    1.4835,
+    0.7854,
+    1.4835
+  ],
+  "joint_names": [
+    "FR_shoulder",
+    "FR_knee",
+    "FL_shoulder",
+    "FL_knee",
+    "RR_shoulder",
+    "RR_knee",
+    "RL_shoulder",
+    "RL_knee"
+  ],
+  "servo_fn0": 94,
+  "servos": "8× Petoi P1S (alloy) o P1L (plastic) sulle zampe, 270° di corsa, stallo 3,15 kg·cm a 8,4 V, coreless; 1× sul collo (non comandato dalla policy). Upstream: NyBoard (ATmega328P) o BiBoard (ESP32), IMU MPU6050",
+  "link": "pwm",
+  "status": "needs-training-mjcf",
+  "upstream": {
+    "repo": "https://github.com/PetoiCamp/OpenCat-Quadruped-Robot",
+    "branch": "main",
+    "license": "MIT (OpenCat, meshes ros_opencat); Apache-2.0 (MJCF bittle-mujoco)",
+    "model_repo": "https://github.com/MarcHesse/bittle-mujoco",
+    "sim_model": "bittle.xml",
+    "joint_map": {
+      "FR_shoulder": "shrfs_joint",
+      "FR_knee": "shrft_joint",
+      "FL_shoulder": "shlfs_joint",
+      "FL_knee": "shlft_joint",
+      "RR_shoulder": "shrrs_joint",
+      "RR_knee": "shrrt_joint",
+      "RL_shoulder": "shlrs_joint",
+      "RL_knee": "shlrt_joint"
+    },
+    "cad": "STL/OBJ delle parti in PetoiCamp/ros_opencat (mesh del modello); guscio stampabile del successore Quaddle annunciato",
+    "bom": "kit Petoi (Bittle STEM/Robotics, Bittle X): 9 servo P1S/P1L, NyBoard o BiBoard ESP32, batteria Li-ion 7,4 V 1000 mAh, IMU MPU6050/ICM42670",
+    "training": "nessuno upstream: OpenCat esegue tabelle di passo (src/InstinctBittle.h) con bilanciamento PID sull'IMU. RL della comunità: OpenCat Gym (PyBullet+SB3), Bittle_Symmetry_RL (Isaac Gym, simmetrie nel reward), BittleHRL (Isaac Lab, CPG+RL), MH-FLOCKE (MuJoCo, rete spiking con CPG, sim-to-real su Bittle X)",
+    "published_policy": "nessuna nel formato NNMixer"
+  },
+  "sim": {
+    "actuator": "position",
+    "trunk_body": "torso",
+    "freejoint": "root",
+    "gyro_sensor": "imu_gyro",
+    "accel_sensor": "imu_accel",
+    "home_z": 0.06,
+    "force_limit": 0.27,
+    "joint_damping": 0.03,
+    "joint_frictionloss": 0.02,
+    "joint_armature": 0.002,
+    "feet": [
+      {
+        "site": "rf_foot_site",
+        "body": "shank_rf_1"
+      },
+      {
+        "site": "lf_foot_site",
+        "body": "shank_lf_1"
+      },
+      {
+        "site": "rr_foot_site",
+        "body": "shank_rr_1"
+      },
+      {
+        "site": "lr_foot_site",
+        "body": "shank_lr_1"
+      }
+    ],
+    "trot_pairs": [
+      [
+        0,
+        3
+      ],
+      [
+        1,
+        2
+      ]
+    ],
+    "footfall_cycle": [
+      3,
+      1,
+      2,
+      0
+    ]
+  }
+}

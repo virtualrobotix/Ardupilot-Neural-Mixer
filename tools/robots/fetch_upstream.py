@@ -29,6 +29,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import THIRD_PARTY, load_profile, robot_dir, upstream  # noqa: E402
 
@@ -87,6 +89,55 @@ def urdf_to_scene(urdf: Path, profile: dict, out: Path) -> None:
     print(f"wrote {out}: nq={model.nq} nu={model.nu}")
 
 
+def native_to_scene(mjcf: Path, profile: dict, out: Path) -> None:
+    """A native upstream MJCF whose joint names differ from the profile (upstream.joint_map:
+    profile name -> MJCF name) and/or whose actuators lack a torque limit (sim.force_limit):
+    rename joints (and the actuators, sensors, keyframes that reference them), set forcerange,
+    write robots/<id>/robot/scene.xml with absolute mesh paths. Physics otherwise untouched."""
+    import mujoco
+
+    sim = profile.get("sim", {})
+    jmap = upstream(profile).get("joint_map") or {}
+    spec = mujoco.MjSpec.from_file(str(mjcf))
+    old_to_new = {old: new for new, old in jmap.items()}
+    for j in spec.joints:
+        if j.name in old_to_new:
+            j.name = old_to_new[j.name]
+    for a in spec.actuators:
+        if a.target in old_to_new:
+            a.target = old_to_new[a.target]
+    for s in spec.sensors:
+        if s.objname in old_to_new:
+            s.objname = old_to_new[s.objname]
+    frc = sim.get("force_limit")
+    if frc:
+        for a in spec.actuators:
+            a.forcelimited = True
+            a.forcerange = [-float(frc), float(frc)]
+    # a torque-limited servo needs a realistic joint damping: max speed = force_limit / damping. Applied to
+    # the actuated joints only (the free joint and unactuated ones keep the upstream values).
+    actuated = {a.target for a in spec.actuators}
+    for key, attr in (("joint_damping", "damping"), ("joint_frictionloss", "frictionloss"),
+                      ("joint_armature", "armature")):
+        if key in sim:
+            for j in spec.joints:
+                if j.name in actuated:
+                    cur = getattr(j, attr)
+                    if isinstance(cur, np.ndarray):           # damping is a [3] array in MjSpec
+                        cur = cur.copy(); cur[0] = float(sim[key]); setattr(j, attr, cur)
+                    else:
+                        setattr(j, attr, float(sim[key]))
+    missing = [n for n in profile["joint_names"] if all(j.name != n for j in spec.joints)]
+    if missing:
+        raise SystemExit(f"joints not in {mjcf}: {missing}")
+    model = spec.compile()
+    spec.meshdir = str((mjcf.parent / (spec.meshdir or "")).resolve())
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(spec.to_xml())
+    print(f"wrote {out}: nq={model.nq} nu={model.nu} (joints renamed: {len(old_to_new)}, "
+          f"forcerange ±{frc if frc else 'upstream'})")
+
+
 def fetch_policy(url: str, robot_id: str, name: str) -> Path:
     dst = robot_dir(robot_id) / "policies" / f"{name}.onnx"
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -118,6 +169,8 @@ def main() -> None:
     elif sim_model and sim_model.endswith(".xml"):
         p = root / sim_model
         print(f"native MJCF: {p} ({'found' if p.is_file() else 'MISSING'})")
+        if p.is_file() and (u.get("joint_map") or profile.get("sim", {}).get("force_limit")):
+            native_to_scene(p, profile, robot_dir(args.robot) / "robot" / "scene.xml")
     elif u.get("urdf"):
         urdf_to_scene(root / u["urdf"], profile, robot_dir(args.robot) / "robot" / "scene.xml")
     else:
