@@ -177,6 +177,8 @@ class NNMixerEnv:
         self.episode_s = float(env_cfg.get("episode_s", 20.0))
         self.gyro_noise = float(env_cfg.get("gyro_noise", 0.02))
         self.accel_noise = float(env_cfg.get("accel_noise", 0.05))
+        self.gravity_source = str(env_cfg.get("gravity_source", "ap_imu_filter"))
+        self.ahrs_noise = float(env_cfg.get("ahrs_noise_rad", 0.01))
         self.obs_delay_max = int(env_cfg.get("obs_delay_steps_max", 1))
         self.fall_tilt_deg = float(env_cfg.get("fall_tilt_deg", 60.0))
         rs = env_cfg.get("resample_s")          # MicroDuck: new command every 3-8 s inside the episode
@@ -309,9 +311,16 @@ class NNMixerEnv:
         # everything above the shank (the foot body) ends the episode when terminate_on_illegal_contact is set
         self.illegal_geom = self.robot_geom & np.array([m.geom_bodyid[g] not in self.foot_body_ids
                                                         for g in range(m.ngeom)])
+        # torque actuators driven by a PD loop at the autopilot rate: kp/kd are a scalar or a
+        # {regex: value} table per joint (Booster T1: hips and knees 200/5, ankles 50/1 N.m/rad)
         pd = self.sim.get("pd", {})
-        self.kp = float(pd.get("kp", 0.0))
-        self.kd = float(pd.get("kd", 0.0))
+
+        def gains(v):
+            if isinstance(v, dict):
+                return np.array([next((g for pat, g in v.items() if re.fullmatch(pat, n)), 0.0) for n in names])
+            return float(v or 0.0)
+        self.kp = gains(pd.get("kp", 0.0))
+        self.kd = gains(pd.get("kd", 0.0))
 
     # ------------------------------------------------------------------ gesture
     # Pose-command layout after the clock (extra[2:10]): offsets from q0 unless noted.
@@ -784,11 +793,27 @@ class NNMixerEnv:
             self.gravity.update(np.zeros(3), dc.frd_to_flu(up_flu * dc.GRAVITY_MSS), SIM_DT)
         return self._observe()
 
+    def _gravity_obs(self) -> np.ndarray:
+        """Gravity direction in the body frame (FLU, -z when upright) as the autopilot will supply it.
+
+        ap_imu_filter (default, NNM_ATT_SRC 0): the firmware complementary filter on gyro and
+        accelerometer with att_tau. ahrs (NNM_ATT_SRC 1): the EKF attitude, modelled as the true
+        gravity tilted by a small random angle (ahrs_noise_rad, default 0.01). A 30 kg humanoid walking
+        at 0.5 m/s tilts the complementary estimate by ~7 deg and the Booster policy falls; with the
+        AHRS it tracks the command."""
+        if self.gravity_source != "ahrs":
+            return self.gravity.gravity_flu()
+        g = _quat_rotate_inverse(self.data.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
+        if self.ahrs_noise:
+            g = g + self.rng.normal(0.0, self.ahrs_noise, 3)
+            g = g / np.linalg.norm(g)
+        return g.astype(np.float32)
+
     def _observe(self) -> np.ndarray:
         c = self.contract
         d = self.data
         gyro_frd, _ = self._imu_frd()
-        obs = dc.build_obs(c, dc.frd_to_flu(gyro_frd), self.gravity.gravity_flu(),
+        obs = dc.build_obs(c, dc.frd_to_flu(gyro_frd), self._gravity_obs(),
                            d.qpos[self.qpos_idx], d.qvel[self.qvel_idx], self.a_prev, self.command,
                            self._gesture_extra())
         self._obs_hist.append(obs)
@@ -1048,7 +1073,7 @@ class NNMixerEnv:
             g_true = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
             up = math.exp(-float(np.sum(g_true[:2] ** 2)) / w.upright_std ** 2)
         else:
-            up = -self.gravity.gravity_flu()[2]            # 1 when upright
+            up = -self._gravity_obs()[2]                   # 1 when upright
         moving = float(np.linalg.norm(cmd[:2]) + abs(cmd[2]))
         # arm joints are scored only by the gesture term. Leaving them in the body pose zeroed that
         # term a radian away (exp of a huge mean) and removed its gradient, so standing still paid

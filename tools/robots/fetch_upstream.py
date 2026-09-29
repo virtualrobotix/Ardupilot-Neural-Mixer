@@ -127,6 +127,14 @@ def native_to_scene(mjcf: Path, profile: dict, out: Path) -> None:
                         cur = cur.copy(); cur[0] = float(sim[key]); setattr(j, attr, cur)
                     else:
                         setattr(j, attr, float(sim[key]))
+    # foot sites the env needs for foot position / air time, when the upstream model has none
+    have_sites = {s.name for s in spec.sites}
+    for f in sim.get("feet", []):
+        if f.get("site") not in have_sites and f.get("pos") is not None:
+            spec.body(f["body"]).add_site(name=f["site"], pos=[float(x) for x in f["pos"]], size=[0.005, 0, 0])
+    integ = sim.get("integrator")
+    if integ:
+        spec.option.integrator = getattr(mujoco.mjtIntegrator, f"mjINT_{integ.upper()}")
     missing = [n for n in profile["joint_names"] if all(j.name != n for j in spec.joints)]
     if missing:
         raise SystemExit(f"joints not in {mjcf}: {missing}")
@@ -169,7 +177,10 @@ def main() -> None:
     elif sim_model and sim_model.endswith(".xml"):
         p = root / sim_model
         print(f"native MJCF: {p} ({'found' if p.is_file() else 'MISSING'})")
-        if p.is_file() and (u.get("joint_map") or profile.get("sim", {}).get("force_limit")):
+        sim_keys = ("force_limit", "joint_damping", "joint_frictionloss", "joint_armature", "integrator")
+        needs_scene = (u.get("joint_map") or any(k in profile.get("sim", {}) for k in sim_keys)
+                       or any(f.get("pos") is not None for f in profile.get("sim", {}).get("feet", [])))
+        if p.is_file() and needs_scene:
             native_to_scene(p, profile, robot_dir(args.robot) / "robot" / "scene.xml")
     elif u.get("urdf"):
         urdf_to_scene(root / u["urdf"], profile, robot_dir(args.robot) / "robot" / "scene.xml")

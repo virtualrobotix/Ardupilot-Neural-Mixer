@@ -1,0 +1,93 @@
+{
+  "robot_id": "booster_t1",
+  "nnm_robot": 12,
+  "class": "biped",
+  "display_name": "Booster T1",
+  "n_joints": 12,
+  "obs_dim": 47,
+  "rate_hz": 50,
+  "q0": [
+    -0.2,
+    0.0,
+    0.0,
+    0.4,
+    -0.25,
+    0.0,
+    -0.2,
+    0.0,
+    0.0,
+    0.4,
+    -0.25,
+    0.0
+  ],
+  "joint_names": [
+    "Left_Hip_Pitch",
+    "Left_Hip_Roll",
+    "Left_Hip_Yaw",
+    "Left_Knee_Pitch",
+    "Left_Ankle_Pitch",
+    "Left_Ankle_Roll",
+    "Right_Hip_Pitch",
+    "Right_Hip_Roll",
+    "Right_Hip_Yaw",
+    "Right_Knee_Pitch",
+    "Right_Ankle_Pitch",
+    "Right_Ankle_Roll"
+  ],
+  "servo_fn0": 94,
+  "servos": "attuatori Booster proprietari con doppio encoder (picco 130 N·m al ginocchio; limiti nel MJCF: anca 45/45/30, ginocchio 65, caviglia 24/15 N·m); controllo in coppia/velocità/posizione via SDK DDS/ROS 2 (`/low_state`, `/joint_ctrl`) dalla scheda motion",
+  "link": "bus",
+  "status": "policy-upstream",
+  "upstream": {
+    "repo": "https://github.com/BoosterRobotics/booster_gym",
+    "branch": "main",
+    "license": "Apache-2.0 (booster_gym, booster_assets, MJCF Menagerie)",
+    "sim_model": "resources/T1/T1_locomotion.xml",
+    "cad": "mesh STL in booster_gym/resources/T1/meshes e booster_assets (URDF 23/29 DoF, XML); modello Menagerie google-deepmind/mujoco_menagerie/booster_t1 (23 giunti, attuatori di posizione)",
+    "bom": "robot commerciale (prezzo su richiesta): attuatori proprietari con doppio encoder, picco 130 N·m al ginocchio, Jetson AGX Orin 32 GB + i7, IMU 9 assi, RGB-D, batteria 10,5 Ah (2 h di cammino)",
+    "training": "Booster Gym: Isaac Gym, PPO actor-critic asimmetrico (attore 47 → 256-128-128 → 12, ELU; critico +14 privilegiati → 256-256-128), 4096 env, orizzonte 24, 20 mini-epoche, lr 1e-5, γ 0,995; orologio del passo 1-2 Hz nell'osservazione; PD sul motore kp 200/50, kd 5/1; randomizzazione di massa/CoM, rigidezza/attrito giunti, ritardo comando 0-10 tick a 500 Hz, attrito/compliance terreno, calci e spinte, terreni trimesh; sim2sim MuJoCo e Webots, sim2real zero-shot con conversione serie-parallelo della caviglia (Jacobiano trasposto)",
+    "published_policy": "deploy/models/T1.pt (TorchScript): MLP 47 → 256-128-128 → 12 ELU, convertibile in .nnm a meno dell'ordine dell'osservazione e della fase del passo"
+  },
+  "sim": {
+    "actuator": "pd",
+    "trunk_body": "Trunk",
+    "gyro_sensor": "angular-velocity",
+    "accel_sensor": "nnm_accel",
+    "home_z": 0.67,
+    "integrator": "implicitfast",
+    "pd": {
+      "kp": {
+        ".*Hip.*": 200.0,
+        ".*Knee.*": 200.0,
+        ".*Ankle.*": 50.0
+      },
+      "kd": {
+        ".*Hip.*": 5.0,
+        ".*Knee.*": 5.0,
+        ".*Ankle.*": 1.0
+      }
+    },
+    "joint_armature": 0.01,
+    "joint_frictionloss": 0.1,
+    "feet": [
+      {
+        "site": "left_foot_site",
+        "body": "left_foot_link",
+        "pos": [
+          0.01,
+          0.0,
+          -0.03
+        ]
+      },
+      {
+        "site": "right_foot_site",
+        "body": "right_foot_link",
+        "pos": [
+          0.01,
+          0.0,
+          -0.03
+        ]
+      }
+    ]
+  }
+}

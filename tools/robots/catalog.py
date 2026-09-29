@@ -67,7 +67,7 @@ ROBOTS: dict[str, dict] = {
         "class": "biped",
         "display_name": "Microban",
         "maker": "Rhoban",
-        "status": "policy-upstream",
+        "status": "policy-sim",
         "joint_names": [
             "right_shoulder_pitch", "right_shoulder_roll", "right_elbow",
             "right_hip_yaw", "right_hip_roll", "right_hip_pitch", "right_knee", "right_ankle_pitch",
@@ -1132,6 +1132,150 @@ ROBOTS["bittle"] = {
     ],
 }
 
+# Booster T1 (Booster Robotics): 1.18 m, ~30 kg humanoid, 23 DoF (legs 6x2, waist 1, arms 4x2, head 2),
+# RoboCup 2025 AdultSize champion platform. Booster Gym (arXiv 2506.15132, ICRA 2026) trains the locomotion
+# policy on the 12 leg joints only, arms/waist/head held by their PD loops: we take the same
+# T1_locomotion.xml (booster_gym/resources/T1), a torque model with the motor limits, driven by the env PD
+# loop with Booster's gains. Observation 47 = ours 45 + the two gait-clock channels, the same content as
+# Booster's actor (commands, gait cos/sin, gravity, gyro, q, qd, previous action).
+ROBOTS["booster_t1"] = {
+    "index": 12,
+    "class": "biped",
+    "display_name": "Booster T1",
+    "maker": "Booster Robotics",
+    "status": "policy-upstream",
+    "joint_names": [
+        "Left_Hip_Pitch", "Left_Hip_Roll", "Left_Hip_Yaw", "Left_Knee_Pitch", "Left_Ankle_Pitch", "Left_Ankle_Roll",
+        "Right_Hip_Pitch", "Right_Hip_Roll", "Right_Hip_Yaw", "Right_Knee_Pitch", "Right_Ankle_Pitch", "Right_Ankle_Roll",
+    ],
+    # booster_gym default_joint_angles: hip pitch -0.2, knee 0.4, ankle pitch -0.25 (trunk at 0.67 m)
+    "q0": [-0.2, 0.0, 0.0, 0.4, -0.25, 0.0, -0.2, 0.0, 0.0, 0.4, -0.25, 0.0],
+    "extra_cmd_dim": 2,
+    "extra_cmd_desc": "orologio del passo sin, cos 2 (`NNM_CLOCK_HZ`, Booster Gym 1-2 Hz; 0 = stare fermi)",
+    "rate_hz": 50,
+    "command_ranges": {"vx": [-0.8, 0.8], "vy": [-0.5, 0.5], "wz": [-1.0, 1.0]},
+    "upstream": {
+        "repo": "https://github.com/BoosterRobotics/booster_gym",
+        "branch": "main",
+        "license": "Apache-2.0 (booster_gym, booster_assets, MJCF Menagerie)",
+        "sim_model": "resources/T1/T1_locomotion.xml",
+        "cad": "mesh STL in booster_gym/resources/T1/meshes e booster_assets (URDF 23/29 DoF, XML); "
+               "modello Menagerie google-deepmind/mujoco_menagerie/booster_t1 (23 giunti, attuatori di posizione)",
+        "bom": "robot commerciale (prezzo su richiesta): attuatori proprietari con doppio encoder, picco 130 N·m al "
+               "ginocchio, Jetson AGX Orin 32 GB + i7, IMU 9 assi, RGB-D, batteria 10,5 Ah (2 h di cammino)",
+        "training": "Booster Gym: Isaac Gym, PPO actor-critic asimmetrico (attore 47 → 256-128-128 → 12, ELU; "
+                    "critico +14 privilegiati → 256-256-128), 4096 env, orizzonte 24, 20 mini-epoche, lr 1e-5, "
+                    "γ 0,995; orologio del passo 1-2 Hz nell'osservazione; PD sul motore kp 200/50, kd 5/1; "
+                    "randomizzazione di massa/CoM, rigidezza/attrito giunti, ritardo comando 0-10 tick a 500 Hz, "
+                    "attrito/compliance terreno, calci e spinte, terreni trimesh; sim2sim MuJoCo e Webots, "
+                    "sim2real zero-shot con conversione serie-parallelo della caviglia (Jacobiano trasposto)",
+        "published_policy": "deploy/models/T1.pt (TorchScript): MLP 47 → 256-128-128 → 12 ELU, convertibile "
+                            "in .nnm a meno dell'ordine dell'osservazione e della fase del passo",
+    },
+    "sim": {"actuator": "pd", "trunk_body": "Trunk", "gyro_sensor": "angular-velocity",
+            "accel_sensor": "nnm_accel", "home_z": 0.67, "integrator": "implicitfast",
+            # booster_gym control.stiffness / damping (N.m/rad, N.m.s/rad); motor ctrlrange = torque limit
+            "pd": {"kp": {".*Hip.*": 200.0, ".*Knee.*": 200.0, ".*Ankle.*": 50.0},
+                   "kd": {".*Hip.*": 5.0, ".*Knee.*": 5.0, ".*Ankle.*": 1.0}},
+            # Menagerie adds these "for stability"; the booster_gym MJCF has none
+            "joint_armature": 0.01, "joint_frictionloss": 0.1,
+            # sole centre: the foot box is at (0.01, 0, -0.015) with half height 0.015
+            "feet": [{"site": "left_foot_site", "body": "left_foot_link", "pos": [0.01, 0.0, -0.03]},
+                     {"site": "right_foot_site", "body": "right_foot_link", "pos": [0.01, 0.0, -0.03]}]},
+    # Booster Gym reward (Table II of the paper) in the terms of this env. Kept as in the paper: survival
+    # (alive), tracking exp(-e²/0.25) with weights 1/1/0.5, orientation -5, action_rate -1, joint velocity
+    # -1e-4, joint limits -1, collision -1, feet slip -0.1, ang_vel_xy -0.2, only_positive clip, trunk
+    # height 0.68. Booster's height term is a -20 quadratic penalty; here it is the positive kernel with a
+    # 5 cm std. Booster's feet_swing (lift the foot in its phase window of the gait clock) has no phase-free
+    # equivalent: replaced by the mjlab biped terms (air time in range, single stance, alternation) until
+    # the clock-driven swing reward exists (see notes).
+    "reward": {
+        "only_positive": True,
+        "alive": 0.25,
+        "track_lin_vel": 1.0, "tracking_sigma": 0.25, "tracking_filter_s": 0.0,
+        "track_ang_vel": 0.5, "tracking_sigma_ang": 0.25,
+        "tracking_lin_z": 2.0, "tracking_ang_rp": 0.0,
+        "upright": 0.0, "orientation": -5.0,
+        "pose": 0.0, "walking_threshold": 0.05,
+        "stand_still": -0.5,
+        "action_rate": -1.0,
+        "body_ang_vel": -0.2, "joint_vel": -1.0e-4, "joint_torque": -1.0e-2,
+        "dof_pos_limits": -1.0, "self_collisions": -1.0, "undesired_contacts": -1.0,
+        "foot_slip": -0.1,
+        "air_time": 3.0, "air_time_mode": "in_range", "air_time_min_s": 0.15, "air_time_max_s": 0.5,
+        "single_stance": 1.0, "foot_alternation": 0.5, "alternation_min_air_s": 0.15,
+        "foot_clearance": -1.0, "swing_height_m": 0.08, "foot_swing_height": -0.5,
+        "base_height": 1.0, "base_height_target_m": 0.68, "base_height_std_m": 0.05,
+    },
+    "env": {
+        "act_max": 1.0,          # Booster clips the action at +-1 rad
+        # the firmware complementary filter tilts the gravity estimate by ~7 deg while a 30 kg humanoid
+        # walks at 0.5 m/s and the Booster policy falls; with the EKF attitude (NNM_ATT_SRC 1) it tracks
+        "gravity_source": "ahrs", "ahrs_noise_rad": 0.01,
+        "episode_s": 30.0, "resample_s": [8.0, 12.0], "p_zero_command": 0.1, "p_no_lateral": 0.3,
+        "push": {"interval_s": [2.0, 5.0], "vel_xy": 0.1},
+        "terminate_on_illegal_contact": True,
+        "posture_limits": {"min_height_m": 0.45},
+        "fall_tilt_deg": 60.0,
+        "curriculum": {
+            "action_rate_stages": [[0, -1.0]],
+            "standing_stages": [[0, 0.1]],
+        },
+        "eval_modes": {"stand": [0.0, 0.0, 0.0], "forward_0.5": [0.5, 0.0, 0.0],
+                       "backward_0.3": [-0.3, 0.0, 0.0], "lateral_0.3": [0.0, 0.3, 0.0],
+                       "turn_0.8": [0.0, 0.0, 0.8]},
+    },
+    "privileged_critic": True,
+    "action_scale": 1.0,
+    "init_noise_std": 0.135,     # booster_gym logstd -2.0
+    "servos": "attuatori Booster proprietari con doppio encoder (picco 130 N·m al ginocchio; limiti nel MJCF: "
+              "anca 45/45/30, ginocchio 65, caviglia 24/15 N·m); controllo in coppia/velocità/posizione via SDK "
+              "DDS/ROS 2 (`/low_state`, `/joint_ctrl`) dalla scheda motion",
+    "link": "bus",
+    "policies": {
+        "walk_booster.nnm": "la policy pubblicata da Booster (deploy/models/T1.pt, TorchScript 47-256-128-128-12 "
+                            "ELU) convertita al contratto NNMixer da tools/robots/import_booster_t1.py: "
+                            "permutazione delle colonne del primo strato, fattore 0,1 sulle velocità dei giunti, "
+                            "int8 per riga (scarto massimo 0,06 rad su osservazioni casuali). Nel nostro ambiente "
+                            "(PD a 200 Hz, quantizzazione PWM, ritardo 0-1 tick, gravità AHRS): avanti 0,51 m/s a "
+                            "comando 0,5 e 0,73 a 0,8, laterale 0,21 a 0,3, indietro 0,36 a 0,4, rotazione 0,65 "
+                            "rad/s a 0,8; 30 s senza cadere. Richiede `NNM_ATT_SRC 1` e l'orologio a 1 Hz "
+                            "(`NNM_CLOCK_HZ 1`) mentre c'è un comando, zero da fermo.",
+    },
+    "videos": [{
+        "env": "walk_booster (policy upstream)",
+        "iteration": "—",
+        "epochs": "—",
+        "latest": True,
+        "mp4": "booster_t1_walk_booster.mp4",
+        "caption": "La policy Booster Gym convertita in .nnm int8 esegue nel nostro ambiente: in piedi, avanti "
+                   "0,5 e 0,8 m/s (0,84 reali), rotazione 0,8 rad/s, laterale 0,3, indietro 0,4, in piedi. "
+                   "Nessuna caduta in 30 s. Con la gravità del filtro complementare del firmware la stessa policy "
+                   "cade a 0,5 m/s: l'AHRS è obbligatorio.",
+    }],
+    "notes": [
+        "Gravità: con `gravity_source ap_imu_filter` (filtro complementare, τ 0,5 s) l'errore sul vettore gravità "
+        "in cammino è 0,13 (≈7,6°) e la policy Booster cade a 0,5 m/s; con `ahrs` (EKF di ArduPilot, "
+        "`NNM_ATT_SRC 1`, rumore 0,6°) segue il comando. I robot piccoli tolleravano il filtro perché ci sono "
+        "stati addestrati; un umanoide di 30 kg no.",
+        "La policy guida i 12 giunti delle gambe come in Booster Gym; braccia, busto e testa restano sulla posa "
+        "di preparazione tenuti dai loro PD (nel MJCF T1_locomotion sono fusi nel tronco).",
+        "Attuatori in coppia: l'ambiente chiude il PD a 200 Hz con i guadagni di Booster (kp 200 anche e ginocchia, "
+        "50 caviglie; kd 5 / 1) e MuJoCo taglia la coppia ai limiti del motore. Sul robot il PD gira nel driver "
+        "del motore: la policy manda solo posizioni, come nel nostro contratto.",
+        "Caviglia parallela: il modello è a catena seriale; Booster converte in SDK con Jacobiano trasposto. "
+        "Sul firmware ArduPilot servirebbe la stessa conversione nel backend bus.",
+        "L'osservazione 47 coincide nei contenuti con quella dell'attore Booster (comandi, orologio del passo, "
+        "gravità, giroscopio, q, q̇, azione precedente): l'orologio è nei due canali extra (`NNM_CLOCK_HZ`), "
+        "Booster lo campiona a 1-2 Hz per episodio e lo azzera negli episodi da fermo (10 %).",
+        "Manca nell'ambiente il termine `feet_swing` di Booster (piede sollevato nella sua finestra di fase, "
+        "sinistro a 0,25, destro a 0,75 del ciclo, larghezza 0,2): con l'orologio già in osservazione è il "
+        "prossimo termine da aggiungere, anche per MicroDuck e Microban.",
+        "Il robot vero si collega via SDK (DDS) e non via PWM: come per i bus Feetech/Dynamixel serve un backend "
+        "nel firmware. 12 ≤ 16 funzioni, quindi SITL e HIL funzionano già.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -1149,11 +1293,13 @@ PHOTOS = {
                  "https://github.com/Freenove/Freenove_Robot_Dog_Kit_for_Raspberry_Pi"),
     "bittle": ("fotogramma del trotto del modello MuJoCo (demo.gif di bittle-mujoco, Apache-2.0)",
                "https://github.com/MarcHesse/bittle-mujoco"),
+    "booster_t1": ("render del modello MuJoCo T1_locomotion in posa di stand",
+                   "https://github.com/BoosterRobotics/booster_gym"),
 }
 
 STATUS_TEXT = {
     "policy": "policy int8 disponibile; la stessa rete in float32 è validata in SITL e HIL",
-    "policy-upstream": "walk_md.nnm addestrata sul contratto ArduPilot; walk.nnm upstream da rifinire",
+    "policy-upstream": "policy upstream convertita in .nnm e verificata nell'ambiente a contratto; da rifinire o riaddestrare sul contratto",
     "policy-sim": "policy int8 addestrata in simulazione; video dei checkpoint nella scheda",
     "needs-training": "scena MuJoCo generata dall'URDF; policy da addestrare",
     "needs-training-mjcf": "scena MuJoCo nativa pronta; policy da addestrare",

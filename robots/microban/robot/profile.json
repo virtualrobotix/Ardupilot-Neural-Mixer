@@ -49,7 +49,7 @@
   "servo_fn0": 94,
   "servos": "19× Dynamixel XL330-M288-T (bus); la testa non è comandata dalla policy",
   "link": "bus",
-  "status": "policy-upstream",
+  "status": "policy-sim",
   "upstream": {
     "repo": "https://github.com/Rhoban/mjlab_microban",
     "license": "Apache-2.0 (software); repo hardware GPL-3.0 / CC BY-NC-SA 4.0",

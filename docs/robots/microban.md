@@ -12,7 +12,7 @@
 | `NNM_ROBOT` | **1** |
 | Classe | bipede |
 | Progetto | Rhoban |
-| Stato | walk_md.nnm addestrata sul contratto ArduPilot; walk.nnm upstream da rifinire |
+| Stato | policy int8 addestrata in simulazione; video dei checkpoint nella scheda |
 | Giunti comandati | 18 |
 | Osservazione | 73 valori |
 | Frequenza policy | 50 Hz |
