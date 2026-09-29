@@ -748,8 +748,9 @@ ROBOTS["freenove"] = {
         "pose_std_walking": {".*hip_roll": 0.08, ".*hip_pitch": 0.35, ".*knee": 0.35},
         "pose_l2": -0.3, "stand_still": -1.0,
         "action_rate": -0.1, "alive": 0.0,
-        "body_ang_vel": -0.05, "dof_pos_limits": -10.0, "self_collisions": -1.0,
-        "joint_torque": -0.05, "joint_vel": -0.001,
+        # walk_v23 (fluidity): body_ang_vel -0.05 -> -0.1, joint_vel -0.001 -> -0.003
+        "body_ang_vel": -0.1, "dof_pos_limits": -10.0, "self_collisions": -1.0,
+        "joint_torque": -0.05, "joint_vel": -0.003,
         # walk_v15 / v16 (iterations 500-1600) turned at the command but crept forward at 0.03 m/s with
         # 5-8 foot lifts per second per foot: a tremble, not steps. air_time at weight 2 cost it 0.02/s
         # against 2.5/s of tracking. Weight 5 with a 0.10 s minimum: a 0.04 s hop costs 0.3, a 0.25 s
@@ -764,7 +765,8 @@ ROBOTS["freenove"] = {
         # 0.02 s steps. Bounces under 0.04 s are ignored; landing with a low peak costs more.
         # walk_v22: air_time 5 -> 2 and 0.12 -> 0.20 s minimum: at weight 5 it paid the 60-90 ms hops
         # (4-5 touchdowns per foot per second) against the 1.5 Hz clock windows
-        "air_time": 2.0, "air_time_mode": "touchdown", "air_time_min_s": 0.20, "air_time_max_s": 0.5,
+        # walk_v23: 0.20 -> 0.25 s minimum, the 100 ms hops of v22 no longer pay
+        "air_time": 2.0, "air_time_mode": "touchdown", "air_time_min_s": 0.25, "air_time_max_s": 0.5,
         "air_time_debounce_s": 0.04, "foot_hold": -2.0,
         "air_time_variance": -1.0,
         "foot_clearance": -2.0, "foot_swing_height": -1.0, "swing_height_m": 0.015, "foot_slip": -0.1,
@@ -786,7 +788,7 @@ ROBOTS["freenove"] = {
         "terminate_on_illegal_contact": True,
         "posture_limits": {"min_height_m": 0.085, "max_dev": {".*hip_roll": 0.5, ".*hip_pitch": 0.7}},
         "curriculum": {
-            "action_rate_stages": [[0, -0.1], [24000, -0.2], [36000, -0.4]],
+            "action_rate_stages": [[0, -0.1], [24000, -0.2], [36000, -0.4], [170000, -0.6]],   # v23: -0.6 from 7100
             "standing_stages": [[0, 0.02], [12000, 0.05], [18000, 0.1], [24000, 0.15],
                                 [36000, 0.2], [48000, 0.25]],
         },
@@ -805,6 +807,15 @@ ROBOTS["freenove"] = {
               "Raspberry Pi, IMU MPU6050",
     "link": "pwm",
     "policies": {
+        "walk_v23.nnm": "policy di riferimento: walk_v22 proseguita a 10000 iterazioni con action_rate −0,6, "
+                        "joint_vel −0,003, body_ang_vel −0,1 e volo minimo 0,25 s per air_time. Checkpoint 9800 "
+                        "(punteggio 0,82). Su 10 s avanti a 0,15 m/s rispetto a walk_v20: velocità 0,143 m/s "
+                        "(−4 %), 2,9 atterraggi per zampa al secondo invece di 7,7 (−63 %), volo 155 ms invece di "
+                        "58, action rate −44 %, velocità dei giunti −39 %, oscillazione del tronco pari. "
+                        "Sopravvivenza 100 %; indietro 0,08, laterale 0,07, rotazione 0,53 rad/s a 0,6 (l'unico "
+                        "arretramento). Spinte di 0,35 m/s in ogni direzione recuperate in 0,25 s; sale e scende "
+                        "una rampa di 7° (si pianta a 10°: mai visto un pendio in training). "
+                        "W&B mjlab_freenove/lmy8flxw.",
         "walk_v22.nnm": "policy con l'orologio del passo (obs 47, `NNM_CLOCK_HZ 1.5`, `NNM_CLOCK_AUTO 1`): "
                         "ripresa da walk_v20 it3400 sui contatti ellittici (impratio 100) con il reward "
                         "`feet_swing` di Booster Gym (coppie diagonali nelle finestre di fase) al posto di "
@@ -836,10 +847,34 @@ ROBOTS["freenove"] = {
     },
     # Each clip is the int8 policy. "env" is that run's reward configuration; one iteration is 5 PPO epochs.
     "videos": [{
+        "env": "walk_v23 (orologio + feet_swing, fluidità)",
+        "iteration": "9800",
+        "epochs": "49000",
+        "latest": True,
+        "mp4": "freenove_walk_v23_it9800_full.mp4",
+        "caption": "Policy di riferimento, sequenza completa: 2,89 m, nessuna caduta, sinistra 180° in 5,3 s. "
+                   "Passo a ~3 atterraggi per zampa al secondo con voli di 155 ms: un trotto, non più un "
+                   "trotterello.",
+    }, {
+        "env": "walk_v23 (spinte)",
+        "iteration": "9800",
+        "epochs": "49000",
+        "mp4": "freenove_walk_v23_push.mp4",
+        "caption": "Cammino avanti a 0,15 m/s con quattro impulsi di 0,35 m/s (frontale, da destra, da sinistra, "
+                   "da dietro; 7× quelli del training): nessuna caduta, tronco di nuovo entro 3° in 0,22–0,25 s. "
+                   "Limite: laterale oltre 0,5 m/s.",
+    }, {
+        "env": "walk_v23 (rampa 7°)",
+        "iteration": "9800",
+        "epochs": "49000",
+        "mp4": "freenove_walk_v23_ramp7.mp4",
+        "caption": "Salita di 60 cm a 7°, pianoro, discesa, con correzione di rotta sull'imbardata: sale a "
+                   "0,06 m/s (tronco −8°), scende a 0,21 m/s (+11°), senza cadere. A 10° si pianta a metà salita: "
+                   "nessun pendio nel training.",
+    }, {
         "env": "walk_v22 (orologio + feet_swing)",
         "iteration": "7200",
         "epochs": "36000",
-        "latest": True,
         "mp4": "freenove_walk_v22_it7200_full.mp4",
         "caption": "Passo con l'orologio a 1,5 Hz e il reward feet_swing di Booster Gym, sequenza completa: "
                    "avanti dritto (−4,5°), indietro, laterale, destra (−117°), sinistra 180° in 4,5 s, avanti "

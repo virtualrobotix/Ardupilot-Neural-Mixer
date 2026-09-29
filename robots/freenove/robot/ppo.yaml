@@ -86,14 +86,14 @@ env:
     pose_l2: -0.3
     stand_still: -1.0
     alive: 0.0
-    body_ang_vel: -0.05
+    body_ang_vel: -0.1
     dof_pos_limits: -10.0
     self_collisions: -1.0
     joint_torque: -0.05
-    joint_vel: -0.001
+    joint_vel: -0.003
     air_time: 2.0
     air_time_mode: touchdown
-    air_time_min_s: 0.2
+    air_time_min_s: 0.25
     air_time_max_s: 0.5
     air_time_debounce_s: 0.04
     foot_hold: -2.0
@@ -150,6 +150,8 @@ env:
       - -0.2
     - - 36000
       - -0.4
+    - - 170000
+      - -0.6
     standing_stages:
     - - 0
       - 0.02
