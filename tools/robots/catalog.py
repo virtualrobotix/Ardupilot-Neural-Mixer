@@ -197,6 +197,15 @@ ROBOTS: dict[str, dict] = {
                        "`NNM_POSE` a 40 Hz via UDP; `play_policy.py --pose-mavlink` lo riceve e la policy "
                        "`pose_cmd.nnm` lo esegue in tempo reale (errore braccia 0,04 rad). In verde la posa comandata.",
         }, {
+            "env": "pose_cmd (generalizzazione)",
+            "iteration": "1800",
+            "epochs": "9000",
+            "mp4": "microban_pose_cmd_generalization.mp4",
+            "caption": "Movimenti mai visti in training, da landmark MediaPipe sintetici attraverso il retarget "
+                       "reale: jumping jack (err 0,07 rad), pugni alternati a 1 Hz (0,15: ritardo del passa-basso "
+                       "0,15 s), squat con braccia avanti (0,05), inclinazioni laterali (0,06), combo (0,06). "
+                       "22 s senza cadere.",
+        }, {
             "env": "pose_cmd",
             "iteration": "1800",
             "epochs": "9000",
