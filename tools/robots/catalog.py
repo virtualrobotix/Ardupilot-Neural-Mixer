@@ -808,12 +808,12 @@ ROBOTS["freenove"] = {
     "link": "pwm",
     "policies": {
         "walk_v23.nnm": "policy di riferimento: walk_v22 proseguita a 10000 iterazioni con action_rate −0,6, "
-                        "joint_vel −0,003, body_ang_vel −0,1 e volo minimo 0,25 s per air_time. Checkpoint 9800 "
-                        "(punteggio 0,82). Su 10 s avanti a 0,15 m/s rispetto a walk_v20: velocità 0,143 m/s "
-                        "(−4 %), 2,9 atterraggi per zampa al secondo invece di 7,7 (−63 %), volo 155 ms invece di "
-                        "58, action rate −44 %, velocità dei giunti −39 %, oscillazione del tronco pari. "
-                        "Sopravvivenza 100 %; indietro 0,08, laterale 0,07, rotazione 0,53 rad/s a 0,6 (l'unico "
-                        "arretramento). Spinte di 0,35 m/s in ogni direzione recuperate in 0,25 s; sale e scende "
+                        "joint_vel −0,003, body_ang_vel −0,1 e volo minimo 0,25 s per air_time. Checkpoint 10000 "
+                        "(punteggio 0,86, pari a walk_v20). Su 10 s avanti a 0,15 m/s rispetto a walk_v20: velocità "
+                        "0,13 m/s (−13 %), 2,9 atterraggi per zampa al secondo invece di 7,7 (−62 %), volo 150 ms "
+                        "invece di 58, action rate −48 %, velocità dei giunti −44 %, oscillazione del tronco 1,2° "
+                        "invece di 1,55°. Sopravvivenza 100 %; indietro 0,088, laterale 0,079, rotazione 0,66 rad/s "
+                        "a 0,6. Spinte di 0,35 m/s in ogni direzione recuperate in 0,25 s; sale e scende "
                         "una rampa di 7° (si pianta a 10°: mai visto un pendio in training). "
                         "W&B mjlab_freenove/lmy8flxw.",
         "walk_v22.nnm": "policy con l'orologio del passo (obs 47, `NNM_CLOCK_HZ 1.5`, `NNM_CLOCK_AUTO 1`): "
@@ -848,25 +848,25 @@ ROBOTS["freenove"] = {
     # Each clip is the int8 policy. "env" is that run's reward configuration; one iteration is 5 PPO epochs.
     "videos": [{
         "env": "walk_v23 (orologio + feet_swing, fluidità)",
-        "iteration": "9800",
-        "epochs": "49000",
+        "iteration": "10000",
+        "epochs": "50000",
         "latest": True,
-        "mp4": "freenove_walk_v23_it9800_full.mp4",
-        "caption": "Policy di riferimento, sequenza completa: 2,89 m, nessuna caduta, sinistra 180° in 5,3 s. "
+        "mp4": "freenove_walk_v23_it10000_full.mp4",
+        "caption": "Policy di riferimento, sequenza completa: 2,67 m, nessuna caduta, avanti dritto (−2°/+2°), sinistra 180° in 4,6 s. "
                    "Passo a ~3 atterraggi per zampa al secondo con voli di 155 ms: un trotto, non più un "
                    "trotterello.",
     }, {
         "env": "walk_v23 (spinte)",
-        "iteration": "9800",
-        "epochs": "49000",
+        "iteration": "10000",
+        "epochs": "50000",
         "mp4": "freenove_walk_v23_push.mp4",
         "caption": "Cammino avanti a 0,15 m/s con quattro impulsi di 0,35 m/s (frontale, da destra, da sinistra, "
                    "da dietro; 7× quelli del training): nessuna caduta, tronco di nuovo entro 3° in 0,22–0,25 s. "
                    "Limite: laterale oltre 0,5 m/s.",
     }, {
         "env": "walk_v23 (rampa 7°)",
-        "iteration": "9800",
-        "epochs": "49000",
+        "iteration": "10000",
+        "epochs": "50000",
         "mp4": "freenove_walk_v23_ramp7.mp4",
         "caption": "Salita di 60 cm a 7°, pianoro, discesa, con correzione di rotta sull'imbardata: sale a "
                    "0,06 m/s (tronco −8°), scende a 0,21 m/s (+11°), senza cadere. A 10° si pianta a metà salita: "
