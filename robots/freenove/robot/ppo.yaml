@@ -61,7 +61,7 @@ env:
   accel_noise: 0.05
   obs_delay_steps_max: 1
   reward:
-    track_lin_vel: 6.0
+    track_lin_vel: 8.0
     track_ang_vel: 5.0
     upright: 0.0
     pose: 0.3
@@ -91,10 +91,10 @@ env:
     self_collisions: -1.0
     joint_torque: -0.05
     joint_vel: -0.001
-    air_time: 5.0
+    air_time: 2.0
     air_time_mode: touchdown
-    air_time_min_s: 0.12
-    air_time_max_s: 0.35
+    air_time_min_s: 0.2
+    air_time_max_s: 0.5
     air_time_debounce_s: 0.04
     foot_hold: -2.0
     air_time_variance: -1.0
@@ -102,7 +102,7 @@ env:
     foot_swing_height: -1.0
     swing_height_m: 0.015
     foot_slip: -0.1
-    feet_swing: 3.0
+    feet_swing: 5.0
     footfall_sequence: 0.0
     alternation_min_air_s: 0.12
     alternation_min_height_frac: 0.5

@@ -729,7 +729,8 @@ ROBOTS["freenove"] = {
     # limit penalty, joint speed and action rate for a smooth gait, single-axis commands, 0.15 s steps.
     "reward": {
         "only_positive": True,
-        "track_lin_vel": 6.0, "tracking_sigma": 0.01, "tracking_filter_s": 0.25,
+        # walk_v22: linear tracking 6 -> 8, the clock terms had taken 0.05 m/s off the speed
+        "track_lin_vel": 8.0, "tracking_sigma": 0.01, "tracking_filter_s": 0.25,
         # walk_v19 iteration 3000 turned at 0.25 rad/s by pivoting on two diagonal feet, one rear foot held
         # in the air, the other front foot shuffling at 6 mm; backward it stood still. In a pure turn the
         # linear term paid its full 6/s for standing in place while the yaw term was worth 3 at most, and
@@ -761,13 +762,15 @@ ROBOTS["freenove"] = {
         # Contact timelines at iteration 2000/2100: a 4 Hz trot with 22-33 mm lifts (v17), then a walk
         # with the rear feet dragged at 5-9 mm (v18); isolated contact bounces inside a phase counted as
         # 0.02 s steps. Bounces under 0.04 s are ignored; landing with a low peak costs more.
-        "air_time": 5.0, "air_time_mode": "touchdown", "air_time_min_s": 0.12, "air_time_max_s": 0.35,
+        # walk_v22: air_time 5 -> 2 and 0.12 -> 0.20 s minimum: at weight 5 it paid the 60-90 ms hops
+        # (4-5 touchdowns per foot per second) against the 1.5 Hz clock windows
+        "air_time": 2.0, "air_time_mode": "touchdown", "air_time_min_s": 0.20, "air_time_max_s": 0.5,
         "air_time_debounce_s": 0.04, "foot_hold": -2.0,
         "air_time_variance": -1.0,
         "foot_clearance": -2.0, "foot_swing_height": -1.0, "swing_height_m": 0.015, "foot_slip": -0.1,
         # walk_v21: the gait clock says which diagonal pair swings when (feet_swing, Booster Gym); the
         # phase-free footfall_sequence reward that paid for cadence is dropped
-        "feet_swing": 3.0,
+        "feet_swing": 5.0,
         "footfall_sequence": 0.0, "alternation_min_air_s": 0.12, "alternation_min_height_frac": 0.5,
         "undesired_contacts": -1.0,
         "base_height": 0.3, "base_height_target_m": 0.10, "base_height_std_m": 0.015,
@@ -802,6 +805,16 @@ ROBOTS["freenove"] = {
               "Raspberry Pi, IMU MPU6050",
     "link": "pwm",
     "policies": {
+        "walk_v22.nnm": "policy con l'orologio del passo (obs 47, `NNM_CLOCK_HZ 1.5`, `NNM_CLOCK_AUTO 1`): "
+                        "ripresa da walk_v20 it3400 sui contatti ellittici (impratio 100) con il reward "
+                        "`feet_swing` di Booster Gym (coppie diagonali nelle finestre di fase) al posto di "
+                        "footfall_sequence; v21 (feet_swing 3, air_time 5 a 0,12 s) e poi v22 (feet_swing 5, "
+                        "air_time 2 a 0,20 s, tracking 8). Checkpoint 7200 (punteggio 0,81). Su 10 s avanti a "
+                        "0,15 m/s rispetto a walk_v20: 4,1 atterraggi per zampa al secondo invece di 7,7 (−47 %), "
+                        "volo 107 ms invece di 58 (+84 %), action rate −31 %, velocità dei giunti −31 %, "
+                        "oscillazione del tronco pari (1,5°); velocità 0,13 m/s invece di 0,15 (−13 %). "
+                        "Sopravvivenza 100 %, rotazione 0,68 rad/s a 0,6, indietro 0,055, laterale 0,065. "
+                        "W&B mjlab_freenove/hcbrb89d (v21), qcfc7wli (v22).",
         "walk_v20_it3400.nnm": "policy di riferimento: ricetta Go2 (only_positive, contatti illegali e limiti "
                                "di postura che chiudono l'episodio, critico privilegiato, action_scale 0,25) "
                                "ripresa da walk_v15 → v19 con air time a touchdown, debounce dei contatti, "
@@ -823,10 +836,19 @@ ROBOTS["freenove"] = {
     },
     # Each clip is the int8 policy. "env" is that run's reward configuration; one iteration is 5 PPO epochs.
     "videos": [{
+        "env": "walk_v22 (orologio + feet_swing)",
+        "iteration": "7200",
+        "epochs": "36000",
+        "latest": True,
+        "mp4": "freenove_walk_v22_it7200_full.mp4",
+        "caption": "Passo con l'orologio a 1,5 Hz e il reward feet_swing di Booster Gym, sequenza completa: "
+                   "avanti dritto (−4,5°), indietro, laterale, destra (−117°), sinistra 180° in 4,5 s, avanti "
+                   "(+3,4°). 2,62 m, nessuna caduta. Passi lunghi il doppio e metà degli atterraggi di walk_v20, "
+                   "giunti e azioni più calmi di un terzo.",
+    }, {
         "env": "walk_v20",
         "iteration": "3400",
         "epochs": "17000",
-        "latest": True,
         "mp4": "freenove_walk_v20_it3400_full.mp4",
         "caption": "Policy di riferimento, sequenza completa (play_policy.py --full): avanti 5 s (+7°), "
                    "indietro 5 s a 0,14 m/s, laterale 4 s, destra 3 s (−134°), sinistra 180° in 4,1 s, "

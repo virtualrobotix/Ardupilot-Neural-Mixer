@@ -34,6 +34,7 @@ from nnm_env import NNMixerEnv, load_ppo_config  # noqa: E402
 SIGNATURE = "Realizzati da Roberto Navoni — DelphyAI LAB"
 GESTURE: str | None = None      # --gesture: env clip whose clock channels the policy expects
 POSE_MAVLINK: str | None = None  # listen for DEBUG_FLOAT_ARRAY NNM_POSE (pure-sim teleop)
+CLOCK_HZ: float | None = None    # --clock-hz: gait clock of a locomotion policy (default: middle of the range)
 
 
 def yaw_of(q) -> float:
@@ -137,6 +138,11 @@ def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None,
         pose = _poll_pose(pose_link)
         if pose is not None and getattr(env, "pose_cmd", False):
             env.set_pose_external(pose)
+        if getattr(env, "gait_clock", False):
+            # NNM_CLOCK_HZ / NNM_CLOCK_AUTO: fixed cadence while commanded, channels at zero when standing
+            hz = CLOCK_HZ if CLOCK_HZ is not None else float(np.mean(env.gait_hz_range))
+            env.set_gait_clock(hz if float(np.linalg.norm(twist)) > 1e-6 else 0.0)
+            env.gait_hz_range = (hz, hz)
         env.command = twist
         obs[env.contract.twist_offset:env.contract.twist_offset + 3] = twist
         obs, _, fell, _, info = env.step(dc.int8_forward(pk["layers"], pk["mean"], pk["std"], obs))
@@ -269,10 +275,13 @@ def main() -> None:
     ap.add_argument("--gesture", default=None, help="gesture clip whose clock the env feeds (e.g. wave_right)")
     ap.add_argument("--pose-mavlink", default=None, metavar="CONN",
                     help="listen for NNM_POSE on this MAVLink endpoint (implies --gesture pose_cmd)")
+    ap.add_argument("--clock-hz", type=float, default=None,
+                    help="gait clock frequency for a locomotion policy trained with env.gait_clock (NNM_CLOCK_HZ)")
     args = ap.parse_args()
-    global GESTURE, POSE_MAVLINK
+    global GESTURE, POSE_MAVLINK, CLOCK_HZ
     GESTURE = args.gesture
     POSE_MAVLINK = args.pose_mavlink
+    CLOCK_HZ = args.clock_hz
     if POSE_MAVLINK and not GESTURE:
         GESTURE = "pose_cmd"
     phases = None
