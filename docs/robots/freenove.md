@@ -14,7 +14,7 @@
 | Progetto | Freenove (kit FNK0050) |
 | Stato | policy int8 addestrata in simulazione; video dei checkpoint nella scheda |
 | Giunti comandati | 12 |
-| Osservazione | 45 valori |
+| Osservazione | 47 valori |
 | Frequenza policy | 50 Hz |
 | Attuatori | 12× EMAX ES08MA II (12 g, analogici, 1,6 kgf·cm a 4,8 V) su PCA9685 0x40 a 50 Hz; Raspberry Pi, IMU MPU6050 |
 | Collegamento | servo PWM: collegabili alle uscite dell'autopilota |
@@ -58,7 +58,7 @@ File: [`robots/freenove/robot/profile.json`](../../robots/freenove/robot/profile
 
 Canale e verso vengono dal codice upstream: angolo servo = 90° + verso × q (in gradi), più l'offset di calibrazione del singolo servo.
 
-Osservazione (45): gyro FLU 3, gravità FLU 3, q−q0 12, q̇ 12, azione precedente 12, twist vx vy ωz 3.
+Osservazione (47): gyro FLU 3, gravità FLU 3, q−q0 12, q̇ 12, azione precedente 12, twist vx vy ωz 3, orologio del passo sin, cos 2 (`NNM_CLOCK_HZ 1.5`, `NNM_CLOCK_AUTO 1`; zero da fermo).
 Azione (12): offset in radianti, `q_target = q0 + azione`.
 
 ## Modello meccanico e confronto con AlbertPro
@@ -81,7 +81,7 @@ Azione (12): offset in radianti, `q_target = q0 + azione`.
 
 ## Architettura PPO
 
-File: [`robots/freenove/robot/ppo.yaml`](../../robots/freenove/robot/ppo.yaml). Stessa rete di MicroDuck, già provata su Pixhawk 6C: **45 → 512 → 256 → 128 → 12**, ELU, normalizzazione dell'osservazione incorporata. Pesi int8 per riga addestrati sulla griglia int8 dalla prima iterazione (QAT), attivazioni float32. PPO: 2048 ambienti × 24 passi, 5 epoche, 4 minibatch, lr 1e-3 adattivo (KL 0,01), γ 0,99, λ 0,95, clip 0,2.
+File: [`robots/freenove/robot/ppo.yaml`](../../robots/freenove/robot/ppo.yaml). Stessa rete di MicroDuck, già provata su Pixhawk 6C: **47 → 512 → 256 → 128 → 12**, ELU, normalizzazione dell'osservazione incorporata. Pesi int8 per riga addestrati sulla griglia int8 dalla prima iterazione (QAT), attivazioni float32. PPO: 2048 ambienti × 24 passi, 5 epoche, 4 minibatch, lr 1e-3 adattivo (KL 0,01), γ 0,99, λ 0,95, clip 0,2.
 
 ## Policy
 

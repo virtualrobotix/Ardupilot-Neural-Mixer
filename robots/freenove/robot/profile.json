@@ -4,7 +4,7 @@
   "class": "quadruped",
   "display_name": "Freenove Robot Dog",
   "n_joints": 12,
-  "obs_dim": 45,
+  "obs_dim": 47,
   "rate_hz": 50,
   "q0": [
     0.1007,

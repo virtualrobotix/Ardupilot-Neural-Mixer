@@ -14,7 +14,7 @@
 -->
 <mujoco model="freenove_dog">
   <compiler angle="radian" autolimits="true"/>
-  <option timestep="0.005" integrator="implicitfast"/>
+  <option timestep="0.005" integrator="implicitfast" cone="elliptic" impratio="100"/>
 
   <visual>
     <global offwidth="1920" offheight="1080" azimuth="135" elevation="-20"/>

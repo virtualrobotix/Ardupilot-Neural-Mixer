@@ -139,6 +139,9 @@ class RewardWeights:
     # measured joint angle, so a feedforward policy can track it: the observation already has q and qd.
     gesture_pose: float = 0.0
     gesture_std: float = 0.12
+    # Booster Gym feet_swing: foot lifted inside its gait-clock phase window (env.gait_clock); the same
+    # weight pays a foot in stance outside every window. Replaces the phase-free gait shaping.
+    feet_swing: float = 0.0
 
 
 def _quat_rotate_inverse(q, v):
@@ -187,6 +190,17 @@ class NNMixerEnv:
         self.push_interval = tuple(push["interval_s"]) if push else None
         self.push_vel = float(push.get("vel_xy", 0.0)) if push else 0.0
         self.w = RewardWeights(**env_cfg.get("reward", {}))
+        # locomotion gait clock (Booster Gym): sin/cos of a phase at a frequency drawn per episode from
+        # hz_range go into the two extra observation channels; zero while the command is zero. The
+        # feet_swing reward pays a foot lifted inside its phase window (swing_phase per foot, width
+        # swing_period of the cycle). On the robot: NNM_CLOCK_HZ with NNM_CLOCK_AUTO 1.
+        gc = env_cfg.get("gait_clock") or {}
+        self.gait_clock = bool(gc)
+        self.gait_hz_range = tuple(gc.get("hz_range", [1.0, 2.0]))
+        self.gait_swing_phase = np.array(gc.get("swing_phase", []), dtype=np.float64)
+        self.gait_swing_period = float(gc.get("swing_period", 0.4))
+        self.gait_hz = 0.0
+        self.gait_phase = 0.0
         self._setup_gesture(env_cfg.get("gesture"))
         self.actuator = actuator or sim.get("actuator", "position")
         self._load(Path(path))
@@ -611,6 +625,12 @@ class NNMixerEnv:
         return keys[-1][1]
 
     def _gesture_extra(self) -> np.ndarray | None:
+        if self.gesture_spec is None and self.gait_clock and self.contract.extra_cmd_dim >= 2:
+            extra = np.zeros(self.contract.extra_cmd_dim, np.float32)
+            if self.gait_hz > 0.0:
+                extra[0] = math.sin(2 * math.pi * self.gait_phase)
+                extra[1] = math.cos(2 * math.pi * self.gait_phase)
+            return extra
         if self.gesture_spec is None or self.contract.extra_cmd_dim < 2:
             return None
         extra = np.zeros(self.contract.extra_cmd_dim, np.float32)
@@ -649,6 +669,22 @@ class NNMixerEnv:
         if not self.resample_s:
             return 10 ** 9
         return self.steps + int(self.rng.uniform(*self.resample_s) * self.contract.rate_hz)
+
+    def _sample_gait_hz(self) -> None:
+        """Gait clock frequency for the current command: drawn from hz_range, zero when standing."""
+        if not self.gait_clock:
+            return
+        if float(np.linalg.norm(self.command)) < 1e-6:
+            self.gait_hz = 0.0
+            self.gait_phase = 0.0
+        else:
+            self.gait_hz = float(self.rng.uniform(*self.gait_hz_range))
+
+    def set_gait_clock(self, hz: float, phase: float | None = None) -> None:
+        """play_policy / firmware replay: fixed clock frequency (0 = channels at zero)."""
+        self.gait_hz = float(hz)
+        if phase is not None:
+            self.gait_phase = float(phase)
 
     def _sample_command(self) -> np.ndarray:
         if self.gesture_spec is not None:
@@ -727,6 +763,8 @@ class NNMixerEnv:
         self.a_prev = dc.stand_action(c)
         self.q_wire = dc.apply_action(c, self.a_prev)[1]
         self.command = self._sample_command()
+        self.gait_phase = float(self.rng.random())
+        self._sample_gait_hz()
         # a random start phase: the policy must join the clip anywhere, as on the robot
         self.clip_phase = float(self.rng.random()) if self.gesture_spec else 0.0
         if self.pose_cmd:
@@ -834,6 +872,9 @@ class NNMixerEnv:
         if self.steps >= self.next_resample:
             self.command = self._sample_command()
             self.next_resample = self._next_resample()
+            self._sample_gait_hz()
+        if self.gait_clock:
+            self.gait_phase = (self.gait_phase + self.gait_hz / c.rate_hz) % 1.0 if self.gait_hz > 0 else 0.0
         if self.gesture_spec is not None:
             self.command = np.zeros(3, np.float32)
             if self.pose_cmd:
@@ -957,6 +998,16 @@ class NNMixerEnv:
         # height above the foot's last stance position (flat floor: the mjlab height scan)
         self.foot_z0 = np.where(contact, pos[:, 2], self.foot_z0)
         height = pos[:, 2] - self.foot_z0
+        out: dict[str, float] = {}
+        if w.feet_swing and self.gait_clock and self.gait_hz > 0 and self.gait_swing_phase.size == len(self.feet):
+            # Booster Gym feet_swing: a foot lifted (here: off the floor and above 1/3 of the swing height)
+            # inside its phase window pays; the window is swing_period of the cycle around swing_phase
+            dphi = np.abs(((self.gait_phase - self.gait_swing_phase) + 0.5) % 1.0 - 0.5)
+            in_window = dphi < 0.5 * self.gait_swing_period
+            lifted = (~contact) & (height > w.swing_height_m / 3.0)
+            out["feet_swing"] = w.feet_swing * float(np.mean(in_window & lifted)) * dt
+            # and a foot on the floor outside every swing window (stance) pays the same
+            out["feet_stance"] = w.feet_swing * float(np.mean(~in_window & contact)) * dt
         # mjlab feet_clearance: |h - target| weighted by foot speed, only with a command
         clearance = float(np.sum(np.abs(height - w.swing_height_m) * vel_xy * ~contact)) * moving
         # mjlab feet_swing_height: peak height error at landing
@@ -964,9 +1015,9 @@ class NNMixerEnv:
         peak_at_touch = self.foot_peak.copy()
         self.foot_peak = np.where(contact, 0.0, np.maximum(self.foot_peak, height))
         slip = float(np.sum((vel_xy ** 2) * contact)) * moving
-        out = {"air_time": w.air_time * air * moving * dt,
-               "foot_clearance": w.foot_clearance * clearance * dt,
-               "foot_slip": w.foot_slip * slip * dt}
+        out.update({"air_time": w.air_time * air * moving * dt,
+                    "foot_clearance": w.foot_clearance * clearance * dt,
+                    "foot_slip": w.foot_slip * slip * dt})
         if w.foot_hold:
             held = int(np.sum((~contact) & (self.foot_air > w.air_time_max_s)))
             out["foot_hold"] = w.foot_hold * held * moving * dt

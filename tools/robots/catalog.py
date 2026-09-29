@@ -657,7 +657,11 @@ ROBOTS["freenove"] = {
     ],
     "q0": [0.1007, 0.6635, -0.0161, -0.1007, 0.6635, -0.0161,
            0.1007, 0.6635, -0.0161, -0.1007, 0.6635, -0.0161],
-    "extra_cmd_dim": 0,
+    # walk_v21: gait clock sin, cos after the twist (Booster Gym / OpenCat lesson): the policy is told the
+    # cadence and the reward pays each foot for swinging in its phase window. Earlier walks (obs 45)
+    # widened to 47 with pad_nnm_obs; they ignore the channels.
+    "extra_cmd_dim": 2,
+    "extra_cmd_desc": "orologio del passo sin, cos 2 (`NNM_CLOCK_HZ 1.5`, `NNM_CLOCK_AUTO 1`; zero da fermo)",
     "rate_hz": 50,
     "command_ranges": {"vx": [-0.2, 0.2], "vy": [-0.1, 0.1], "wz": [-0.8, 0.8]},
     "upstream": {
@@ -761,11 +765,17 @@ ROBOTS["freenove"] = {
         "air_time_debounce_s": 0.04, "foot_hold": -2.0,
         "air_time_variance": -1.0,
         "foot_clearance": -2.0, "foot_swing_height": -1.0, "swing_height_m": 0.015, "foot_slip": -0.1,
-        "footfall_sequence": 0.1, "alternation_min_air_s": 0.12, "alternation_min_height_frac": 0.5,
+        # walk_v21: the gait clock says which diagonal pair swings when (feet_swing, Booster Gym); the
+        # phase-free footfall_sequence reward that paid for cadence is dropped
+        "feet_swing": 3.0,
+        "footfall_sequence": 0.0, "alternation_min_air_s": 0.12, "alternation_min_height_frac": 0.5,
         "undesired_contacts": -1.0,
         "base_height": 0.3, "base_height_target_m": 0.10, "base_height_std_m": 0.015,
     },
     "env": {
+        # trot at 1.2-1.8 Hz (the upstream gait cycle is 0.7 s); FL+RR swing around phase 0.25, FR+RL
+        # around 0.75, each window 0.4 of the cycle; clock at zero while standing
+        "gait_clock": {"hz_range": [1.2, 1.8], "swing_phase": [0.25, 0.75, 0.75, 0.25], "swing_period": 0.4},
         "resample_s": [3.0, 8.0], "p_zero_command": 0.02, "p_no_lateral": 0.1, "p_single_axis": 0.8,
         # [+vx, -vx, +vy, -vy, +wz, -wz]: backward and the turns, still untracked at walk_v19, are drawn more
         "single_axis_weights": [0.15, 0.30, 0.10, 0.10, 0.175, 0.175],

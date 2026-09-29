@@ -77,7 +77,8 @@ Si copiano da [`sitl/APM/nnm/`](sitl/APM/nnm/) oppure da `robots/<id>/robot/robo
 | `NNM_ENABLE` | 1 | attiva il task |
 | `NNM_ROBOT` | indice del robot nel [catalogo](docs/robots/README.md) (MicroDuck 0) | topologia, letta al boot |
 | `NNM_POLICY` | 0 | indice del file policy in ordine alfabetico; si cambia a caldo |
-| `NNM_CLOCK_HZ` | 0 | orologio dei gesti per le policy a imitazione di clip (Microban saluto 0,5, balletto 0,625); 0 per camminare |
+| `NNM_CLOCK_HZ` | 0 | orologio dei gesti / del passo: seno e coseno di una fase nei due canali dopo il twist (Microban saluto 0,5, balletto 0,625; Freenove walk_v21 1,5; Booster T1 1,0); 0 = canali a zero |
+| `NNM_CLOCK_AUTO` | 0 | 1: l'orologio avanza solo con un twist comandato ed è zero da fermo (policy di locomozione addestrate con `env.gait_clock`, convenzione Booster Gym) |
 | `NNM_POSE_WD` / `NNM_POSE_TAU` | 500 ms / 0,15 s | teleoperazione della posa via MAVLink (`DEBUG_FLOAT_ARRAY` nome `NNM_POSE`, Microban `pose_cmd.nnm`): watchdog oltre il quale gli 8 canali di posa tornano a riposo, e il passa-basso su di essi. Vedi [gesture_imitation.md](docs/robots/gesture_imitation.md#teleoperazione-posa-in-ingresso-via-mavlink) |
 | `SERVO1..14_FUNCTION` | 94..107 | uscite dei giunti (Scripting1..14) |
 | `INS_GYRO_FILTER` | 0 | la policy vuole il gyro grezzo; i 4 Hz di default di Rover fanno cadere il bipede |

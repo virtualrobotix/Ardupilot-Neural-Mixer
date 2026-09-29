@@ -66,9 +66,12 @@ def pad_checkpoint_obs(blob: dict, obs_dim: int) -> dict:
         w = sd.get("0.weight")
         if w is None:
             raise SystemExit(f"checkpoint {key}: missing 0.weight")
-        if tuple(w.shape)[1] != old:
-            raise SystemExit(f"checkpoint {key} input {w.shape[1]} != norm {old}")
-        sd["0.weight"] = torch.cat([w, torch.zeros(w.shape[0], add, dtype=w.dtype)], dim=1)
+        if tuple(w.shape)[1] < old:
+            raise SystemExit(f"checkpoint {key} input {w.shape[1]} < norm {old}")
+        # the critic input is [obs, privileged]: the new observation columns go after the old
+        # observation, before the privileged block (which the actor does not have)
+        zeros = torch.zeros(w.shape[0], add, dtype=w.dtype)
+        sd["0.weight"] = torch.cat([w[:, :old], zeros, w[:, old:]], dim=1)
         blob[key] = sd
     print(f"padded checkpoint obs {old} -> {obs_dim}")
     return blob
