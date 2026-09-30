@@ -31,6 +31,7 @@ import sys
 import time
 from pathlib import Path
 
+import mujoco
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -151,7 +152,113 @@ def evaluate_modes(robot: str, cfg: dict, pk: dict, n_ep: int = 8, horizon: int 
     return out
 
 
+def evaluate_getup(robot: str, cfg: dict, pk: dict, n_ep: int = 8, horizon: int = 350) -> dict:
+    """Success rate from prone and from supine: upright, near q0, stable for 2 s at the end."""
+    import getup_clips as getup
+
+    out = {}
+    for side in ("prone", "supine"):
+        successes, times, peak_taus, rets = [], [], [], []
+        for ep in range(n_ep):
+            env = NNMixerEnv(robot, cfg, seed=2000 + ep)
+            # force the side and start from lying (no RSI) for a fair eval; zero assist
+            env.getup_p_rsi = 0.0
+            env.getup_p_stand = 0.0
+            if getattr(env, "getup_discover", False):
+                env.getup_assist_n = 0.0
+                env.getup_p_prone = 1.0 if side == "prone" else 0.0
+                env.getup_p_supine = 1.0 if side == "supine" else 0.0
+            env.reset()
+            env.getup_side = side
+            env.getup_assist_n = 0.0
+            key = "getup_prone" if side == "prone" else "getup_supine"
+            dur = getup.CLIP_DURATION_S
+            if env.getup_motion is not None:
+                # one clock for both sides (see NNMixerEnv._gesture_reference)
+                dur = float(env.getup_motion.get("duration_s", dur))
+            env.gesture_spec = {
+                "mode": "getup", "hz": 1.0 / max(dur, 0.5), "oneshot": True,
+                "keys": env.getup_presets[key]["keys"],
+            }
+            # a recorded clip needs its whole duration (+ settle) before q0 can be reached
+            ep_horizon = max(horizon, int((dur + 2.0) * env.contract.rate_hz)) if env.getup_motion else horizon
+            env.clip_phase = 0.0
+            env._place_getup(side, 0.0, settle=True)
+            env.gravity = dc.GravityFilter(env.contract.att_tau)
+            for _ in range(dc.AUTOPILOT_LOOP_HZ // 10):
+                env._apply_target(env.q_wire)
+                mujoco.mj_step(env.model, env.data)
+                g, a = env._imu_frd()
+                env.gravity.update(g, a, 1.0 / dc.AUTOPILOT_LOOP_HZ)
+            obs = env._observe()
+            env.steps = 0
+            ret = 0.0
+            peak_tau = 0.0
+            stood_at = None
+            stable = 0
+            success = False
+            for k in range(ep_horizon):
+                obs, r, fell, timeout, info = env.step(
+                    dc.int8_forward(pk["layers"], pk["mean"], pk["std"], obs))
+                ret += r
+                peak_tau = max(peak_tau, float(np.max(np.abs(env.data.actuator_force[env.act_idx]))))
+                tilt = env.tilt_deg()
+                q_err = float(np.mean(np.abs(env.data.qpos[env.qpos_idx] - env.contract.q0)))
+                z = float(env.data.qpos[env.free_qpos + 2])
+                # standing at q0 Microban's trunk leans ~14° (walk.nnm holds it so): the recorded-clip
+                # policy is graded with the same 20° gate as its reward
+                tilt_ok = 20.0 if env.getup_motion is not None else 12.0
+                upright = tilt < tilt_ok and z > 0.12 and q_err < 0.35
+                if upright:
+                    if stood_at is None:
+                        stood_at = k / env.contract.rate_hz
+                    stable += 1
+                    if stable >= int(2.0 * env.contract.rate_hz):
+                        success = True
+                        break
+                else:
+                    stable = 0
+                    stood_at = None
+                if timeout:
+                    break
+            successes.append(1.0 if success else 0.0)
+            times.append(stood_at if stood_at is not None else ep_horizon / env.contract.rate_hz)
+            peak_taus.append(peak_tau)
+            rets.append(ret)
+        out[side] = {
+            "success": float(np.mean(successes)),
+            "mean_time_s": float(np.mean(times)),
+            "peak_torque_nm": float(np.mean(peak_taus)),
+            "mean_return": float(np.mean(rets)),
+            "n_episodes": n_ep,
+            "survival": float(np.mean(successes)),  # alias for eval_score compatibility
+            "mean_upright": float(np.mean(successes)),
+            "mean_vx": 0.0, "mean_vy": 0.0, "mean_wz": 0.0,
+            "command_vx": 0.0, "command_vy": 0.0, "command_wz": 0.0,
+        }
+    out["stand"] = {
+        "survival": float(np.mean([out["prone"]["success"], out["supine"]["success"]])),
+        "mean_upright": float(np.mean([out["prone"]["success"], out["supine"]["success"]])),
+        "mean_vx": 0.0, "mean_vy": 0.0, "mean_wz": 0.0,
+        "command_vx": 0.0, "command_vy": 0.0, "command_wz": 0.0,
+        "mean_return": float(np.mean([out["prone"]["mean_return"], out["supine"]["mean_return"]])),
+    }
+    return out
+
+
+def getup_eval_score(ev: dict) -> float:
+    return 0.5 * ev["prone"]["success"] + 0.5 * ev["supine"]["success"]
+
+
 def print_eval(ev: dict) -> None:
+    if "prone" in ev and "supine" in ev and "success" in ev["prone"]:
+        for side in ("prone", "supine"):
+            m = ev[side]
+            print(f"  {side:14s} success {m['success'] * 100:5.1f}%  "
+                  f"time {m['mean_time_s']:.2f}s  peak_τ {m['peak_torque_nm']:.2f} Nm  "
+                  f"return {m['mean_return']:.2f}")
+        print(f"  score {getup_eval_score(ev):.3f}")
+        return
     for mode, m in ev.items():
         print(f"  {mode:14s} survival {m['survival'] * 100:5.1f}%  upright {m['mean_upright']:.3f}  "
               f"vx {m['mean_vx']:+.3f} vy {m.get('mean_vy', 0):+.3f} wz {m.get('mean_wz', 0):+.3f} "
@@ -296,6 +403,9 @@ def train(args) -> None:
     cfg = load_ppo_config(args.robot)
     if args.gesture:
         cfg.setdefault("env", {})["gesture"] = args.gesture
+    # Stage I discovery: float32 policy only (not deployable); Stage II keeps QAT int8
+    if args.gesture == "getup_discover":
+        cfg.setdefault("quantization", {})["qat"] = False
     net, ppo = cfg["network"], cfg["ppo"]
     cur = {**DEFAULT_CURRICULUM, **cfg["env"].get("curriculum", {})}
     venv = VecEnv(args.robot, cfg, args.envs, args.workers)
@@ -303,6 +413,8 @@ def train(args) -> None:
     obs_dim, n = c.obs_dim, c.n_joints
     torch.manual_seed(args.seed)
     qat = bool(cfg.get("quantization", {}).get("qat", True))
+    if args.gesture == "getup_discover":
+        qat = False
     actor = build_actor([obs_dim, *net["actor_hidden"], n], net.get("activation", "elu"), qat=qat)
     critic_layers: list[nn.Module] = []
     # asymmetric actor-critic: the critic also sees the simulator state the autopilot cannot measure
@@ -368,8 +480,19 @@ def train(args) -> None:
         norm.n = 1_000_001
         freeze_norm = True
         print(f"initialised actor and normalizer from {args.init_nnm}; exploration std {args.init_std}")
-    if args.gesture:
+    if args.gesture and args.gesture not in ("getup", "getup_discover"):
+        # clip fine-tunes: fixed rate. getup from scratch diverged at a fixed 1e-3
+        # (actor outputs of 100+ rad by iteration 700): keep the adaptive KL schedule
         ppo["schedule"] = "fixed"
+    if args.gesture == "getup" and (args.init_nnm or args.resume) and args.lr is not None:
+        # Stage II warm-started from Stage I (or resumed) with an explicit --lr: fixed rate (the adaptive
+        # schedule sat at its 1e-5 floor from the first iterations)
+        ppo["schedule"] = "fixed"
+    if args.gesture == "getup_discover":
+        # Stage I: fixed lr 3e-4 + grad clip (already in ppo.yaml); free exploration
+        ppo["schedule"] = "fixed"
+        if args.lr is None:
+            args.lr = 3e-4
     start_iter = 0
     if args.resume:
         # continue a run: same networks, exploration noise and normalizer statistics
@@ -398,14 +521,38 @@ def train(args) -> None:
         # The roll sweeps; pitch and elbow only have to hold the raised hand.
         std = np.full(n, 0.06, np.float32)
         names = load_profile(args.robot)["joint_names"]
-        for j in venv.gesture_ids:
+        for j in (venv.gesture_ids if venv.gesture_ids is not None else []):
             # arms can explore freely; a leg joint in the clip explores less, or the robot falls
             std[j] = 0.30 if ("shoulder" in names[j] or "elbow" in names[j]) else 0.12
+        if args.gesture in ("getup", "getup_discover"):
+            # every joint moves and the get-up is dynamic: wide exploration everywhere. Run with
+            # --std-cap: the per-step reward is small and the entropy bonus otherwise inflates the
+            # std (0.25 -> 0.66 in 400 iterations, action_rate then outweighs upright). Stage I
+            # discover without a cap blew std 0.50 -> 1.69 by it1100 with 0% eval success.
+            # Warm-started discover (--init-nnm from the v5 squat->stand policy): legs at 0.35 so
+            # the balance it already has survives the noise, arms free at 0.5.
+            if args.gesture == "getup_discover":
+                std[:] = 0.35 if args.init_nnm else 0.50
+            else:
+                std[:] = 0.25
+            for j, name in enumerate(names):
+                if "shoulder" in name or "elbow" in name:
+                    std[j] = 0.50 if args.gesture == "getup_discover" else 0.30
+            if args.std_legs is not None or args.std_arms is not None:
+                for j, name in enumerate(names):
+                    arm = "shoulder" in name or "elbow" in name
+                    if arm and args.std_arms is not None:
+                        std[j] = args.std_arms
+                    if not arm and args.std_legs is not None:
+                        std[j] = args.std_legs
         with torch.no_grad():
             log_std.copy_(torch.from_numpy(np.log(std)).float())
-        # --std-cap holds exploration at the start value. Off by default: on pose_cmd the free std
-        # drifted 0.17 -> 0.37 over 800 iterations and tracked better (0.10 rad) than capped (0.18).
-        std_cap = torch.from_numpy(np.log(std)).float() if args.std_cap else None
+        # --std-cap holds exploration at the start value. Off by default for pose_cmd (free std
+        # helped tracking). On by default for getup_discover (entropy otherwise explodes).
+        use_std_cap = args.std_cap or args.gesture == "getup_discover"
+        if args.no_std_cap:
+            use_std_cap = False
+        std_cap = torch.from_numpy(np.log(std)).float() if use_std_cap else None
         with torch.no_grad():
             if args.resume and args.keep_std:
                 # continuing the same gesture run: keep the exploration it had reached
@@ -413,12 +560,16 @@ def train(args) -> None:
             elif args.reset_std:
                 log_std.fill_(float(np.log(args.reset_std)))
         print(f"gesture {args.gesture}: std {np.round(log_std.exp().detach().numpy(), 2).tolist()}"
-              f"{' (capped)' if args.std_cap else ''}, fixed learning rate")
+              f"{' (capped)' if std_cap is not None else ''}, "
+              f"{'fixed' if ppo.get('schedule') == 'fixed' else 'adaptive'} learning rate"
+              f"{', qat=off' if args.gesture == 'getup_discover' else ''}")
     else:
         std_cap = None
     params = list(actor.parameters()) + list(critic.parameters()) + [log_std]
     if args.resume:
         lr = float(args.lr or ppo["learning_rate"])
+    elif args.gesture == "getup_discover":
+        lr = float(args.lr or 3e-4)
     else:
         lr = float(ppo["learning_rate"]) if not (args.init_onnx or args.init_nnm) else float(args.lr or 1e-5)
     opt = torch.optim.Adam(params, lr=lr)
@@ -486,8 +637,13 @@ def train(args) -> None:
         eval_log.write_text("")
 
     def evaluate_checkpoint(iteration: int, path: Path) -> None:
-        ev = evaluate_modes(args.robot, cfg, unpack_nnm(path.read_bytes()), n_ep=4, horizon=250)
-        sc = eval_score(ev)
+        pk = unpack_nnm(path.read_bytes())
+        if args.gesture in ("getup", "getup_discover"):
+            ev = evaluate_getup(args.robot, cfg, pk, n_ep=4, horizon=400)
+            sc = getup_eval_score(ev)
+        else:
+            ev = evaluate_modes(args.robot, cfg, pk, n_ep=4, horizon=250)
+            sc = eval_score(ev)
         scores.append((sc, iteration, path))
         print(f"eval iteration {iteration}:")
         print_eval(ev)
@@ -496,6 +652,21 @@ def train(args) -> None:
         if wb is not None:
             wb.log({**{f"Eval/{mode}/{k}": v for mode, mm in ev.items() for k, v in mm.items()
                        if isinstance(v, float)}, "Eval/score": sc}, step=max(iteration, 1))
+
+    # Stage I assist force curriculum (HoST): shared across all envs
+    getup_assist_n = 0.0
+    getup_stand_z = 0.294
+    getup_lying_success = 0.0
+    getup_all_success = 0.0
+    if args.gesture == "getup_discover":
+        probe = NNMixerEnv(args.robot, cfg, seed=99)
+        getup_assist_n = float(probe.getup_assist_n) if args.assist_start is None else float(args.assist_start)
+        if probe.head_id < 0:
+            probe._getup_head()
+        getup_stand_z = float(probe.getup_head_stand_z) or 0.294
+        print(f"getup_discover assist start {getup_assist_n:.2f} N "
+              f"(mass={probe.robot_mass_kg:.3f} kg, stand_head_z={getup_stand_z:.3f})")
+        del probe
 
     if args.save_every and not args.resume:
         evaluate_checkpoint(0, checkpoint("it0000"))   # the untrained network: first frame of the evolution video
@@ -506,6 +677,8 @@ def train(args) -> None:
     t_start = time.time()
     for it in range(start_iter, args.iters):
         cv = curriculum_at(it)
+        if args.gesture == "getup_discover":
+            cv = {**cv, "getup_assist_n": getup_assist_n}
         venv.set_curriculum(**cv)
         t_col = time.time()
         buf_o, buf_a, buf_lp, buf_r, buf_v, buf_d, buf_c, buf_mu = [], [], [], [], [], [], [], []
@@ -514,6 +687,9 @@ def train(args) -> None:
         ep_terms: dict[str, list[float]] = {}
         err_xy, err_yaw = [], []
         step_rewards = []
+        head_z_ends: list[float] = []
+        lying_stood: list[float] = []
+        all_stood: list[float] = []
         for _ in range(T):
             if not freeze_norm:
                 norm.update(obs)
@@ -545,6 +721,11 @@ def train(args) -> None:
                                                sum(info["episode"].values()) * cfg["env"]["episode_s"]))
                     ep_lengths.append(ep_len[i])
                     ep_len[i] = 0
+                    if args.gesture == "getup_discover" and "head_z_end" in info:
+                        head_z_ends.append(float(info["head_z_end"]))
+                        all_stood.append(1.0 if info.get("stood_end") else 0.0)
+                        if info.get("getup_start") == "lying":
+                            lying_stood.append(1.0 if info.get("stood_end") else 0.0)
             buf_o.append(on); buf_a.append(a.numpy()); buf_lp.append(lp.numpy()); buf_v.append(v.numpy())
             buf_c.append(cn); buf_mu.append(mu.numpy())
             buf_r.append(rew + gamma * tval); buf_d.append(done.astype(float))
@@ -620,6 +801,25 @@ def train(args) -> None:
                 l_ent += float(entropy.detach()); n_upd += 1
         learning_time = time.time() - t_learn
 
+        # HoST assist curriculum, driven by real success: lower by 0.4 N when >=30% of the episodes
+        # that started lying ended standing (head-height alone let a side-sit drain the assist)
+        if args.gesture == "getup_discover" and head_z_ends:
+            n_ly = len(lying_stood)
+            frac_stood = float(np.mean(lying_stood)) if n_ly else 0.0
+            frac_all = float(np.mean(all_stood)) if all_stood else 0.0
+            mean_h = float(np.mean(head_z_ends))
+            getup_lying_success = frac_stood
+            getup_all_success = frac_all
+            if n_ly >= 8 and frac_stood >= 0.30 and getup_assist_n > 0.0:
+                prev = getup_assist_n
+                getup_assist_n = max(0.0, getup_assist_n - 0.4)
+                print(f"  assist curriculum: {prev:.2f} → {getup_assist_n:.2f} N "
+                      f"(lying stood={frac_stood * 100:.0f}% of {n_ly}, all stood={frac_all * 100:.0f}%, "
+                      f"peak_head={mean_h:.3f}/{getup_stand_z:.3f})")
+            elif it % 50 == 0:
+                print(f"  assist monitor: {getup_assist_n:.2f} N  lying stood={frac_stood * 100:.0f}% of {n_ly}  "
+                      f"all stood={frac_all * 100:.0f}%  peak_head={mean_h:.3f}")
+
         el = time.time() - t_start
         m = {
             "iteration": it + 1,
@@ -642,6 +842,9 @@ def train(args) -> None:
             "Curriculum/action_rate_weight": cv["action_rate"],
             "Curriculum/standing_envs": cv["standing_envs"],
             "Curriculum/penalty_scale": cv.get("penalty_scale", 1.0),
+            "Curriculum/getup_assist_n": float(getup_assist_n) if args.gesture == "getup_discover" else 0.0,
+            "Curriculum/getup_lying_success": float(getup_lying_success),
+            "Curriculum/getup_all_success": float(getup_all_success),
             "time_s": el,
             "env_steps": (it + 1) * args.envs * T,
         }
@@ -707,8 +910,11 @@ def train(args) -> None:
     print(f"wrote {out} ({len(blob)} bytes). last iteration: max |train - deployed| = "
           f"{np.max(np.abs(y_train - y_nnm)):.2e}")
 
-    print(f"final evaluation of {out.name} (iteration {best_it}, deployed int8 network, 8 episodes x 300 steps):")
-    ev = evaluate_modes(args.robot, cfg, pk)
+    print(f"final evaluation of {out.name} (iteration {best_it}, deployed int8 network):")
+    if args.gesture in ("getup", "getup_discover"):
+        ev = evaluate_getup(args.robot, cfg, pk)
+    else:
+        ev = evaluate_modes(args.robot, cfg, pk)
     print_eval(ev)
     (run_dir / "eval_report.json").write_text(json.dumps({"policy": out.name, "eval": ev}, indent=2))
     fig = plot_run(csv_path, run_dir / "training_curves.png",
@@ -746,8 +952,10 @@ def main() -> None:
     ap.add_argument("--wandb-project", default=None)
     ap.add_argument("--eval", type=Path, default=None, help="evaluate a .nnm (stand / walk) and exit")
     ap.add_argument("--gesture", default=None,
-                    choices=("arms_up", "wave_right", "dance_arms", "dance", "pose_cmd"),
-                    help="stand and track a scripted clip, or pose_cmd (8-channel MAVLink teleop)")
+                    choices=("arms_up", "wave_right", "dance_arms", "dance", "pose_cmd",
+                             "getup", "getup_discover"),
+                    help="stand and track a scripted clip, pose_cmd (teleop), getup (Stage II), "
+                         "or getup_discover (Stage I assist discovery)")
     ap.add_argument("--init-nnm", type=Path, default=None,
                     help="fine-tune from a .nnm of this robot (dequantized weights and normalizer)")
     ap.add_argument("--init-onnx", type=Path, default=None,
@@ -764,7 +972,14 @@ def main() -> None:
     ap.add_argument("--wandb-id", default=None, help="continue this W&B run id")
     ap.add_argument("--reset-std", type=float, default=None, help="exploration std after --resume")
     ap.add_argument("--std-cap", action="store_true",
-                    help="with --gesture: clamp the exploration std at its start value")
+                    help="with --gesture: clamp the exploration std at its start value "
+                         "(default on for getup_discover)")
+    ap.add_argument("--no-std-cap", action="store_true",
+                    help="disable the default std cap on getup_discover")
+    ap.add_argument("--std-legs", type=float, default=None, help="with --gesture: exploration std of leg joints")
+    ap.add_argument("--std-arms", type=float, default=None, help="with --gesture: exploration std of arm joints")
+    ap.add_argument("--assist-start", type=float, default=None,
+                    help="getup_discover: initial assist force in N (default from the env curriculum)")
     ap.add_argument("--keep-std", action="store_true",
                     help="with --gesture --resume: keep the checkpoint's std instead of the gesture template")
     args = ap.parse_args()
@@ -773,9 +988,16 @@ def main() -> None:
         pk = unpack_nnm(args.eval.read_bytes())
         if pk["robot_id"] != args.robot:
             raise SystemExit(f"refusing: {args.eval} is for robot {pk['robot_id']!r}, not {args.robot!r}")
-        print(f"{args.eval} (deployed int8 network, 8 episodes x 300 steps):")
-        ev = evaluate_modes(args.robot, cfg, pk)
-        print_eval(ev)
+        if args.gesture in ("getup", "getup_discover") or "getup" in args.eval.stem:
+            cfg.setdefault("env", {})["gesture"] = args.gesture or (
+                "getup_discover" if "discover" in args.eval.stem else "getup")
+            print(f"{args.eval} (get-up eval, 8 episodes per side):")
+            ev = evaluate_getup(args.robot, cfg, pk)
+            print_eval(ev)
+        else:
+            print(f"{args.eval} (deployed int8 network, 8 episodes x 300 steps):")
+            ev = evaluate_modes(args.robot, cfg, pk)
+            print_eval(ev)
         return
     train(args)
 

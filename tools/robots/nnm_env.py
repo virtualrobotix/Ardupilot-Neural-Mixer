@@ -29,6 +29,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import deploy_contract as dc  # noqa: E402
 from common import REPO_ROOT, load_profile, resolve_mjcf  # noqa: E402
+import getup_clips as getup  # noqa: E402
 
 SIM_DT = 1.0 / dc.AUTOPILOT_LOOP_HZ
 
@@ -142,6 +143,13 @@ class RewardWeights:
     # Booster Gym feet_swing: foot lifted inside its gait-clock phase window (env.gait_clock); the same
     # weight pays a foot in stance outside every window. Replaces the phase-free gait shaping.
     feet_swing: float = 0.0
+    # get-up: exp(-((trunk_z - z_ref) / std)^2) tracking the clip root height; success bonus when
+    # upright, near q0 and still after the clip finishes.
+    getup_height: float = 0.0
+    getup_height_std_m: float = 0.03
+    getup_success: float = 0.0
+    getup_success_tilt_deg: float = 10.0
+    getup_success_q_tol: float = 0.25
 
 
 def _quat_rotate_inverse(q, v):
@@ -154,6 +162,7 @@ class NNMixerEnv:
     def __init__(self, robot_id: str, ppo: dict[str, Any] | None = None, mjcf: Path | None = None,
                  seed: int = 0, actuator: str | None = None):
         self.profile = load_profile(robot_id)
+        self.robot_id = robot_id
         self.ppo = ppo or {}
         self.contract = dc.Contract.from_profile(self.profile, self.ppo)
         sim = self.profile.get("sim", {})
@@ -270,6 +279,11 @@ class NNMixerEnv:
         self.gyro_adr = int(m.sensor_adr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SENSOR, gyro_name)])
         self.acc_adr = int(m.sensor_adr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SENSOR, acc_name)])
         self.home_z = float(self.sim.get("home_z", 0.3))
+        self.robot_mass_kg = float(np.sum(m.body_mass))
+        if getattr(self, "getup_discover", False) and getattr(self, "getup_assist_frac", 0.0) > 0.0:
+            # HoST-style upward trunk assist: start at assist_frac · m·g, curriculum lowers it
+            self.getup_assist_max_n = self.getup_assist_frac * self.robot_mass_kg * 9.81
+            self.getup_assist_n = self.getup_assist_max_n
         # feet: site for position, body for contacts with the floor
         self.feet = []
         floor = {g for g in range(m.ngeom) if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_PLANE}
@@ -303,6 +317,8 @@ class NNMixerEnv:
             mid, half = (lo + hi) / 2, (hi - lo) / 2 * self.w.soft_limit_factor
             rng_lo.append(mid - half); rng_hi.append(mid + half)
         self.soft_lo, self.soft_hi = np.array(rng_lo), np.array(rng_hi)
+        self.hard_lo = np.array([m.jnt_range[j][0] if m.jnt_limited[j] else -np.inf for j in jid])
+        self.hard_hi = np.array([m.jnt_range[j][1] if m.jnt_limited[j] else np.inf for j in jid])
 
         def stds(table):
             if not table:
@@ -365,16 +381,52 @@ class NNMixerEnv:
 
         pose_cmd: the target is an 8-channel pose (6 arm offsets, knee_bend, sway) held as episode
         state and streamed into the extra observation channels after the clock — what a MAVLink
-        teleop GCS will send. Random poses, zero-command, and clip-as-stream cover the domain."""
+        teleop GCS will send. Random poses, zero-command, and clip-as-stream cover the domain.
+
+        getup: one-shot prone/supine → stand clips (getup_clips.py). The policy picks which clip from
+        the gravity direction; the clock is θ = π·min(t/T,1) so sin/cos end at (0, −1)."""
         self.gesture_spec = None
         self.gesture_ids: np.ndarray | None = None
         self.clip_phase = 0.0
         self.pose_cmd = False
         self.pose_external: np.ndarray | None = None
+        self.getup = False
+        self.getup_discover = False
+        self.getup_side = "prone"  # or "supine"
+        self.getup_presets: dict | None = None
+        self.getup_assist_n = 0.0
+        self.getup_assist_max_n = 0.0
+        self.getup_motion = None
+        self.getup_roll = 0.0
+        self.getup_feet_under = 0.0
+        self.getup_feet_contact = 0.0
+        self.getup_sym = 0.0
+        self.getup_stance = 0.0
+        self.getup_clip_ids = np.zeros(0, dtype=int)
+        self.getup_clip_lim = np.zeros(0, dtype=np.float32)
+        self.getup_clip_arm = np.zeros(0, dtype=bool)
+        self._yaw_excess = 0.0
+        self.getup_base = 0.0
+        self.getup_root_track = 0.0
+        self.getup_q0_bonus = 0.0
+        self.getup_teacher = None
+        self.getup_teacher_w = 0.0
+        self.getup_cmd_limits = 0.0
+        self.getup_assist_fade = (0.55, 0.85)
+        self.getup_start = "lying"
+        self.getup_p_prone = 0.5
+        self.getup_p_supine = 0.5
+        self.robot_mass_kg = 0.8
         if not name:
             return
         if name == "pose_cmd":
             self._setup_pose_cmd()
+            return
+        if name == "getup":
+            self._setup_getup(discover=False)
+            return
+        if name == "getup_discover":
+            self._setup_getup(discover=True)
             return
         presets = {
             # keyframes: phase in [0, 1) -> joint angle; the clip is periodic
@@ -493,6 +545,167 @@ class NNMixerEnv:
             self.w.base_height = 0.5
             self.w.base_height_std_m = 0.02
 
+    def _setup_getup(self, discover: bool = False) -> None:
+        """Get-up from prone/supine.
+
+        discover=False (firmware policy): track a recorded self-discovered clip (Stage II), or
+        fall back to task rewards + RSI waypoints if no motion file is present yet.
+        discover=True (Stage I): sparse task rewards, upward assist force curriculum, weak
+        regularization — HumanUP-style motion discovery, not deployable."""
+        if self.contract.extra_cmd_dim < 2:
+            raise ValueError(f"getup needs extra_cmd_dim >= 2, this robot has {self.contract.extra_cmd_dim}")
+        presets = getup.getup_presets(use_supine_roll=True)
+        problems = getup.validate_clips(presets)
+        if problems:
+            raise ValueError("getup clips invalid:\n  " + "\n  ".join(problems))
+        names = self.profile["joint_names"]
+        index = {n: i for i, n in enumerate(names)}
+        missing = [n for n in getup.JOINT_NAMES if n not in index]
+        if missing:
+            raise ValueError(f"getup: joints not on this robot: {missing}")
+        self.getup_presets = presets
+        self.getup = True
+        self.getup_discover = bool(discover)
+        self.getup_side = "prone"
+        self.getup_assist_n = 0.0
+        self.getup_assist_max_n = 0.0
+        self.getup_motion = None           # optional recorded clip (Stage II)
+        self.gesture_spec = {
+            "mode": "getup_discover" if discover else "getup",
+            "hz": 1.0 / getup.CLIP_DURATION_S, "oneshot": True,
+            "keys": presets["getup_prone"]["keys"],
+        }
+        self.gesture_index = index
+        self.gesture_ids = np.array([index[n] for n in getup.JOINT_NAMES])
+        self.p_zero_cmd = 1.0
+        self.push_vel = 0.0
+        self.fall_tilt_deg = 180.0
+        self.episode_s = getup.EPISODE_S
+        self.w.track_lin_vel = 0.0
+        self.w.track_ang_vel = 0.0
+        self.w.air_time = 0.0
+        self.w.single_stance = 0.0
+        self.w.foot_lift = 0.0
+        self.w.foot_alternation = 0.0
+        self.w.foot_symmetry = 0.0
+        self.w.foot_clearance = 0.0
+        self.w.foot_swing_height = 0.0
+        self.w.foot_slip = 0.0
+        self.w.body_ang_vel = 0.0
+        self.w.angular_momentum = 0.0
+        self.w.gesture_pose = 0.0
+        self.head_id = -1
+        self.getup_head_stand_z = 0.0
+        self.getup_head_lie_z = 0.05
+        self.getup_lie_z = getup.LIE_Z
+        # stage height thresholds as fraction of standing head height (resolved lazily)
+        self.getup_h1_frac = 0.40          # righting → rising
+        self.getup_h2_frac = 0.80          # rising → standing
+        if discover:
+            # Stage I: discover a motion. Weak regularization, assist force, free exploration.
+            # v1-v3 (12k iters): with a head-only height term and no RSI the policy settled in a
+            # side-sit (hip block on the floor, trunk vertical, head 0.18 m) and never lifted the
+            # pelvis. Height is now the geometric mean of head and pelvis rise, feet-under-pelvis
+            # and feet-contact pay in the rising stages, non-foot contacts cost -1 once righted,
+            # and 35% of the starts are RSI on the stable waypoints (v5 learned squat -> stand
+            # only that way).
+            self.w.action_rate = -0.005
+            self.w.pose = 5.0
+            self.getup_base = 3.0           # pelvis at standing height once the head is up
+            self.w.self_collisions = 0.0
+            self.w.upright = 2.0
+            self.w.getup_height = 5.0
+            self.w.getup_success = 6.0
+            self.w.joint_torque = 0.0
+            self.w.undesired_contacts = -1.0
+            self.w.joint_vel = 0.0
+            self.gesture_ids = None
+            self.getup_p_rsi = 0.35
+            self.getup_p_stand = 0.05
+            self.getup_p_prone = 0.35
+            self.getup_p_supine = 0.25
+            self.getup_assist_frac = 0.70   # of m·g; curriculum lowers it
+            self.getup_roll = 3.0           # reward weight for rolling toward prone gravity
+            self.getup_feet_under = 2.0     # HoST: feet under the pelvis while rising
+            self.getup_feet_contact = 1.0   # both feet on the floor while rising / standing
+            self.getup_sym = -1.0           # left/right leg asymmetry (pitch and roll) once righted
+            self.getup_stance = -2.0        # hip yaw/roll splay + arm excursion once righted
+            # hard limits on action offsets from q0 (rad): hip yaw ±0.35, shoulders/elbows ±0.7
+            clip = {n: (0.35 if "hip_yaw" in n else 0.7) for n in index if "hip_yaw" in n or "shoulder" in n or "elbow" in n}
+            self.getup_clip_ids = np.array([index[n] for n in clip], dtype=int)
+            self.getup_clip_lim = np.array([clip[n] for n in clip], dtype=np.float32)
+            self.getup_clip_arm = np.array(["hip_yaw" not in n for n in clip], dtype=bool)
+            self.episode_s = 8.0
+            # assist fades out as the pelvis approaches standing height (balance trained unassisted)
+            self.getup_assist_fade = (0.55, 0.85)  # fractions of home_z
+            self.getup_start = "lying"
+        else:
+            # Stage II (or waypoint fallback): deployable / firmware domain
+            motion = getup.load_recorded_motions()
+            if motion:
+                self.getup_motion = motion
+                self.getup_root_track = 4.0     # recorded trunk gravity (+ height at half weight)
+                self.getup_q0_bonus = 6.0       # hold phase: exp bonus at q0
+                self.w.gesture_pose = 12.0
+                # standing at q0 the trunk leans ~14° (that is how walk.nnm stands): a 10° gate
+                # rewarded straightening the knees instead of reaching q0
+                self.w.getup_success_tilt_deg = 20.0
+                # v13 stood with left knee, ankle roll and elbow pushed against their mechanical
+                # stops (knee −0.79 = range end, servo stalled): a stiff "free" stand that no real
+                # servo survives. −1 (walk default) was −2/episode; make the soft limit bite.
+                self.w.dof_pos_limits = -10.0
+                # ... and penalise the servo *command* outside the joint range (the network emitted
+                # −6 rad raw for the knee: clipped to −2, target q0−2, joint at its −0.79 stop).
+                # Position penalties saw only the 0.16 rad past the soft limit; this one sees the
+                # 1.2 rad of unreachable command and is a gradient on the actor output.
+                self.getup_cmd_limits = -3.0
+                # hold phase teacher: walk.nnm already balances at q0. Rewarding the policy for
+                # emitting the teacher's action in the same state gives a gradient in action space;
+                # the q0 state bonus alone left it in the locked-knee stand (v11/v12, q_err 0.33).
+                teacher = REPO_ROOT / "robots" / self.robot_id / "policies" / "walk.nnm"
+                if teacher.is_file():
+                    from export_nnm import unpack_nnm
+                    self.getup_teacher = unpack_nnm(teacher.read_bytes())
+                    self.getup_teacher_w = 8.0
+                self.w.action_rate = -0.05
+                self.w.pose = 0.5
+                self.w.self_collisions = -0.1
+                self.w.upright = 1.5
+                self.w.getup_height = 2.0
+                self.w.getup_success = 4.0
+                self.w.joint_torque = -0.02
+                self.w.undesired_contacts = -0.5
+                self.gesture_ids = np.array([index[n] for n in getup.JOINT_NAMES])
+                self.getup_p_rsi = 0.35
+                self.getup_p_stand = 0.20       # many starts standing at q0, phase 1
+                dur = float(motion.get("duration_s", getup.CLIP_DURATION_S))
+                self.gesture_spec["hz"] = 1.0 / max(dur, 0.5)
+                self.episode_s = dur + 2.0
+            else:
+                # no recorded clip yet: task rewards + RSI waypoints (previous v5 path)
+                self.w.action_rate = -0.02
+                self.w.pose = 1.0
+                self.w.self_collisions = -0.1
+                self.w.upright = 2.0
+                self.w.getup_height = 3.0
+                self.w.getup_success = 4.0
+                self.w.joint_torque = -0.02
+                self.w.undesired_contacts = -1.0
+                self.gesture_ids = None
+                self.getup_p_rsi = 0.50
+                self.getup_p_stand = 0.15
+
+    def _getup_head(self) -> None:
+        self.head_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self.sim.get("head_body", "head"))
+        if self.head_id < 0:
+            self.head_id = self.trunk_id
+        d0 = mujoco.MjData(self.model)
+        d0.qpos[self.free_qpos:self.free_qpos + 3] = [0.0, 0.0, self.home_z]
+        d0.qpos[self.free_qpos + 3:self.free_qpos + 7] = [1, 0, 0, 0]
+        d0.qpos[self.qpos_idx] = self.contract.q0
+        mujoco.mj_kinematics(self.model, d0)
+        self.getup_head_stand_z = float(d0.xpos[self.head_id, 2])
+
     def _sample_pose_target(self) -> np.ndarray:
         """Random pose in the contract ranges, or zero (rest)."""
         lo, hi = self.POSE_RANGES[:, 0], self.POSE_RANGES[:, 1]
@@ -609,20 +822,9 @@ class NNMixerEnv:
         return np.clip(delayed + noise, self.POSE_RANGES[:, 0], self.POSE_RANGES[:, 1]).astype(np.float32)
 
     @staticmethod
-    def _clip_value(keys: list[tuple[float, float]], phase: float) -> float:
-        """Periodic cosine interpolation between keyframes (phase, value) sorted by phase."""
-        if len(keys) == 1:
-            return keys[0][1]
-        n = len(keys)
-        for k in range(n):
-            p0, v0 = keys[k]
-            p1, v1 = keys[(k + 1) % n]
-            span = (p1 - p0) % 1.0 or 1.0
-            t = (phase - p0) % 1.0
-            if t <= span:
-                s = 0.5 - 0.5 * math.cos(math.pi * t / span)
-                return v0 + (v1 - v0) * s
-        return keys[-1][1]
+    def _clip_value(keys: list[tuple[float, float]], phase: float, oneshot: bool = False) -> float:
+        """Cosine interpolation between keyframes (phase, value). Periodic by default; oneshot clamps."""
+        return getup.clip_value(keys, phase, oneshot=oneshot)
 
     def _gesture_extra(self) -> np.ndarray | None:
         if self.gesture_spec is None and self.gait_clock and self.contract.extra_cmd_dim >= 2:
@@ -639,6 +841,12 @@ class NNMixerEnv:
             if self.contract.extra_cmd_dim >= 10:
                 extra[2:10] = self._pose_observed()
             return extra
+        if self.getup or self.gesture_spec.get("oneshot"):
+            # one-shot: θ = π · min(phase, 1) → ends at (sin, cos) = (0, −1)
+            theta = math.pi * min(self.clip_phase, 1.0)
+            extra[0] = math.sin(theta)
+            extra[1] = math.cos(theta)
+            return extra
         if self.gesture_spec["hz"]:
             extra[0] = math.sin(2 * math.pi * self.clip_phase)
             extra[1] = math.cos(2 * math.pi * self.clip_phase)
@@ -652,9 +860,110 @@ class NNMixerEnv:
         if self.pose_cmd:
             self._apply_pose_offsets(ref, self.pose_cmd_cur)
             return ref
+        # Stage II: track a recorded motion (dense joint trajectory, not sparse keyframes)
+        if self.getup and self.getup_motion is not None and not self.getup_discover:
+            side = "prone" if self.getup_side == "prone" else "supine"
+            traj = self.getup_motion.get(side)
+            if traj is not None:
+                # one clock for both sides (firmware NNM_GETUP_S = longest clip): the shorter
+                # clip reaches q0 earlier and holds it
+                dur_all = float(self.getup_motion.get("duration_s", traj["duration_s"]))
+                ph = self.clip_phase * dur_all / max(float(traj["duration_s"]), 1e-3)
+                q_ref = getup.sample_recorded(traj, min(ph, 1.0))
+                for i, n in enumerate(getup.JOINT_NAMES):
+                    ref[self.gesture_index[n]] = q_ref[i]
+                return ref
+        oneshot = bool(spec.get("oneshot") or self.getup)
         for n, keys in spec["keys"].items():
-            ref[self.gesture_index[n]] = self._clip_value(keys, self.clip_phase)
+            ref[self.gesture_index[n]] = self._clip_value(keys, self.clip_phase, oneshot=oneshot)
         return ref
+
+    def _getup_root_ref(self) -> tuple[tuple[float, float, float, float], float]:
+        """Reference trunk quaternion and height for the active get-up clip phase."""
+        assert self.getup_presets is not None
+        key = "getup_prone" if self.getup_side == "prone" else "getup_supine"
+        return getup.root_at(self.getup_presets[key]["root"], self.clip_phase)
+
+    def _place_pose(self, q_ref: np.ndarray, pitch: float, settle_s: float = 0.4,
+                    yaw: float | None = None, roll: float = 0.0, pin_root: bool = False) -> None:
+        """Put the robot in joint pose q_ref with the trunk pitched (rad, + = forward), resting on
+        the floor: the root height comes from the lowest geom bound, then the servos hold the pose
+        while it settles. Used for the lying starts and for RSI on the stable waypoints."""
+        d, m = self.data, self.model
+        yaw = float(self.rng.uniform(-math.pi, math.pi)) if yaw is None else float(yaw)
+        cy, sy = math.cos(yaw * 0.5), math.sin(yaw * 0.5)
+        cp, sp = math.cos(pitch * 0.5), math.sin(pitch * 0.5)
+        cr, sr = math.cos(roll * 0.5), math.sin(roll * 0.5)
+        quat = (cr * cp * cy + sr * sp * sy, sr * cp * cy - cr * sp * sy,
+                cr * sp * cy + sr * cp * sy, cr * cp * sy - sr * sp * cy)
+        d.qpos[self.free_qpos:self.free_qpos + 3] = [0.0, 0.0, 0.5]
+        d.qpos[self.free_qpos + 3:self.free_qpos + 7] = quat
+        d.qpos[self.qpos_idx] = q_ref
+        d.qvel[:] = 0.0
+        mujoco.mj_kinematics(m, d)
+        # lowest point of the robot from the world-frame extent of each geom's local AABB
+        half = m.geom_aabb[:, 3:6]
+        centre = d.geom_xpos + np.einsum("gij,gj->gi", d.geom_xmat.reshape(-1, 3, 3), m.geom_aabb[:, 0:3])
+        ext_z = np.einsum("gj,gj->g", np.abs(d.geom_xmat.reshape(-1, 3, 3)[:, 2, :]), half)
+        gz = centre[:, 2] - ext_z
+        zmin = float(np.min(gz[self.robot_geom]))
+        d.qpos[self.free_qpos + 2] = 0.5 - zmin + 0.002
+        if self.bam is not None:
+            self.bam.q_target[:] = 0.0
+            self.bam.q_target[self.act_idx] = q_ref
+            self.bam.last_ts = d.time
+            d.ctrl[:] = 0.0
+        mujoco.mj_forward(m, d)
+        root = d.qpos[self.free_qpos:self.free_qpos + 7].copy()
+        for _ in range(int(settle_s * dc.AUTOPILOT_LOOP_HZ)):
+            self._apply_target(q_ref)
+            mujoco.mj_step(m, d)
+            if pin_root:
+                # held trunk while the servos reach the pose (the walk reset does the same)
+                d.qpos[self.free_qpos:self.free_qpos + 7] = root
+                d.qvel[self.free_qvel:self.free_qvel + 6] = 0.0
+        d.qvel[:] = 0.0
+        mujoco.mj_forward(m, d)
+        # a_prev in action units: radian offsets from q0, clipped to ±act_max
+        self.a_prev = np.clip(q_ref - self.contract.q0, -self.contract.act_max,
+                              self.contract.act_max).astype(np.float32)
+        self.q_wire = dc.apply_action(self.contract, self.a_prev)[1]
+
+    def _place_getup(self, side: str, phase: float, settle: bool = True) -> None:
+        """Lying start (phase 0) or standing (phase 1) of the get-up, with joint noise."""
+        wp = getup.LYING[side] if phase < 0.5 else getup.WAYPOINTS[-1]
+        q_ref = np.array(getup.waypoint_vector(wp), dtype=np.float64)
+        q_ref += self.rng.normal(0.0, 0.05 if phase < 0.5 else 0.02, q_ref.shape)
+        if phase < 0.5:
+            self._place_pose(q_ref, wp["pitch"], settle_s=0.4 if settle else 0.0,
+                             roll=float(self.rng.normal(0.0, 0.1)))
+        else:
+            # standing: the open-loop q0 stance tips over within half a second on the compliant
+            # servos, so the trunk is held while they settle and released with a small random lean
+            self._place_pose(q_ref, float(self.rng.normal(0.0, 0.05)), settle_s=0.3 if settle else 0.0,
+                             roll=float(self.rng.normal(0.0, 0.03)), pin_root=True)
+
+    def _place_waypoint(self, wp: dict) -> None:
+        q_ref = np.array(getup.waypoint_vector(wp), dtype=np.float64)
+        q_ref += self.rng.normal(0.0, 0.04, q_ref.shape)
+        pitch = float(wp["pitch"]) + float(self.rng.normal(0.0, 0.05))
+        self._place_pose(q_ref, pitch, settle_s=0.4, roll=float(self.rng.normal(0.0, 0.03)))
+
+    def _place_recorded(self, traj: dict, phase: float) -> None:
+        """RSI on the recorded Stage-I clip: joints + trunk roll/pitch sampled at `phase`
+        (HumanUP-style reference state init; the hand-made waypoints do not match the clip)."""
+        q_ref = np.array(self.contract.q0, dtype=np.float64)
+        for i, n in enumerate(getup.JOINT_NAMES):
+            q_ref[self.gesture_index[n]] = getup.sample_recorded(traj, phase)[i]
+        q_ref += self.rng.normal(0.0, 0.03, q_ref.shape)
+        ph = traj["phase"]
+        k = int(np.clip(np.searchsorted(ph, phase), 0, len(ph) - 1))
+        w, x, y, z = [float(v) for v in traj["root_quat"][k]]
+        roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+        pitch = math.asin(float(np.clip(2.0 * (w * y - z * x), -1.0, 1.0)))
+        pin = phase > 0.9
+        self._place_pose(q_ref, pitch + float(self.rng.normal(0.0, 0.03)), settle_s=0.3,
+                         roll=roll + float(self.rng.normal(0.0, 0.03)), pin_root=pin)
 
     # ------------------------------------------------------------------ helpers
     def _is_under(self, body: int, root: int) -> bool:
@@ -749,6 +1058,8 @@ class NNMixerEnv:
         c = self.contract
         d, m = self.data, self.model
         mujoco.mj_resetData(m, d)
+        if self.getup and self.getup_presets is not None:
+            return self._reset_getup()
         d.qpos[self.free_qpos:self.free_qpos + 3] = [0.0, 0.0, self.home_z]
         d.qpos[self.free_qpos + 3:self.free_qpos + 7] = [1, 0, 0, 0]
         d.qpos[self.qpos_idx] = c.q0
@@ -792,6 +1103,7 @@ class NNMixerEnv:
         self.steps = 0
         self._ep_terms: dict[str, float] = {}
         self._ep_return = 0.0
+        self._ep_max_head_z = 0.0
         self._last_raw_action = np.zeros(c.n_joints, np.float32)
         self.twist_filt = np.zeros(4)
         nf = len(self.feet)
@@ -831,6 +1143,117 @@ class NNMixerEnv:
             self.gravity.update(np.zeros(3), dc.frd_to_flu(up_flu * dc.GRAVITY_MSS), SIM_DT)
         return self._observe()
 
+    def _reset_getup(self) -> np.ndarray:
+        """Reset for get-up: lying / RSI mid-clip / standing hold."""
+        c = self.contract
+        d, m = self.data, self.model
+        assert self.getup_presets is not None
+        if self.getup_discover:
+            # side of the lying start (stand / RSI draw their own start below)
+            r_side = float(self.rng.random())
+            p_lying = max(self.getup_p_prone + self.getup_p_supine, 1e-6)
+            self.getup_side = "prone" if r_side < self.getup_p_prone / p_lying else "supine"
+        else:
+            self.getup_side = "prone" if self.rng.random() < 0.5 else "supine"
+        key = "getup_prone" if self.getup_side == "prone" else "getup_supine"
+        dur = getup.CLIP_DURATION_S
+        if self.getup_motion is not None:
+            dur = float(self.getup_motion.get("duration_s", dur))
+        elif self.gesture_spec and self.gesture_spec.get("hz"):
+            dur = 1.0 / float(self.gesture_spec["hz"])
+        self.gesture_spec = {
+            "mode": "getup_discover" if self.getup_discover else "getup",
+            "hz": 1.0 / max(dur, 0.5), "oneshot": True,
+            "keys": self.getup_presets[key]["keys"],
+        }
+        if self.getup_discover:
+            r = float(self.rng.random())
+            if r < self.getup_p_stand:
+                self.getup_start = "stand"
+                self.clip_phase = 1.0
+                self._place_getup(self.getup_side, 1.0, settle=True)
+            elif r < self.getup_p_stand + self.getup_p_rsi:
+                # RSI on a stable waypoint: the policy learns the end of the chain (squat -> stand)
+                # while the assist force helps it discover the earlier links
+                self.getup_start = "rsi"
+                pool = [w for w in getup.WAYPOINTS[:-1]
+                        if w["side"] in (self.getup_side, "both") and w["progress"] > 0.0]
+                pw = np.array([w["weight"] for w in pool], dtype=np.float64)
+                wp = pool[int(self.rng.choice(len(pool), p=pw / pw.sum()))]
+                self.clip_phase = float(np.clip(wp["progress"] + self.rng.normal(0.0, 0.03), 0.0, 1.0))
+                self._place_waypoint(wp)
+            else:
+                self.getup_start = "lying"
+                self.clip_phase = 0.0
+                self._place_getup(self.getup_side, 0.0, settle=True)
+        else:
+            r = float(self.rng.random())
+            if r < self.getup_p_stand:
+                self.clip_phase = 1.0
+                self._place_getup(self.getup_side, 1.0, settle=True)
+            elif r < self.getup_p_stand + self.getup_p_rsi:
+                traj = None
+                if self.getup_motion is not None:
+                    traj = self.getup_motion.get("prone" if self.getup_side == "prone" else "supine")
+                if traj is not None:
+                    # Stage II: RSI along the recorded clip; half of the starts in the last part
+                    # (blend to q0 + hold) where the policy has to learn to balance at q0 instead
+                    # of drifting back to the locked-knee stand of Stage I
+                    lo = 0.6 if self.rng.random() < 0.5 else 0.05
+                    self.clip_phase = float(self.rng.uniform(lo, 0.95))
+                    dur_all = float(self.getup_motion.get("duration_s", traj["duration_s"]))
+                    self._place_recorded(traj, min(1.0, self.clip_phase * dur_all / float(traj["duration_s"])))
+                else:
+                    pool = [w for w in getup.WAYPOINTS[:-1]
+                            if w["side"] in (self.getup_side, "both") and w["progress"] > 0.0]
+                    pw = np.array([w["weight"] for w in pool], dtype=np.float64)
+                    wp = pool[int(self.rng.choice(len(pool), p=pw / pw.sum()))]
+                    self.clip_phase = float(np.clip(wp["progress"] + self.rng.normal(0.0, 0.03), 0.0, 1.0))
+                    self._place_waypoint(wp)
+            else:
+                self.clip_phase = 0.0
+                self._place_getup(self.getup_side, 0.0, settle=True)
+        # clear any leftover external force from a previous episode
+        d.xfrc_applied[:] = 0.0
+        self.gravity = dc.GravityFilter(c.att_tau)
+        self.command = np.zeros(3, np.float32)
+        self.gait_phase = 0.0
+        self.gait_hz = 0.0
+        self.steps = 0
+        self._ep_terms = {}
+        self._ep_return = 0.0
+        self._ep_max_head_z = 0.0
+        self._last_raw_action = np.zeros(c.n_joints, np.float32)
+        self.twist_filt = np.zeros(4)
+        nf = len(self.feet)
+        self.foot_air = np.zeros(nf)
+        self.foot_contact_prev = np.ones(nf, bool)
+        self.foot_pos_prev = np.array([d.site_xpos[s].copy() for s, _ in self.feet]).reshape(nf, 3)
+        self.foot_z0 = self.foot_pos_prev[:, 2].copy() if nf else np.zeros(0)
+        self.foot_peak = np.zeros(nf)
+        self.foot_air_prev = np.zeros(nf)
+        self.foot_air_prev_step = np.zeros(nf)
+        self.last_touchdown = -1
+        self.last_footfall = -1
+        self.foot_air_prev_seq = np.zeros(nf)
+        self.last_air_t = np.zeros(nf)
+        self.last_contact_t = np.zeros(nf)
+        self.foot_contact_t = np.zeros(nf)
+        self.foot_air_prev_var = np.zeros(nf)
+        self.foot_contact_prev_var = np.ones(nf, bool)
+        self.last_step_peak = 0.0
+        self.last_step_air = 0.0
+        self.next_resample = 10 ** 9
+        self.next_push = 10 ** 9
+        self._obs_hist = []
+        # warm the gravity filter from the true lying / RSI attitude (board not held upright)
+        for _ in range(dc.AUTOPILOT_LOOP_HZ // 10):
+            self._apply_target(self.q_wire)
+            mujoco.mj_step(m, d)
+            g, a = self._imu_frd()
+            self.gravity.update(g, a, SIM_DT)
+        return self._observe()
+
     def _gravity_obs(self) -> np.ndarray:
         """Gravity direction in the body frame (FLU, -z when upright) as the autopilot will supply it.
 
@@ -861,13 +1284,37 @@ class NNMixerEnv:
 
     def step(self, action: np.ndarray):
         c = self.contract
+        if self.getup_discover and self.getup_clip_ids.size:
+            # discovery converged to a splayed stance (hip_yaw ±1 rad, arms saturated at ±2 rad as
+            # counterweights) that no other policy can take over: hard-limit those action offsets;
+            # _reward penalises requests beyond the limit so the deployed network (no per-joint
+            # clip in firmware) learns to stay inside it. The arm limit is loose while lying (the
+            # prone push-up needs the shoulders) and tightens with pelvis height.
+            action = np.asarray(action, dtype=np.float32).copy()
+            ids = self.getup_clip_ids
+            z = float(self.data.qpos[self.free_qpos + 2])
+            rise = float(np.clip((z - self.getup_lie_z) / max(0.8 * self.home_z - self.getup_lie_z, 1e-3), 0.0, 1.0))
+            lim = np.where(self.getup_clip_arm, c.act_max + (self.getup_clip_lim - c.act_max) * rise, self.getup_clip_lim)
+            self._yaw_excess = float(np.sum(np.maximum(0.0, np.abs(action[ids]) - lim)))
+            action[ids] = np.clip(action[ids], -lim, lim)
         self.a_prev, self.q_wire = dc.apply_action(c, action)
         m, d = self.model, self.data
         for _ in range(c.loop_steps_per_policy):
             self._apply_target(self.q_wire)
+            # HoST assist: upward force on the trunk during Stage I discovery. It fades to zero as
+            # the pelvis nears standing height so balance is never learned "lighter than air".
+            if self.getup_discover and self.getup_assist_n > 0.0:
+                z = float(d.qpos[self.free_qpos + 2])
+                lo, hi = self.getup_assist_fade
+                fade = 1.0 - float(np.clip((z / self.home_z - lo) / max(hi - lo, 1e-6), 0.0, 1.0))
+                d.xfrc_applied[self.trunk_id, :3] = (0.0, 0.0, self.getup_assist_n * fade)
+            else:
+                d.xfrc_applied[self.trunk_id, :3] = 0.0
             mujoco.mj_step(m, d)
             g, a = self._imu_frd()
             self.gravity.update(g, a, SIM_DT)
+        if self.getup_discover:
+            d.xfrc_applied[self.trunk_id, :3] = 0.0
         self.steps += 1
         if self.steps >= self.next_resample:
             self.command = self._sample_command()
@@ -879,12 +1326,19 @@ class NNMixerEnv:
             self.command = np.zeros(3, np.float32)
             if self.pose_cmd:
                 self._advance_pose_cmd()
+            elif self.getup or self.gesture_spec.get("oneshot"):
+                # one-shot: advance to 1.0 and hold (firmware NNM_GETUP_S)
+                self.clip_phase = min(1.0, self.clip_phase + self.gesture_spec["hz"] / c.rate_hz)
             elif self.gesture_spec["hz"]:
                 self.clip_phase = (self.clip_phase + self.gesture_spec["hz"] / c.rate_hz) % 1.0
         if self.steps >= self.next_push:
             d.qvel[self.free_qvel:self.free_qvel + 2] += self.rng.uniform(-self.push_vel, self.push_vel, 2)
             self.next_push = self.steps + int(self.rng.uniform(*self.push_interval) * c.rate_hz)
         reward, info = self._reward(action)
+        if self.getup:
+            if self.head_id < 0:
+                self._getup_head()
+            self._ep_max_head_z = max(self._ep_max_head_z, float(self.data.xpos[self.head_id, 2]))
         fell = self.tilt_deg() > self.fall_tilt_deg
         if self.terminate_illegal and not fell and self._illegal_contact():
             fell = True
@@ -904,6 +1358,19 @@ class NNMixerEnv:
             info["episode"] = {k: v / self.episode_s for k, v in self._ep_terms.items()}
             info["episode_return"] = self._ep_return        # the reward the policy is trained on
             info["reason"] = "fell_over" if fell else "time_out"
+            if self.getup:
+                if self.head_id < 0:
+                    self._getup_head()
+                head_end = float(self.data.xpos[self.head_id, 2])
+                z_end = float(self.data.qpos[self.free_qpos + 2])
+                # curriculum uses peak head height (end height alone misses a brief stand)
+                info["head_z_end"] = max(head_end, float(self._ep_max_head_z))
+                info["getup_side"] = self.getup_side
+                info["getup_start"] = getattr(self, "getup_start", "lying")
+                info["assist_n"] = float(self.getup_assist_n)
+                # standing at the end of the episode: trunk up, pelvis and head at standing height
+                info["stood_end"] = bool(self.tilt_deg() < 15.0 and z_end > 0.8 * self.home_z
+                                         and head_end > 0.85 * max(self.getup_head_stand_z, 1e-3))
         obs = self._observe()
         return obs, reward, fell, timeout, info
 
@@ -961,14 +1428,18 @@ class NNMixerEnv:
 
     def _undesired_contacts(self) -> int:
         """Robot geoms other than the feet touching the floor (legged_gym collision penalty)."""
-        d = self.data
+        d, m = self.data, self.model
         n = 0
         for k in range(d.ncon):
             con = d.contact[k]
             g1, g2 = con.geom1, con.geom2
             g = g2 if g1 in self.floor_geoms else (g1 if g2 in self.floor_geoms else -1)
-            if g >= 0 and self.robot_geom[g] and g not in self.foot_geom_index:
-                n += 1
+            if g < 0 or not self.robot_geom[g]:
+                continue
+            # a foot: its declared geom, or (no sim.feet[].geom in the profile) any geom of a foot body
+            if g in self.foot_geom_index or (not self.foot_geom_index and int(m.geom_bodyid[g]) in self.foot_body_ids):
+                continue
+            n += 1
         return n
 
     def _gait_terms(self, dt: float) -> dict:
@@ -1092,8 +1563,10 @@ class NNMixerEnv:
         return out
 
     def set_curriculum(self, action_rate: float | None = None, standing_envs: float | None = None,
-                       penalty_scale: float | None = None) -> None:
+                       penalty_scale: float | None = None, getup_assist_n: float | None = None) -> None:
         """MicroDuck curriculum knobs: action_rate_l2 weight and share of zero-command (standing) episodes."""
+        if getup_assist_n is not None and self.getup_discover:
+            self.getup_assist_n = max(0.0, float(getup_assist_n))
         if self.gesture_spec is not None:
             return
         if penalty_scale is not None:
@@ -1134,16 +1607,24 @@ class NNMixerEnv:
             pose_sel[self.gesture_ids] = False
         q_pose = q[pose_sel]
         ref_pose = np.asarray(self.contract.q0, dtype=np.float64)[pose_sel]
-        if self.pose_std_stand is not None:
+        if q_pose.size == 0:
+            pose = 1.0
+            pose_l2 = 0.0
+        elif self.pose_std_stand is not None:
             std = (self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk)[pose_sel]
             pose = math.exp(-float(np.mean(((q_pose - ref_pose) / std) ** 2)))
         else:
             pose = math.exp(-float(np.sum((q_pose - ref_pose) ** 2)))
-        if w.pose_l2 and self.pose_std_stand is not None:
+        if w.pose_l2 and self.pose_std_stand is not None and q_pose.size:
             std_l2 = (self.pose_std_stand if moving < w.walking_threshold else self.pose_std_walk)[pose_sel]
             pose_l2 = float(np.mean(((q_pose - ref_pose) / std_l2) ** 2))
-        rate = float(np.sum((np.asarray(action) - self._last_raw_action) ** 2))
-        self._last_raw_action = np.asarray(action, dtype=np.float32).copy()
+        elif w.pose_l2:
+            pose_l2 = 0.0
+        # action_rate on the action the servos actually receive (clipped to ±act_max). Using the
+        # raw network output made a diverging actor pay −555/episode in v3 and blew up the critic.
+        a_clip = np.clip(np.asarray(action, dtype=np.float32), -self.contract.act_max, self.contract.act_max)
+        rate = float(np.sum((a_clip - self._last_raw_action) ** 2))
+        self._last_raw_action = a_clip.copy()
         dt = 1.0 / self.contract.rate_hz
         terms = {
             "track_linear_velocity": w.track_lin_vel * math.exp(-lin_err / w.tracking_sigma) * dt,
@@ -1171,6 +1652,136 @@ class NNMixerEnv:
             gap = float(np.mean(np.abs(err)))
             terms["gesture"] = w.gesture_pose * (1.0 - gap / 1.5) * dt
             terms["gesture_track"] = 0.5 * w.gesture_pose * math.exp(-float(np.mean(err ** 2)) / 0.02) * dt
+        if self.getup:
+            if self.head_id < 0:
+                self._getup_head()
+            z = float(d.qpos[self.free_qpos + 2])
+            g_true = _quat_rotate_inverse(d.xquat[self.trunk_id], np.array([0.0, 0.0, -1.0]))
+            up_true = float(np.clip(-g_true[2], 0.0, 1.0))
+            head_z = float(d.xpos[self.head_id, 2])
+            stand_z = max(self.getup_head_stand_z, 1e-3)
+            # stage thresholds: righting < h1, rising in [h1, h2), standing >= h2 (HoST / HumanUP)
+            h1 = self.getup_h1_frac * stand_z
+            h2 = self.getup_h2_frac * stand_z
+            rise = float(np.clip((head_z - self.getup_head_lie_z)
+                                 / (0.95 * stand_z - self.getup_head_lie_z), 0.0, 1.0))
+            if self.getup_discover:
+                # Stage I: stage-split task rewards + roll-to-prone. Height is the geometric mean
+                # of head and pelvis rise: a side-sit with the trunk vertical scored 0.8 on the
+                # head alone and the pelvis never left the floor.
+                pelvis_rise = float(np.clip((z - self.getup_lie_z) / (0.9 * self.home_z - self.getup_lie_z), 0.0, 1.0))
+                rise_hp = math.sqrt(max(rise * pelvis_rise, 0.0))
+                if self.getup_clip_ids.size and self._yaw_excess > 0.0:
+                    terms["getup_yaw_clip"] = -1.0 * self._yaw_excess * dt
+                if head_z < h1:
+                    # righting: verticality + roll toward prone gravity (gz≈−1 in body FLU)
+                    terms["upright"] = w.upright * up_true * dt
+                    if self.getup_roll:
+                        # roll toward the back: body-frame gravity gx = +1 prone, −1 supine (0 on the
+                        # side and upright). Linear so there is a gradient from prone; the exp() form
+                        # on gz was ~equal for prone and supine (both horizontal) and nothing rolled
+                        roll = 0.5 * (1.0 - float(g_true[0]))
+                        terms["getup_roll"] = self.getup_roll * roll * dt
+                    terms["getup_height"] = 0.5 * w.getup_height * rise_hp * dt
+                else:
+                    terms["getup_height"] = w.getup_height * rise_hp * dt
+                    terms["upright"] = w.upright * up_true * dt
+                    if self.feet:
+                        # HoST: feet under the pelvis (COM over the support) and both feet down
+                        foot_xy = np.mean([d.site_xpos[s, :2] for s, _ in self.feet], axis=0)
+                        com_xy = d.subtree_com[self.trunk_id, :2]
+                        com_err = float(np.sum((com_xy - foot_xy) ** 2))
+                        terms["getup_feet_under"] = self.getup_feet_under * math.exp(-com_err / 0.005) * dt
+                        contact = self._feet_contact()
+                        terms["getup_feet_contact"] = self.getup_feet_contact * float(np.mean(contact)) * dt
+                    if self.getup_sym:
+                        gi = self.gesture_index
+                        pairs = [("right_hip_pitch", "left_hip_pitch"), ("right_knee", "left_knee"),
+                                 ("right_ankle_pitch", "left_ankle_pitch"),
+                                 # roll joints mirror: q_R ≈ −q_L (a one-legged crouch with ankle roll
+                                 # 0.7 on one side kept the walk policy from taking over)
+                                 ("right_hip_roll", "left_hip_roll"), ("right_ankle_roll", "left_ankle_roll")]
+                        asym = float(np.mean([abs(q[gi[a]] - q[gi[b]]) if "roll" not in a else abs(q[gi[a]] + q[gi[b]])
+                                              for a, b in pairs if a in gi and b in gi]))
+                        terms["getup_sym"] = self.getup_sym * asym * dt
+                    if self.getup_stance:
+                        # the unconstrained discovery stood in a splayed "duck" stance (hip_yaw ±1.05,
+                        # hip_roll −0.6, feet 14 cm apart, arms saturated) that neither the walk policy
+                        # nor Stage II can take over: feet parallel, legs under the hips, arms near q0
+                        gi = self.gesture_index
+                        q0v = np.asarray(self.contract.q0)
+                        yaw = [abs(q[gi[n]]) for n in ("right_hip_yaw", "left_hip_yaw") if n in gi]
+                        roll = [max(0.0, abs(q[gi[n]] - q0v[gi[n]]) - 0.15) for n in ("right_hip_roll", "left_hip_roll") if n in gi]
+                        arms = [max(0.0, abs(q[gi[n]] - q0v[gi[n]]) - 0.6) for n in gi
+                                if "shoulder" in n or "elbow" in n]
+                        stance = float(np.mean(yaw or [0.0])) + float(np.mean(roll or [0.0])) + 0.5 * float(np.mean(arms or [0.0]))
+                        terms["getup_stance"] = self.getup_stance * stance * dt
+                    if head_z >= h2:
+                        gate = float(np.clip((up_true - 0.85) / 0.15, 0.0, 1.0))
+                        # posture toward q0: exp term (tight) + linear term (gradient from far away,
+                        # the discovered stand kept the arms at ±1.9 rad as counterweights)
+                        pose_lin = max(0.0, 1.0 - float(np.mean(np.abs(q - np.asarray(self.contract.q0)))) / 1.5)
+                        terms["pose"] = w.pose * (0.5 * pose + 0.5 * pose_lin) * gate * dt
+                        # full extension: pelvis at standing height (the crouch at 0.13 m held 0.75 of rise)
+                        dz = (z - self.home_z) / 0.025
+                        terms["getup_base"] = self.getup_base * math.exp(-dz * dz) * gate * dt
+                        still = float(np.linalg.norm(d.qvel[self.free_qvel:self.free_qvel + 6]))
+                        terms["getup_still"] = 1.5 * math.exp(-(still / 0.5) ** 2) * pelvis_rise * dt
+                        if w.getup_success:
+                            # graded by posture: the hard q_tol gate never fired in discovery
+                            # (arms as counterweights at ±1.2 rad), so it gave no gradient
+                            q_err = float(np.mean(np.abs(q - np.asarray(self.contract.q0))))
+                            if (self.tilt_deg() < w.getup_success_tilt_deg and z > 0.85 * self.home_z
+                                    and still < 0.5):
+                                terms["getup_success"] = w.getup_success * max(0.0, 1.0 - q_err / 1.2) * dt
+            else:
+                terms["getup_height"] = w.getup_height * rise * dt
+                terms["upright"] = w.upright * up_true * dt
+                gate = float(np.clip((up_true - 0.85) / 0.15, 0.0, 1.0))
+                terms["pose"] = w.pose * pose * gate * dt
+                if self.getup_motion is not None and self.getup_root_track and self.clip_phase < 0.85:
+                    # track the recorded trunk too: matching the joint angles alone is satisfied
+                    # while lying still (the roll to supine never happened in v9), gravity in the
+                    # body frame (yaw-free) and pelvis height say where the body actually is.
+                    # Not in the hold phase: standing at q0 the trunk leans ~14° (walk.nnm holds it
+                    # so), the recorded Stage-I stand was vertical with locked knees.
+                    traj = self.getup_motion.get("prone" if self.getup_side == "prone" else "supine")
+                    if traj is not None:
+                        dur_all = float(self.getup_motion.get("duration_s", traj["duration_s"]))
+                        ph_side = min(1.0, self.clip_phase * dur_all / max(float(traj["duration_s"]), 1e-3))
+                        q_ref_root, z_ref = getup.sample_recorded_root(traj, ph_side)
+                        g_ref = _quat_rotate_inverse(q_ref_root, np.array([0.0, 0.0, -1.0]))
+                        g_err = float(np.sum((g_true - g_ref) ** 2))
+                        terms["getup_root_g"] = self.getup_root_track * math.exp(-g_err / 0.3) * dt
+                        dz = (z - z_ref) / 0.03
+                        terms["getup_root_z"] = 0.5 * self.getup_root_track * math.exp(-dz * dz) * dt
+                if w.getup_success:
+                    q_err = float(np.mean(np.abs(q - np.asarray(self.contract.q0))))
+                    still = float(np.linalg.norm(d.qvel[self.free_qvel:self.free_qvel + 6])) < 0.5
+                    if self.getup_motion is not None and self.getup_q0_bonus and self.clip_phase >= 0.9:
+                        # hold phase (reference at q0): tight bonus at q0 itself, the linear tracking
+                        # term alone left the policy in the Stage-I stand (q_err 0.46) for 4000 iterations
+                        terms["getup_q0"] = self.getup_q0_bonus * math.exp(-(q_err / 0.3) ** 2) * up_true * dt
+                    if (self.getup_teacher is not None and self.clip_phase >= 0.85 and up_true > 0.7
+                            and self._obs_hist):
+                        # what walk.nnm would do here (its obs: zero twist and zero clock channels)
+                        o = self._obs_hist[-1].copy()
+                        t0 = self.contract.twist_offset
+                        o[t0:t0 + 5] = 0.0
+                        tk = self.getup_teacher
+                        a_t = np.clip(np.asarray(dc.int8_forward(tk["layers"], tk["mean"], tk["std"], o),
+                                                 dtype=np.float32), -self.contract.act_max, self.contract.act_max)
+                        a_rms = float(np.sqrt(np.mean((a_clip - a_t) ** 2)))
+                        # linear in the rms error between the two servo commands (both policies
+                        # saturate ±act_max on some joints; an exp kernel was ~0 there, no gradient)
+                        terms["getup_teacher"] = self.getup_teacher_w * max(0.0, 1.0 - a_rms / 2.0) * dt
+                    if (self.tilt_deg() < w.getup_success_tilt_deg and z > 0.85 * self.home_z and still):
+                        if self.getup_motion is not None:
+                            # graded by posture (the hard q_tol gate gives no gradient from the
+                            # arms-up stand of the recorded clip)
+                            terms["getup_success"] = w.getup_success * max(0.0, 1.0 - q_err / 1.2) * dt
+                        elif q_err < w.getup_success_q_tol:
+                            terms["getup_success"] = w.getup_success * dt
         if w.body_ang_vel:
             terms["body_ang_vel"] = w.body_ang_vel * float(np.sum(w_body[:2] ** 2)) * dt
         if w.angular_momentum:
@@ -1188,7 +1799,11 @@ class NNMixerEnv:
         if w.joint_vel:
             terms["joint_vel"] = w.joint_vel * float(np.sum(d.qvel[self.qvel_idx] ** 2)) * dt
         if w.undesired_contacts:
-            terms["undesired_contacts"] = w.undesired_contacts * self._undesired_contacts() * dt
+            # get-up: trunk/arm floor contact is expected while lying; the penalty ramps up with the
+            # uprightness (no threshold: a hard 45 deg gate produced a policy kneeling at 47 deg)
+            ramp = 1.0 if not self.getup else float(np.clip((90.0 - self.tilt_deg()) / 90.0, 0.0, 1.0))
+            if ramp > 0.0:
+                terms["undesired_contacts"] = w.undesired_contacts * ramp * self._undesired_contacts() * dt
         if w.base_height:
             target_z = w.base_height_target_m
             if self.pose_cmd:
@@ -1203,6 +1818,10 @@ class NNMixerEnv:
         if w.dof_pos_limits:
             out = np.clip(self.soft_lo - q, 0, None) + np.clip(q - self.soft_hi, 0, None)
             terms["dof_pos_limits"] = w.dof_pos_limits * float(np.sum(out)) * dt
+        if self.getup_cmd_limits:
+            q_cmd = np.asarray(self.contract.q0) + a_clip
+            over = np.clip(self.hard_lo - q_cmd, 0, None) + np.clip(q_cmd - self.hard_hi, 0, None)
+            terms["getup_cmd_limits"] = self.getup_cmd_limits * float(np.sum(over)) * dt
         if w.self_collisions:
             n_self = 0
             for k in range(d.ncon):
@@ -1220,6 +1839,12 @@ class NNMixerEnv:
                     terms[k] = v * self.penalty_scale
         info = {"terms": terms, "error_vel_xy": math.sqrt(lin_err), "error_vel_yaw": math.sqrt(ang_err),
                 "vx": float(v_body[0]), "upright": float(up)}
+        if self.getup:
+            if self.head_id < 0:
+                self._getup_head()
+            info["head_z"] = float(self.data.xpos[self.head_id, 2])
+            info["assist_n"] = float(self.getup_assist_n)
+            info["getup_side"] = self.getup_side
         return sum(terms.values()), info
 
 

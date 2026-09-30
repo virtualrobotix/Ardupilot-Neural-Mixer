@@ -237,11 +237,147 @@ Misure con `pose_cmd.nnm`: cinque pose tenute 3 s (riposo, braccia, piegamento 0
 braccia; watchdog firmware su SITL: a stream fermo il canale passa da −1,0 a −0,02 in 0,95 s
 (500 ms di attesa + costante 0,15 s), zero cadute.
 
+## Get-up: due fasi, un solo percorso via prono
+
+Alzarsi da terra (prono o supino → in piedi a q0) non converge in una sola fase PPO + int8. Le run
+v1–v5 (~8000 iterazioni) hanno imparato solo lo squat → in piedi: il passaggio rana → seduto sui
+talloni è dinamico (il baricentro deve spostarsi 7–8 cm all'indietro con l'anca a fine corsa) e la
+reward è rada. È lo stesso ostacolo di [HumanUP](https://humanoid-getup.github.io/) (RSS 2025) e
+[HoST](https://arxiv.org/abs/2502.08378) sul G1.
+
+### Percorso unico
+
+Si rotola sempre sul prono; da lì: push-up → rana → seduto sui talloni → squat → in piedi. Il
+supino non ha una via propria: ha una reward di rotolamento verso la gravità da prono.
+
+```mermaid
+flowchart LR
+  supine[Supino] -->|rotola| prone[Prono]
+  prone --> pushup[Push-up] --> frog[Rana] --> seat[Seduto] --> squat[Squat] --> stand[In piedi q0]
+  stageI["Fase I: scoperta + forza d'aiuto"] -.->|registra e rallenta| clip[Clip getup_self]
+  clip -.-> stageII["Fase II: imitazione, int8, firmware"]
+```
+
+### Fase I — `getup_discover` (solo simulazione)
+
+```bash
+.venv/bin/python tools/robots/train_velocity.py --robot microban --gesture getup_discover \
+    --init-nnm robots/microban/policies/getup_v5_it1500_run/getup_it1500.nnm \
+    --envs 96 --workers 12 --iters 6000 --std-cap --save-every 200 --name getup_discover
+```
+
+- Partenze: 35 % prono, 25 % supino, 35 % RSI su un waypoint stabile (seduto, squat), 5 % in piedi.
+- Forza d'aiuto verticale sul tronco (`xfrc_applied`): parte a 0,7 · m·g ≈ 5,6 N, **svanisce
+  quando il bacino supera il 55–85 % dell'altezza in piedi** (l'equilibrio non si impara "più
+  leggeri dell'aria") e scende di 0,4 N ogni volta che ≥30 % degli episodi partiti da terra finisce
+  in piedi (tilt <15°, bacino >80 %, testa >85 %). Con l'init dalla v5 arriva a zero in ~2000
+  iterazioni.
+- Reward per stadio sull'altezza della testa (raddrizzarsi / salire / in piedi). L'altezza è la
+  **media geometrica** di testa e bacino: la sola testa premiava il "seduto di lato" con il tronco
+  verticale e il bacino a terra. Mentre sale: piedi sotto il baricentro (HoST), entrambi i piedi a
+  terra, simmetria destra/sinistra. In piedi: bacino a quota, posa lineare verso q0, fermo, bonus di
+  successo graduato sulla distanza da q0.
+- **Vincoli di postura**: senza, la scoperta converge a uno stand "a papera" (anche ruotate di
+  ±1,05 rad, piedi a 14 cm, braccia sature a ±2 rad come contrappeso), staticamente stabile ma
+  che né `walk` né la Fase II riescono a portare a q0 (0 % in tutti i test). Nell'ambiente di
+  scoperta l'azione di hip_yaw è clippata a ±0,35 rad e spalle/gomiti a ±0,7 rad da q0, con
+  penalità sull'eccesso richiesto (la rete impara a restare nel range: sul firmware non c'è clip
+  per giunto) e penalità di apertura anche/braccia una volta raddrizzato.
+- Std esplorativa con tetto (`--std-cap`): senza, 0,50 → 1,69 in 300 iterazioni e la policy non
+  imparava più nulla. lr fisso 3e-4 (1e-4 nelle riprese), regolarizzazione debole
+  (`action_rate` −0,005, niente coppia). QAT int8 spento: questa policy non va sul robot.
+- Criterio: ≥80 % di successo a forza zero da prono e da supino, con stand riprendibile da `walk`.
+
+### Registrazione e clip rallentata
+
+```bash
+.venv/bin/python tools/robots/getup_record.py \
+    --nnm robots/microban/policies/getup_discover.nnm \
+    --slow 2 --blend-s 2 --hold-s 3 --trials 12 --check-bam
+```
+
+Sceglie i rollout riusciti (in piedi e fermo per 1 s) con jerk minimo, li rallenta di K (2 per
+Microban: il rotolamento è dinamico e a K=3 la Fase II non lo riproduceva più; HumanUP sul G1 usa
+8), filtra, aggiunge una **fusione min-jerk verso q0** (2 s) e una tenuta a q0
+(3 s), e scrive `robots/microban/motions/getup_prone.npz` e `getup_supine_roll.npz`
+(giunti, fase, quaternione e quota del tronco).
+`--check-bam` ripete la clip in anello aperto sui servo BAM: su Microban **nessun K sta in piedi**
+(neanche q0 da solo regge in anello aperto sui servo cedevoli), quindi la Fase II è per forza una
+policy di tracking in anello chiuso, non una riproduzione.
+
+### Fase II — `getup` (firmware)
+
+```bash
+.venv/bin/python tools/robots/train_velocity.py --robot microban --gesture getup \
+    --init-nnm robots/microban/policies/getup_discover.nnm --lr 1e-4 \
+    --envs 96 --workers 12 --iters 4000 --std-legs 0.20 --std-arms 0.25 --std-cap --name getup
+```
+
+Imita la clip registrata (errore lineare sui giunti + bonus stretto di tracking) con
+regolarizzazione forte, QAT int8 e domain randomization come la walk. Oltre ai giunti insegue il
+**tronco registrato** (gravità nel body frame, senza yaw, peso 4; quota del bacino, peso 2): il
+solo tracking dei giunti si soddisfa anche restando sdraiati, e nella v9 il rotolamento da prono
+non avveniva mai (0 %). Nessuna forza d'aiuto; **RSI
+direttamente sulla clip** (giunti + roll/pitch del tronco registrati a fase casuale). Un solo
+orologio per i due lati: la clip più corta arriva a q0 prima e lo tiene, così `NNM_GETUP_S` è la
+durata della più lunga (14,2 s). Con `--init-nnm` lo schedule adattivo del lr finiva subito al pavimento
+1e-5: con `--lr` esplicito il rate è fisso. Output: `robots/microban/policies/getup.nnm`.
+
+Orologio one-shot: θ = π · min(t / `NNM_GETUP_S`, 1) → (sin, cos) finisce a (0, −1). Sul firmware
+la macchina a stati `NNM_GETUP_*` passa automaticamente a questa policy se il tronco supera
+`NNM_GETUP_TILT` per 300 ms (carica il `.nnm` nello slot libero), poi torna alla policy precedente
+dopo l'intera clip con il robot in piedi per `NNM_GETUP_HOLD`. Verificata in SITL (plant MicroDuck, copia di
+`walk.nnm` come get-up, soglia −1°): 5 cicli consecutivi trigger → `get-up active` → `get-up done,
+policy 0`; batteria HIL 7/7 PASS con `service_getup()` nel loop.
+
+```bash
+.venv/bin/python tools/robots/getup_video.py --nnm robots/microban/policies/getup.nnm \
+    --video docs/media/microban_getup.mp4
+.venv/bin/python tools/robots/play_getup_mix.py \
+    --getup robots/microban/policies/getup.nnm \
+    --walk robots/microban/policies/walk_md.nnm \
+    --teleop robots/microban/policies/pose_cmd.nnm \
+    --video docs/media/microban_getup_walk_teleop.mp4
+```
+
+#### Risultati e lezioni della Fase II (v9 → v16, 16 500 iterazioni cumulative)
+
+`getup.nnm` = checkpoint 16 500 (v16). Rete int8 da sdraiato, forza zero, 8 episodi per lato: in
+piedi da prono 100 % (4-11 s), da supino 100 % (1,5-3 s); a fine clip errore medio da q0 0,27-0,29
+rad, tronco 11-13°, comandi ai servo entro il range dei giunti (eccesso 0,6 / 0,0 rad negli ultimi
+2 s); `walk.nnm` e `walk_md.nnm` prendono in carico (cross-fade 500 ms) e reggono 100 %. La
+sequenza completa getup → walk → spinta → get-up automatico → walk → rotazione → teleop gira in
+simulazione senza cadute non volute (`microban_getup_walk_teleop.mp4`, 44 s). Ogni versione ha
+tolto un ottimo locale preciso:
+
+- v9: tracking dei soli giunti → da prono 0 %: gli angoli della clip si riproducono anche restando
+  a terra. Aggiunto il tracking del tronco registrato (gravità + quota) e K portato da 3 a 2 (il
+  rotolamento è dinamico). → prono 88 %.
+- v10-v12: la policy finiva sempre nella posa della Fase I (ginocchio sinistro a −0,79, gomito a
+  −1,7) anche partendo da q0. Causa: a q0 il tronco di Microban è inclinato ~14° (così sta
+  `walk.nnm`), ma la soglia di successo era 10° e il tronco registrato era verticale: per
+  raddrizzarlo la policy tendeva le ginocchia. Soglia a 20°, tronco inseguito solo prima della
+  fusione a q0, 20 % di partenze in piedi a q0 e bonus stretto a q0 nella tenuta.
+- v13: **maestro** `walk.nnm` nella tenuta: azione premiata linearmente nell'errore rms rispetto a
+  quella che la walk emetterebbe nello stesso stato (gradiente nello spazio delle azioni, dove il
+  solo bonus di stato non trovava l'equilibrio a ginocchia piegate). Eval 100 % / 100 %.
+- v14-v16: le ginocchia (range [−0,79, 2,36], q0 = 0) erano spinte **contro il fine corsa** con
+  comando saturo (−2 rad): una gamba rigida gratis in simulazione, un servo in stallo sul robot.
+  Penalità sul comando fuori range del giunto (`getup_cmd_limits`, −1 poi −3) oltre a quella sulla
+  posizione, maestro a peso 8, lr 5e-5: eccesso di comando da 2,5-5 rad a 0-0,6 rad, braccia
+  vicine a q0, passaggio alla walk 100 %. Un ginocchio resta al limite di estensione (con comando
+  nel range): da verificare sui servo reali.
+
+Il selettore del trainer (2 s in piedi con q_err < 0,35 e tronco < 20°) misura un transitorio: la
+posa a fine clip, i comandi fuori range e il passaggio alla walk vanno misurati a parte. Dopo la
+16 500 il run peggiora (prono 0 % alla 18 500): fermarsi al checkpoint selezionato.
+
 ## Limiti
 
-- La clip è periodica: un gesto "una volta sola" (un inchino) si ottiene fermando l'orologio a fine ciclo,
-  che il firmware oggi non fa.
-- Le gambe nella clip restano piccoli spostamenti a piedi fermi. Passi, salti o giri richiedono il tracking
-  anche della posa del tronco, come nei lavori sul G1, e un premio che tolleri il contatto che cambia.
-- Le pose chiave delle clip sono scritte a mano; la teleoperazione via MediaPipe le sostituisce in tempo
-  reale, ma resta un riadattamento cinematico semplificato (non un IK a corpo intero).
+- Un gesto "una volta sola" (get-up, inchino) usa l'orologio one-shot (`NNM_GETUP_*` / flag
+  `_clock_oneshot`); le clip periodiche restano su `NNM_CLOCK_HZ`.
+- Le gambe nella clip di balletto restano piccoli spostamenti a piedi fermi. Passi, salti o giri
+  richiedono il tracking anche della posa del tronco, come nei lavori sul G1.
+- Le pose chiave delle clip periodiche sono scritte a mano; il get-up usa invece motion
+  auto-scoperte (Fase I). La teleoperazione via MediaPipe sostituisce le clip in tempo reale con un
+  riadattamento cinematico semplificato (non un IK a corpo intero).

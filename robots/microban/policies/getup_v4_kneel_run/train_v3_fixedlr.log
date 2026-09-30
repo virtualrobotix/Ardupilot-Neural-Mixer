@@ -1,0 +1,1082 @@
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /Users/robertonavoni/.netrc.
+wandb: Currently logged in as: virtualrobotix to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run mwufgyrv
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/wandb/run-20260929_205434-mwufgyrv
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run velocity_mlp_int8_getup
+wandb: ⭐️ View project at https://wandb.ai/virtualrobotix/mjlab_microban
+wandb: 🚀 View run at https://wandb.ai/virtualrobotix/mjlab_microban/runs/mwufgyrv
+/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py:744: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /Users/runner/work/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:821.)
+  "Policy/mean_std": float(log_std.exp().mean()),
+gesture getup: std [0.30000001192092896, 0.30000001192092896, 0.30000001192092896, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.30000001192092896, 0.30000001192092896, 0.30000001192092896, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25] (capped), fixed learning rate
+wandb: https://wandb.ai/virtualrobotix/mjlab_microban/runs/mwufgyrv
+eval iteration 0:
+  prone          success   0.0%  time 7.00s  peak_τ 0.40 Nm  return 7.63
+  supine         success   0.0%  time 7.00s  peak_τ 0.08 Nm  return -0.00
+  score 0.000
+it    1/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.170  std 0.267  lr 1.0e-03  fps   8356     1.5s
+it    2/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.072  std 0.267  lr 1.0e-03  fps   9152     2.8s
+it    3/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.027  std 0.267  lr 1.0e-03  fps   9552     4.1s
+it    4/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps   9599     5.4s
+it    5/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.059  std 0.267  lr 1.0e-03  fps   9678     6.7s
+it    6/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps   9156     8.0s
+it    7/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9198     9.3s
+it    8/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps   9485    10.6s
+it    9/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps   9447    11.9s
+it   10/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps   8573    13.4s
+it   11/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps   9242    14.7s
+it   12/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps   9313    16.0s
+it   13/4000  reward   -0.84  ep_len  300.0  fell    0  err_xy 0.074  std 0.267  lr 1.0e-03  fps   6635    17.9s
+it   14/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.149  std 0.267  lr 1.0e-03  fps   9515    19.2s
+it   15/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps   9206    20.5s
+it   16/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   9477    21.8s
+it   17/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9355    23.1s
+it   18/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9147    24.5s
+it   19/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9443    25.8s
+it   20/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   9482    27.1s
+it   21/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   9440    28.4s
+it   22/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9559    29.6s
+it   23/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   9558    30.9s
+it   24/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9603    32.2s
+it   25/4000  reward    0.38  ep_len  300.0  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   6922    34.0s
+it   26/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.175  std 0.267  lr 1.0e-03  fps   9178    35.3s
+it   27/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.078  std 0.267  lr 1.0e-03  fps   9513    36.6s
+it   28/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.036  std 0.267  lr 1.0e-03  fps   9538    37.9s
+it   29/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.028  std 0.267  lr 1.0e-03  fps   9402    39.2s
+it   30/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   9589    40.5s
+it   31/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps   9512    41.8s
+it   32/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.029  std 0.267  lr 1.0e-03  fps   9286    43.1s
+it   33/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9271    44.4s
+it   34/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps   9158    45.8s
+it   35/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9496    47.1s
+it   36/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9360    48.4s
+it   37/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9423    49.7s
+it   38/4000  reward    0.42  ep_len  300.0  fell    0  err_xy 0.088  std 0.267  lr 1.0e-03  fps   6807    51.5s
+it   39/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.158  std 0.267  lr 1.0e-03  fps   9511    52.8s
+it   40/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   9516    54.1s
+it   41/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   9384    55.4s
+it   42/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   9299    56.7s
+it   43/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   8857    58.1s
+it   44/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9392    59.4s
+it   45/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9203    60.8s
+it   46/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9524    62.1s
+it   47/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9649    63.3s
+it   48/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9612    64.6s
+it   49/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.266  lr 1.0e-03  fps   9346    65.9s
+it   50/4000  reward    2.27  ep_len  300.0  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   6782    67.7s
+it   51/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.198  std 0.266  lr 1.0e-03  fps   8879    69.1s
+it   52/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.049  std 0.266  lr 1.0e-03  fps   8827    70.5s
+it   53/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.266  lr 1.0e-03  fps   9618    71.8s
+it   54/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9295    73.1s
+it   55/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9656    74.4s
+it   56/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.266  lr 1.0e-03  fps   9437    75.7s
+it   57/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9647    77.0s
+it   58/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9578    78.3s
+it   59/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   9781    79.5s
+it   60/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9818    80.8s
+it   61/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9381    82.1s
+it   62/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.266  lr 1.0e-03  fps   9389    83.4s
+it   63/4000  reward    2.72  ep_len  300.0  fell    0  err_xy 0.091  std 0.266  lr 1.0e-03  fps   6762    85.2s
+it   64/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.160  std 0.267  lr 1.0e-03  fps   9614    86.5s
+it   65/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps   9089    87.8s
+it   66/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9395    89.1s
+it   67/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   9820    90.4s
+it   68/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9434    91.7s
+it   69/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9205    93.0s
+it   70/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9721    94.3s
+it   71/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9689    95.6s
+it   72/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9286    96.9s
+it   73/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.266  lr 1.0e-03  fps   9302    98.2s
+it   74/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9976    99.5s
+it   75/4000  reward    2.94  ep_len  300.0  fell    0  err_xy 0.018  std 0.266  lr 1.0e-03  fps   6986   101.2s
+it   76/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.190  std 0.267  lr 1.0e-03  fps   8858   102.6s
+it   77/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.066  std 0.267  lr 1.0e-03  fps   9139   103.9s
+it   78/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps   9745   105.2s
+it   79/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps   9763   106.5s
+it   80/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9591   107.8s
+it   81/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9306   109.1s
+it   82/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9131   110.4s
+it   83/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   8732   111.8s
+it   84/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   9194   113.2s
+it   85/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   9100   114.5s
+it   86/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9527   115.8s
+it   87/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9228   117.1s
+it   88/4000  reward    3.55  ep_len  300.0  fell    0  err_xy 0.088  std 0.266  lr 1.0e-03  fps   6144   119.1s
+it   89/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.173  std 0.267  lr 1.0e-03  fps   9517   120.4s
+it   90/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.036  std 0.267  lr 1.0e-03  fps   9688   121.7s
+it   91/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.027  std 0.267  lr 1.0e-03  fps   8981   123.1s
+it   92/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps   9352   124.4s
+it   93/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps   8569   125.8s
+it   94/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.266  lr 1.0e-03  fps   9692   127.1s
+it   95/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   9165   128.4s
+it   96/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   9142   129.8s
+it   97/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9432   131.1s
+it   98/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9287   132.4s
+it   99/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   8405   133.9s
+it  100/4000  reward    3.07  ep_len  300.0  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   6911   135.7s
+it  101/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.208  std 0.267  lr 1.0e-03  fps   9367   137.0s
+it  102/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.069  std 0.267  lr 1.0e-03  fps   9178   138.3s
+it  103/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   9170   139.7s
+it  104/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9467   141.0s
+it  105/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9219   142.3s
+it  106/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   8035   143.8s
+it  107/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   8631   145.2s
+it  108/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9720   146.5s
+it  109/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9635   147.8s
+it  110/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   8994   149.1s
+it  111/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9898   150.4s
+it  112/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9965   151.6s
+it  113/4000  reward    4.10  ep_len  300.0  fell    0  err_xy 0.084  std 0.266  lr 1.0e-03  fps   6136   153.6s
+it  114/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.182  std 0.266  lr 1.0e-03  fps   9602   154.9s
+it  115/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.052  std 0.266  lr 1.0e-03  fps   9874   156.2s
+it  116/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.266  lr 1.0e-03  fps   9564   157.4s
+it  117/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9171   158.8s
+it  118/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9490   160.1s
+it  119/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9698   161.3s
+it  120/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9008   162.7s
+it  121/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9588   164.0s
+it  122/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9837   165.2s
+it  123/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9867   166.5s
+it  124/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   8904   167.9s
+it  125/4000  reward    3.43  ep_len  300.0  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   6539   169.8s
+it  126/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.219  std 0.267  lr 1.0e-03  fps   9299   171.1s
+it  127/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.089  std 0.267  lr 1.0e-03  fps   9326   172.4s
+it  128/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.029  std 0.267  lr 1.0e-03  fps   9352   173.7s
+it  129/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps   9316   175.0s
+it  130/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps   9727   176.3s
+it  131/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps   8622   177.7s
+it  132/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9522   179.0s
+it  133/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9592   180.3s
+it  134/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9562   181.6s
+it  135/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9498   182.9s
+it  136/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.266  lr 1.0e-03  fps   9734   184.1s
+it  137/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.266  lr 1.0e-03  fps   9527   185.4s
+it  138/4000  reward    3.99  ep_len  300.0  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   6285   187.4s
+it  139/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.194  std 0.266  lr 1.0e-03  fps   9014   188.8s
+it  140/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.046  std 0.266  lr 1.0e-03  fps   7727   190.3s
+it  141/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.028  std 0.267  lr 1.0e-03  fps   8134   191.9s
+it  142/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   9449   193.2s
+it  143/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps   9596   194.4s
+it  144/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9084   195.8s
+it  145/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   8792   197.2s
+it  146/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9406   198.5s
+it  147/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.266  lr 1.0e-03  fps   9067   199.9s
+it  148/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9796   201.1s
+it  149/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   8680   202.5s
+it  150/4000  reward    4.47  ep_len  300.0  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   5753   204.7s
+it  151/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.208  std 0.266  lr 1.0e-03  fps   8724   206.1s
+it  152/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.095  std 0.266  lr 1.0e-03  fps   9292   207.4s
+it  153/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.266  lr 1.0e-03  fps   9205   208.7s
+it  154/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   9699   210.0s
+it  155/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9398   211.3s
+it  156/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   8859   212.7s
+it  157/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9351   214.0s
+it  158/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9590   215.3s
+it  159/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9738   216.6s
+it  160/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   9073   217.9s
+it  161/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.264  lr 1.0e-03  fps   9400   219.2s
+it  162/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.263  lr 1.0e-03  fps   9301   220.5s
+it  163/4000  reward    4.79  ep_len  300.0  fell    0  err_xy 0.086  std 0.264  lr 1.0e-03  fps   6334   222.5s
+it  164/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.164  std 0.266  lr 1.0e-03  fps   9145   223.8s
+it  165/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.048  std 0.266  lr 1.0e-03  fps   9588   225.1s
+it  166/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.266  lr 1.0e-03  fps   9670   226.4s
+it  167/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9494   227.7s
+it  168/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   8330   229.2s
+it  169/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9706   230.4s
+it  170/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9808   231.7s
+it  171/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9383   233.0s
+it  172/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.265  lr 1.0e-03  fps   9496   234.3s
+it  173/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.265  lr 1.0e-03  fps   9780   235.5s
+it  174/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.265  lr 1.0e-03  fps   9768   236.8s
+it  175/4000  reward    5.14  ep_len  300.0  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   6461   238.7s
+it  176/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.182  std 0.266  lr 1.0e-03  fps   9329   240.0s
+it  177/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   9888   241.3s
+it  178/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.029  std 0.267  lr 1.0e-03  fps   9856   242.5s
+it  179/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9210   243.9s
+it  180/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9500   245.1s
+it  181/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9834   246.4s
+it  182/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9148   247.7s
+it  183/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9508   249.0s
+it  184/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   9454   250.3s
+it  185/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.264  lr 1.0e-03  fps   9137   251.7s
+it  186/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.264  lr 1.0e-03  fps   9176   253.0s
+it  187/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.263  lr 1.0e-03  fps   9015   254.4s
+it  188/4000  reward    5.18  ep_len  300.0  fell    0  err_xy 0.090  std 0.264  lr 1.0e-03  fps   6603   256.2s
+it  189/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.206  std 0.265  lr 1.0e-03  fps   9897   257.5s
+it  190/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.049  std 0.266  lr 1.0e-03  fps   9384   258.8s
+it  191/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   9067   260.2s
+it  192/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9492   261.5s
+it  193/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9436   262.8s
+it  194/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9475   264.1s
+it  195/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.266  lr 1.0e-03  fps   9695   265.3s
+it  196/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   9363   266.6s
+it  197/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   9439   267.9s
+it  198/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.264  lr 1.0e-03  fps   9787   269.2s
+it  199/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.264  lr 1.0e-03  fps   9807   270.5s
+it  200/4000  reward    5.15  ep_len  300.0  fell    0  err_xy 0.010  std 0.264  lr 1.0e-03  fps   6841   272.2s
+eval iteration 200:
+  prone          success   0.0%  time 7.00s  peak_τ 0.39 Nm  return 9.04
+  supine         success   0.0%  time 7.00s  peak_τ 0.27 Nm  return 4.03
+  score 0.000
+it  201/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.217  std 0.265  lr 1.0e-03  fps   9607   275.0s
+it  202/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.084  std 0.266  lr 1.0e-03  fps   9872   276.2s
+it  203/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.266  lr 1.0e-03  fps  10113   277.4s
+it  204/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9591   278.7s
+it  205/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   8282   280.2s
+it  206/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   8015   281.7s
+it  207/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9053   283.1s
+it  208/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   9413   284.4s
+it  209/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.265  lr 1.0e-03  fps   9349   285.7s
+it  210/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.265  lr 1.0e-03  fps   9559   287.0s
+it  211/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.264  lr 1.0e-03  fps   8756   288.4s
+it  212/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.264  lr 1.0e-03  fps   9362   289.7s
+it  213/4000  reward    5.28  ep_len  300.0  fell    0  err_xy 0.091  std 0.265  lr 1.0e-03  fps   6423   291.6s
+it  214/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.211  std 0.266  lr 1.0e-03  fps   9159   293.0s
+it  215/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.266  lr 1.0e-03  fps   8758   294.4s
+it  216/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.266  lr 1.0e-03  fps   9232   295.7s
+it  217/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9243   297.0s
+it  218/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   8897   298.4s
+it  219/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   8806   299.8s
+it  220/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9008   301.2s
+it  221/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.266  lr 1.0e-03  fps   9235   302.5s
+it  222/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9151   303.9s
+it  223/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9596   305.1s
+it  224/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   9392   306.4s
+it  225/4000  reward    5.31  ep_len  300.0  fell    0  err_xy 0.011  std 0.266  lr 1.0e-03  fps   6450   308.3s
+it  226/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.230  std 0.266  lr 1.0e-03  fps   9478   309.6s
+it  227/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.082  std 0.267  lr 1.0e-03  fps   9571   310.9s
+it  228/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.026  std 0.267  lr 1.0e-03  fps   9491   312.2s
+it  229/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9069   313.6s
+it  230/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   9484   314.9s
+it  231/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   9364   316.2s
+it  232/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   9534   317.5s
+it  233/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   8981   318.9s
+it  234/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9476   320.1s
+it  235/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9183   321.5s
+it  236/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9169   322.8s
+it  237/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9219   324.2s
+it  238/4000  reward    4.95  ep_len  300.0  fell    0  err_xy 0.097  std 0.267  lr 1.0e-03  fps   6191   326.2s
+it  239/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.186  std 0.267  lr 1.0e-03  fps   8957   327.5s
+it  240/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.047  std 0.267  lr 1.0e-03  fps   9651   328.8s
+it  241/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9764   330.1s
+it  242/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9941   331.3s
+it  243/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9891   332.5s
+it  244/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   9563   333.8s
+it  245/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   9214   335.2s
+it  246/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9638   336.4s
+it  247/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9370   337.7s
+it  248/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9645   339.0s
+it  249/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.266  lr 1.0e-03  fps   9505   340.3s
+it  250/4000  reward    4.57  ep_len  300.0  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   6766   342.1s
+it  251/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.214  std 0.267  lr 1.0e-03  fps   9261   343.5s
+it  252/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.104  std 0.267  lr 1.0e-03  fps   9934   344.7s
+it  253/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps   9710   346.0s
+it  254/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps   9866   347.2s
+it  255/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9506   348.5s
+it  256/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9414   349.8s
+it  257/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9558   351.1s
+it  258/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9370   352.4s
+it  259/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   7627   354.0s
+it  260/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   7782   355.6s
+it  261/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   8017   357.1s
+it  262/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   8122   358.7s
+it  263/4000  reward    4.35  ep_len  300.0  fell    0  err_xy 0.104  std 0.267  lr 1.0e-03  fps   5880   360.7s
+it  264/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.239  std 0.267  lr 1.0e-03  fps   9485   362.0s
+it  265/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.184  std 0.267  lr 1.0e-03  fps   8426   363.5s
+it  266/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.199  std 0.267  lr 1.0e-03  fps   8286   365.0s
+it  267/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.100  std 0.267  lr 1.0e-03  fps   8411   366.4s
+it  268/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps   8783   367.8s
+it  269/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   8512   369.3s
+it  270/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.042  std 0.267  lr 1.0e-03  fps   9041   370.7s
+it  271/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.038  std 0.267  lr 1.0e-03  fps   9286   372.0s
+it  272/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.032  std 0.267  lr 1.0e-03  fps   8714   373.4s
+it  273/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps   9309   374.7s
+it  274/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   8700   376.1s
+it  275/4000  reward    2.22  ep_len  300.0  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   5377   378.4s
+it  276/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.256  std 0.267  lr 1.0e-03  fps   7216   380.1s
+it  277/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.118  std 0.267  lr 1.0e-03  fps   8284   381.6s
+it  278/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.046  std 0.267  lr 1.0e-03  fps   7830   383.2s
+it  279/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps   9229   384.5s
+it  280/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps   9502   385.8s
+it  281/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9049   387.2s
+it  282/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   8608   388.6s
+it  283/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.266  lr 1.0e-03  fps   9393   389.9s
+it  284/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9896   391.1s
+it  285/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9976   392.4s
+it  286/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps  10032   393.6s
+it  287/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.266  lr 1.0e-03  fps   9940   394.8s
+it  288/4000  reward    4.64  ep_len  300.0  fell    0  err_xy 0.098  std 0.267  lr 1.0e-03  fps   6724   396.7s
+it  289/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.217  std 0.267  lr 1.0e-03  fps   9870   397.9s
+it  290/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps  10007   399.1s
+it  291/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps  10008   400.4s
+it  292/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9666   401.6s
+it  293/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9580   402.9s
+it  294/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9984   404.2s
+it  295/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10008   405.4s
+it  296/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9618   406.7s
+it  297/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10188   407.9s
+it  298/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10099   409.1s
+it  299/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10198   410.3s
+it  300/4000  reward    4.76  ep_len  300.0  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   6888   412.1s
+it  301/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.245  std 0.267  lr 1.0e-03  fps   9656   413.4s
+it  302/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.104  std 0.267  lr 1.0e-03  fps   9711   414.6s
+it  303/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.041  std 0.267  lr 1.0e-03  fps   9574   415.9s
+it  304/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   9965   417.1s
+it  305/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps   9723   418.4s
+it  306/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps  10075   419.6s
+it  307/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9709   420.9s
+it  308/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10095   422.1s
+it  309/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10209   423.3s
+it  310/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9929   424.6s
+it  311/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps   9286   425.9s
+it  312/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.266  lr 1.0e-03  fps   9781   427.1s
+it  313/4000  reward    5.00  ep_len  300.0  fell    0  err_xy 0.123  std 0.267  lr 1.0e-03  fps   6748   429.0s
+it  314/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.246  std 0.267  lr 1.0e-03  fps  10330   430.2s
+it  315/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.088  std 0.267  lr 1.0e-03  fps  10366   431.3s
+it  316/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.047  std 0.267  lr 1.0e-03  fps   9893   432.6s
+it  317/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps  10036   433.8s
+it  318/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps  10161   435.0s
+it  319/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps  10142   436.2s
+it  320/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9579   437.5s
+it  321/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps  10144   438.7s
+it  322/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.026  std 0.267  lr 1.0e-03  fps  10138   439.9s
+it  323/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps  10191   441.1s
+it  324/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.033  std 0.267  lr 1.0e-03  fps  10037   442.4s
+it  325/4000  reward    4.82  ep_len  300.0  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps   6936   444.1s
+it  326/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.252  std 0.267  lr 1.0e-03  fps  10092   445.4s
+it  327/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.150  std 0.267  lr 1.0e-03  fps  10439   446.5s
+it  328/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.087  std 0.267  lr 1.0e-03  fps   9919   447.8s
+it  329/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.078  std 0.267  lr 1.0e-03  fps  10216   449.0s
+it  330/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.081  std 0.267  lr 1.0e-03  fps   9989   450.2s
+it  331/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.080  std 0.267  lr 1.0e-03  fps  10370   451.4s
+it  332/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.080  std 0.267  lr 1.0e-03  fps  10143   452.6s
+it  333/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.078  std 0.267  lr 1.0e-03  fps  10320   453.8s
+it  334/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.075  std 0.267  lr 1.0e-03  fps  10400   455.0s
+it  335/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.067  std 0.267  lr 1.0e-03  fps  10481   456.2s
+it  336/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.056  std 0.267  lr 1.0e-03  fps  10185   457.4s
+it  337/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.048  std 0.267  lr 1.0e-03  fps  10240   458.6s
+it  338/4000  reward    0.78  ep_len  300.0  fell    0  err_xy 0.119  std 0.267  lr 1.0e-03  fps   7035   460.3s
+it  339/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.209  std 0.267  lr 1.0e-03  fps  10250   461.5s
+it  340/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.077  std 0.267  lr 1.0e-03  fps   9729   462.8s
+it  341/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.051  std 0.267  lr 1.0e-03  fps  10017   464.0s
+it  342/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.044  std 0.267  lr 1.0e-03  fps   9784   465.3s
+it  343/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.042  std 0.267  lr 1.0e-03  fps   9981   466.5s
+it  344/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.040  std 0.267  lr 1.0e-03  fps  10256   467.7s
+it  345/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.033  std 0.267  lr 1.0e-03  fps  10263   468.9s
+it  346/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.029  std 0.267  lr 1.0e-03  fps  10076   470.1s
+it  347/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.026  std 0.267  lr 1.0e-03  fps   9999   471.4s
+it  348/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps  10327   472.5s
+it  349/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps  10201   473.7s
+it  350/4000  reward    3.30  ep_len  300.0  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   6923   475.5s
+it  351/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.219  std 0.267  lr 1.0e-03  fps   9904   476.8s
+it  352/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.137  std 0.267  lr 1.0e-03  fps   9681   478.0s
+it  353/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.057  std 0.267  lr 1.0e-03  fps  10163   479.2s
+it  354/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.046  std 0.267  lr 1.0e-03  fps  10214   480.5s
+it  355/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.037  std 0.267  lr 1.0e-03  fps  10335   481.6s
+it  356/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.032  std 0.267  lr 1.0e-03  fps   9846   482.9s
+it  357/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.029  std 0.267  lr 1.0e-03  fps  10260   484.1s
+it  358/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.027  std 0.267  lr 1.0e-03  fps  10124   485.3s
+it  359/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.027  std 0.267  lr 1.0e-03  fps  10165   486.5s
+it  360/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.026  std 0.267  lr 1.0e-03  fps   9924   487.8s
+it  361/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9733   489.0s
+it  362/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps  10111   490.2s
+it  363/4000  reward    3.47  ep_len  300.0  fell    0  err_xy 0.115  std 0.267  lr 1.0e-03  fps   6755   492.1s
+it  364/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.240  std 0.267  lr 1.0e-03  fps   9549   493.3s
+it  365/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.106  std 0.267  lr 1.0e-03  fps  10095   494.6s
+it  366/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps  10455   495.7s
+it  367/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.037  std 0.267  lr 1.0e-03  fps  10354   496.9s
+it  368/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   9466   498.2s
+it  369/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps  10263   499.4s
+it  370/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps  10281   500.6s
+it  371/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps  10354   501.8s
+it  372/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps  10306   503.0s
+it  373/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps  10105   504.2s
+it  374/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps  10325   505.4s
+it  375/4000  reward    2.53  ep_len  300.0  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   7215   507.1s
+it  376/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.227  std 0.267  lr 1.0e-03  fps   9882   508.4s
+it  377/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.113  std 0.267  lr 1.0e-03  fps   9946   509.6s
+it  378/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps  10167   510.8s
+it  379/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.132  std 0.267  lr 1.0e-03  fps  10100   512.0s
+it  380/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.087  std 0.267  lr 1.0e-03  fps  10030   513.2s
+it  381/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.079  std 0.267  lr 1.0e-03  fps  10134   514.5s
+it  382/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.089  std 0.267  lr 1.0e-03  fps  10037   515.7s
+it  383/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.093  std 0.267  lr 1.0e-03  fps  10114   516.9s
+it  384/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9720   518.2s
+it  385/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.068  std 0.267  lr 1.0e-03  fps  10200   519.4s
+it  386/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.056  std 0.267  lr 1.0e-03  fps  10396   520.6s
+it  387/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.046  std 0.267  lr 1.0e-03  fps  10429   521.7s
+it  388/4000  reward    0.58  ep_len  300.0  fell    0  err_xy 0.119  std 0.267  lr 1.0e-03  fps   6937   523.5s
+it  389/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.224  std 0.267  lr 1.0e-03  fps  10152   524.7s
+it  390/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.076  std 0.267  lr 1.0e-03  fps  10500   525.9s
+it  391/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps  10355   527.1s
+it  392/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.028  std 0.267  lr 1.0e-03  fps  10257   528.3s
+it  393/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps  10220   529.5s
+it  394/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9902   530.7s
+it  395/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10192   531.9s
+it  396/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10242   533.1s
+it  397/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10174   534.3s
+it  398/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10221   535.5s
+it  399/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps  10165   536.8s
+it  400/4000  reward    2.85  ep_len  300.0  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps    197   599.2s
+eval iteration 400:
+  prone          success   0.0%  time 7.00s  peak_τ 0.70 Nm  return 8.75
+  supine         success   0.0%  time 7.00s  peak_τ 0.65 Nm  return 3.53
+  score 0.000
+it  401/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.249  std 0.267  lr 1.0e-03  fps  10568   601.8s
+it  402/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.176  std 0.267  lr 1.0e-03  fps  10775   603.0s
+it  403/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.065  std 0.267  lr 1.0e-03  fps  10845   604.1s
+it  404/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.046  std 0.267  lr 1.0e-03  fps  10813   605.3s
+it  405/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps  10732   606.4s
+it  406/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.026  std 0.267  lr 1.0e-03  fps  10698   607.6s
+it  407/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps  10609   608.7s
+it  408/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9495   610.0s
+it  409/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10229   611.2s
+it  410/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10356   612.4s
+it  411/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10017   613.6s
+it  412/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9757   614.9s
+it  413/4000  reward    3.84  ep_len  300.0  fell    0  err_xy 0.096  std 0.267  lr 1.0e-03  fps   6842   616.7s
+it  414/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.266  std 0.267  lr 1.0e-03  fps  10313   617.9s
+it  415/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.108  std 0.267  lr 1.0e-03  fps  10384   619.1s
+it  416/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.048  std 0.267  lr 1.0e-03  fps  10401   620.2s
+it  417/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps   9887   621.5s
+it  418/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9920   622.7s
+it  419/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9229   624.1s
+it  420/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9336   625.4s
+it  421/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   8464   626.8s
+it  422/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9756   628.1s
+it  423/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9621   629.4s
+it  424/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10102   630.6s
+it  425/4000  reward    3.73  ep_len  300.0  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   7143   632.3s
+it  426/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.217  std 0.267  lr 1.0e-03  fps   9740   633.6s
+it  427/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.190  std 0.267  lr 1.0e-03  fps   9919   634.8s
+it  428/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.050  std 0.267  lr 1.0e-03  fps   9750   636.1s
+it  429/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   9360   637.4s
+it  430/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9767   638.6s
+it  431/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9677   639.9s
+it  432/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9916   641.2s
+it  433/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9877   642.4s
+it  434/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9670   643.7s
+it  435/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9860   644.9s
+it  436/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9738   646.2s
+it  437/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9991   647.4s
+it  438/4000  reward    4.10  ep_len  300.0  fell    0  err_xy 0.094  std 0.267  lr 1.0e-03  fps   6896   649.2s
+it  439/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.238  std 0.267  lr 1.0e-03  fps   9890   650.4s
+it  440/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.082  std 0.267  lr 1.0e-03  fps  10029   651.7s
+it  441/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps   9921   652.9s
+it  442/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   9976   654.1s
+it  443/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9790   655.4s
+it  444/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10164   656.6s
+it  445/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9598   657.9s
+it  446/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9880   659.1s
+it  447/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10089   660.4s
+it  448/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9993   661.6s
+it  449/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9767   662.8s
+it  450/4000  reward    4.03  ep_len  300.0  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   7135   664.6s
+it  451/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.205  std 0.267  lr 1.0e-03  fps   9602   665.9s
+it  452/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.167  std 0.267  lr 1.0e-03  fps  10167   667.1s
+it  453/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps  10030   668.3s
+it  454/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps  10206   669.5s
+it  455/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps  10136   670.7s
+it  456/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps  10065   671.9s
+it  457/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10073   673.1s
+it  458/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10048   674.4s
+it  459/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10031   675.6s
+it  460/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps  10077   676.8s
+it  461/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps  10014   678.0s
+it  462/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps  10194   679.3s
+it  463/4000  reward    4.29  ep_len  300.0  fell    0  err_xy 0.106  std 0.267  lr 1.0e-03  fps   7198   681.0s
+it  464/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.212  std 0.267  lr 1.0e-03  fps  10287   682.2s
+it  465/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.085  std 0.267  lr 1.0e-03  fps  10317   683.3s
+it  466/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps  10444   684.5s
+it  467/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps  10438   685.7s
+it  468/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10241   686.9s
+it  469/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10046   688.1s
+it  470/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10257   689.3s
+it  471/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9993   690.6s
+it  472/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10333   691.8s
+it  473/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9942   693.0s
+it  474/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10205   694.2s
+it  475/4000  reward    4.32  ep_len  300.0  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   7088   695.9s
+it  476/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.207  std 0.267  lr 1.0e-03  fps  10217   697.1s
+it  477/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.145  std 0.267  lr 1.0e-03  fps   9704   698.4s
+it  478/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.040  std 0.267  lr 1.0e-03  fps   9850   699.6s
+it  479/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps   9802   700.9s
+it  480/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps  10105   702.1s
+it  481/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9658   703.4s
+it  482/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9744   704.7s
+it  483/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9750   705.9s
+it  484/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9612   707.2s
+it  485/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9596   708.5s
+it  486/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9763   709.7s
+it  487/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9931   711.0s
+it  488/4000  reward    3.92  ep_len  300.0  fell    0  err_xy 0.106  std 0.267  lr 1.0e-03  fps   6893   712.8s
+it  489/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.230  std 0.267  lr 1.0e-03  fps   9844   714.0s
+it  490/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.078  std 0.267  lr 1.0e-03  fps   9820   715.3s
+it  491/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps   9823   716.5s
+it  492/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   8582   717.9s
+it  493/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9383   719.3s
+it  494/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9375   720.6s
+it  495/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9617   721.8s
+it  496/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9097   723.2s
+it  497/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9638   724.5s
+it  498/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9250   725.8s
+it  499/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9345   727.1s
+it  500/4000  reward    2.61  ep_len  300.0  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   6297   729.1s
+it  501/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.205  std 0.267  lr 1.0e-03  fps   9293   730.4s
+it  502/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.138  std 0.267  lr 1.0e-03  fps  10000   731.6s
+it  503/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.061  std 0.267  lr 1.0e-03  fps   9594   732.9s
+it  504/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.038  std 0.267  lr 1.0e-03  fps   9110   734.3s
+it  505/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps   9687   735.5s
+it  506/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps   9395   736.8s
+it  507/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9721   738.1s
+it  508/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9675   739.4s
+it  509/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9411   740.7s
+it  510/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9589   742.0s
+it  511/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9893   743.2s
+it  512/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9801   744.5s
+it  513/4000  reward    3.36  ep_len  300.0  fell    0  err_xy 0.095  std 0.267  lr 1.0e-03  fps   6821   746.3s
+it  514/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.196  std 0.267  lr 1.0e-03  fps   9834   747.5s
+it  515/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.084  std 0.267  lr 1.0e-03  fps   9672   748.8s
+it  516/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.044  std 0.267  lr 1.0e-03  fps   9708   750.1s
+it  517/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.028  std 0.267  lr 1.0e-03  fps   9933   751.3s
+it  518/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   9749   752.6s
+it  519/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9607   753.8s
+it  520/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9238   755.2s
+it  521/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9734   756.4s
+it  522/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9810   757.7s
+it  523/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9790   758.9s
+it  524/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9963   760.2s
+it  525/4000  reward    3.48  ep_len  300.0  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   7035   761.9s
+it  526/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.209  std 0.267  lr 1.0e-03  fps   9482   763.2s
+it  527/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.126  std 0.267  lr 1.0e-03  fps   9957   764.5s
+it  528/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.047  std 0.267  lr 1.0e-03  fps   9831   765.7s
+it  529/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.021  std 0.267  lr 1.0e-03  fps  10111   766.9s
+it  530/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9500   768.2s
+it  531/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10051   769.4s
+it  532/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9807   770.7s
+it  533/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps  10031   771.9s
+it  534/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9752   773.2s
+it  535/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10110   774.4s
+it  536/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9828   775.7s
+it  537/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9921   776.9s
+it  538/4000  reward    4.62  ep_len  300.0  fell    0  err_xy 0.093  std 0.267  lr 1.0e-03  fps   6463   778.8s
+it  539/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.203  std 0.267  lr 1.0e-03  fps  10160   780.0s
+it  540/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.068  std 0.267  lr 1.0e-03  fps   9773   781.3s
+it  541/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps   9989   782.5s
+it  542/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9860   783.7s
+it  543/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps  10147   785.0s
+it  544/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10014   786.2s
+it  545/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10108   787.4s
+it  546/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9053   788.8s
+it  547/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   9991   790.0s
+it  548/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9597   791.3s
+it  549/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10113   792.5s
+it  550/4000  reward    3.59  ep_len  300.0  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   6921   794.3s
+it  551/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.193  std 0.267  lr 1.0e-03  fps  10010   795.5s
+it  552/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.140  std 0.267  lr 1.0e-03  fps  10106   796.7s
+it  553/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.045  std 0.267  lr 1.0e-03  fps   9950   797.9s
+it  554/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   9601   799.2s
+it  555/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10113   800.4s
+it  556/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10123   801.7s
+it  557/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9887   802.9s
+it  558/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9686   804.2s
+it  559/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10116   805.4s
+it  560/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10151   806.6s
+it  561/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9736   807.9s
+it  562/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9788   809.1s
+it  563/4000  reward    4.48  ep_len  300.0  fell    0  err_xy 0.099  std 0.267  lr 1.0e-03  fps   6964   810.9s
+it  564/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.223  std 0.267  lr 1.0e-03  fps  10121   812.1s
+it  565/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.085  std 0.267  lr 1.0e-03  fps   9648   813.4s
+it  566/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps  10111   814.6s
+it  567/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.267  lr 1.0e-03  fps   9408   815.9s
+it  568/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10111   817.1s
+it  569/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9477   818.4s
+it  570/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9926   819.7s
+it  571/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10033   820.9s
+it  572/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10081   822.1s
+it  573/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9397   823.4s
+it  574/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   9781   824.7s
+it  575/4000  reward    3.60  ep_len  300.0  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps   7149   826.4s
+it  576/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.246  std 0.267  lr 1.0e-03  fps  10108   827.6s
+it  577/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.153  std 0.267  lr 1.0e-03  fps   9580   828.9s
+it  578/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   9946   830.1s
+it  579/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   9860   831.4s
+it  580/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   9561   832.7s
+it  581/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   9474   834.0s
+it  582/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9785   835.2s
+it  583/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9777   836.5s
+it  584/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9110   837.8s
+it  585/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.267  lr 1.0e-03  fps   9333   839.1s
+it  586/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps  10040   840.4s
+it  587/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps  10050   841.6s
+it  588/4000  reward    3.79  ep_len  300.0  fell    0  err_xy 0.154  std 0.267  lr 1.0e-03  fps   6706   843.4s
+it  589/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.288  std 0.267  lr 1.0e-03  fps   9232   844.8s
+it  590/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.132  std 0.267  lr 1.0e-03  fps   9998   846.0s
+it  591/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.084  std 0.267  lr 1.0e-03  fps   9954   847.2s
+it  592/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.069  std 0.267  lr 1.0e-03  fps   9530   848.5s
+it  593/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps   9132   849.9s
+it  594/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.045  std 0.267  lr 1.0e-03  fps   8936   851.2s
+it  595/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps   9116   852.6s
+it  596/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps   8523   854.0s
+it  597/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps   8943   855.4s
+it  598/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps   9667   856.7s
+it  599/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.032  std 0.267  lr 1.0e-03  fps   9045   858.0s
+it  600/4000  reward  -32.90  ep_len  300.0  fell    0  err_xy 0.088  std 0.267  lr 1.0e-03  fps   6740   859.9s
+/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/deploy_contract.py:204: RuntimeWarning: overflow encountered in expm1
+  x = np.where(y > 0, y, np.expm1(y)).astype(np.float32) if elu else y.astype(np.float32)
+eval iteration 600:
+  prone          success   0.0%  time 7.00s  peak_τ 0.84 Nm  return -17.94
+  supine         success   0.0%  time 7.00s  peak_τ 0.76 Nm  return -17.28
+  score 0.000
+it  601/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.352  std 0.267  lr 1.0e-03  fps  10104   862.5s
+it  602/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.236  std 0.267  lr 1.0e-03  fps   9395   863.8s
+it  603/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.116  std 0.267  lr 1.0e-03  fps   9485   865.1s
+it  604/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps   9086   866.5s
+it  605/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   8587   867.9s
+it  606/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.007  std 0.267  lr 1.0e-03  fps   8171   869.4s
+it  607/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.046  std 0.267  lr 1.0e-03  fps   9359   870.7s
+it  608/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.044  std 0.267  lr 1.0e-03  fps   9951   872.0s
+it  609/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10191   873.2s
+it  610/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.006  std 0.267  lr 1.0e-03  fps   9876   874.4s
+it  611/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.004  std 0.267  lr 1.0e-03  fps   9835   875.7s
+it  612/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10234   876.9s
+it  613/4000  reward  -26.18  ep_len  300.0  fell    0  err_xy 0.147  std 0.267  lr 1.0e-03  fps   6855   878.7s
+it  614/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.316  std 0.267  lr 1.0e-03  fps  10072   879.9s
+it  615/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.123  std 0.267  lr 1.0e-03  fps   9991   881.1s
+it  616/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.028  std 0.267  lr 1.0e-03  fps   9733   882.4s
+it  617/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10043   883.6s
+it  618/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.006  std 0.267  lr 1.0e-03  fps  10286   884.8s
+it  619/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.005  std 0.267  lr 1.0e-03  fps  10143   886.0s
+it  620/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10017   887.2s
+it  621/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps   9800   888.5s
+it  622/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10109   889.7s
+it  623/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.004  std 0.267  lr 1.0e-03  fps  10079   890.9s
+it  624/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.045  std 0.267  lr 1.0e-03  fps   9788   892.2s
+it  625/4000  reward  -18.19  ep_len  300.0  fell    0  err_xy 0.029  std 0.267  lr 1.0e-03  fps   6886   894.0s
+it  626/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.328  std 0.267  lr 1.0e-03  fps   9999   895.2s
+it  627/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.201  std 0.267  lr 1.0e-03  fps  10476   896.4s
+it  628/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.086  std 0.267  lr 1.0e-03  fps  10069   897.6s
+it  629/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.032  std 0.267  lr 1.0e-03  fps  10131   898.8s
+it  630/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps  10428   900.0s
+it  631/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.267  lr 1.0e-03  fps  10352   901.2s
+it  632/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.005  std 0.267  lr 1.0e-03  fps  10451   902.4s
+it  633/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.005  std 0.267  lr 1.0e-03  fps  10297   903.5s
+it  634/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10710   904.7s
+it  635/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10694   905.8s
+it  636/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10763   907.0s
+it  637/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.004  std 0.267  lr 1.0e-03  fps  10741   908.1s
+it  638/4000  reward  -23.35  ep_len  300.0  fell    0  err_xy 0.168  std 0.267  lr 1.0e-03  fps   7163   909.9s
+it  639/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.265  std 0.267  lr 1.0e-03  fps  10592   911.0s
+it  640/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.121  std 0.267  lr 1.0e-03  fps  10591   912.2s
+it  641/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps  10070   913.4s
+it  642/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.042  std 0.267  lr 1.0e-03  fps  10529   914.6s
+it  643/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.030  std 0.267  lr 1.0e-03  fps  10426   915.7s
+it  644/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps  10601   916.9s
+it  645/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.066  std 0.267  lr 1.0e-03  fps  10352   918.1s
+it  646/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.140  std 0.267  lr 1.0e-03  fps  10104   919.3s
+it  647/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.154  std 0.267  lr 1.0e-03  fps  10304   920.5s
+it  648/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.064  std 0.267  lr 1.0e-03  fps  10413   921.7s
+it  649/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps  10185   922.9s
+it  650/4000  reward  -25.79  ep_len  300.0  fell    0  err_xy 0.132  std 0.267  lr 1.0e-03  fps   7372   924.6s
+it  651/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.311  std 0.267  lr 1.0e-03  fps  10134   925.8s
+it  652/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.235  std 0.267  lr 1.0e-03  fps  10421   927.0s
+it  653/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.065  std 0.267  lr 1.0e-03  fps  10145   928.2s
+it  654/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.037  std 0.267  lr 1.0e-03  fps  10270   929.4s
+it  655/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps  10435   930.5s
+it  656/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps  10597   931.7s
+it  657/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps  10413   932.9s
+it  658/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps  10568   934.0s
+it  659/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps  10470   935.2s
+it  660/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.002  std 0.267  lr 1.0e-03  fps  10639   936.4s
+it  661/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.106  std 0.267  lr 1.0e-03  fps  10456   937.6s
+it  662/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.135  std 0.267  lr 1.0e-03  fps  10132   938.8s
+it  663/4000  reward  -36.66  ep_len  300.0  fell    0  err_xy 0.228  std 0.267  lr 1.0e-03  fps   7284   940.5s
+it  664/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.286  std 0.267  lr 1.0e-03  fps  10266   941.7s
+it  665/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.140  std 0.267  lr 1.0e-03  fps  10081   942.9s
+it  666/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.051  std 0.267  lr 1.0e-03  fps  10013   944.1s
+it  667/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps  10399   945.3s
+it  668/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.103  std 0.267  lr 1.0e-03  fps  10252   946.5s
+it  669/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps  10081   947.7s
+it  670/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.180  std 0.267  lr 1.0e-03  fps  10356   948.9s
+it  671/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.119  std 0.267  lr 1.0e-03  fps  10052   950.1s
+it  672/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.042  std 0.267  lr 1.0e-03  fps  10155   951.3s
+it  673/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps  10695   952.5s
+it  674/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.267  lr 1.0e-03  fps  10335   953.7s
+it  675/4000  reward  -70.63  ep_len  300.0  fell    0  err_xy 0.008  std 0.267  lr 1.0e-03  fps   7407   955.3s
+it  676/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.405  std 0.267  lr 1.0e-03  fps   9961   956.6s
+it  677/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.133  std 0.267  lr 1.0e-03  fps   9205   957.9s
+it  678/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.056  std 0.267  lr 1.0e-03  fps  10195   959.1s
+it  679/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.267  lr 1.0e-03  fps  10333   960.3s
+it  680/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.098  std 0.267  lr 1.0e-03  fps   9938   961.5s
+it  681/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9757   962.8s
+it  682/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10151   964.0s
+it  683/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.001  std 0.267  lr 1.0e-03  fps  10255   965.2s
+it  684/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.001  std 0.267  lr 1.0e-03  fps  10280   966.4s
+it  685/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.160  std 0.267  lr 1.0e-03  fps  10009   967.6s
+it  686/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.112  std 0.267  lr 1.0e-03  fps   9863   968.9s
+it  687/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.077  std 0.267  lr 1.0e-03  fps  10068   970.1s
+it  688/4000  reward -309.38  ep_len  300.0  fell    0  err_xy 0.178  std 0.267  lr 1.0e-03  fps   7146   971.8s
+it  689/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.308  std 0.267  lr 1.0e-03  fps   9773   973.1s
+it  690/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.133  std 0.267  lr 1.0e-03  fps   9874   974.3s
+it  691/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps  10158   975.5s
+it  692/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps  10338   976.7s
+it  693/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps  10108   977.9s
+it  694/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9838   979.2s
+it  695/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps  10068   980.4s
+it  696/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.112  std 0.267  lr 1.0e-03  fps  10148   981.6s
+it  697/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.042  std 0.267  lr 1.0e-03  fps  10154   982.8s
+it  698/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.043  std 0.267  lr 1.0e-03  fps   9820   984.1s
+it  699/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps  10208   985.3s
+it  700/4000  reward -656.34  ep_len  300.0  fell    0  err_xy 0.033  std 0.267  lr 1.0e-03  fps   7197   987.0s
+it  701/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.333  std 0.267  lr 1.0e-03  fps   9640   988.3s
+it  702/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.185  std 0.267  lr 1.0e-03  fps   9993   989.5s
+it  703/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.102  std 0.267  lr 1.0e-03  fps   9933   990.7s
+it  704/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps  10215   992.0s
+it  705/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps  10177   993.2s
+it  706/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.006  std 0.267  lr 1.0e-03  fps  10183   994.4s
+it  707/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.002  std 0.267  lr 1.0e-03  fps   9914   995.6s
+it  708/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.001  std 0.267  lr 1.0e-03  fps  10267   996.8s
+it  709/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.001  std 0.267  lr 1.0e-03  fps  10057   998.0s
+it  710/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10211   999.2s
+it  711/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.267  lr 1.0e-03  fps  10040  1000.5s
+it  712/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps  10001  1001.7s
+it  713/4000  reward -198.85  ep_len  300.0  fell    0  err_xy 0.177  std 0.267  lr 1.0e-03  fps   6991  1003.4s
+it  714/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.245  std 0.267  lr 1.0e-03  fps  10141  1004.7s
+it  715/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.104  std 0.267  lr 1.0e-03  fps  10186  1005.9s
+it  716/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps  10186  1007.1s
+it  717/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.267  lr 1.0e-03  fps   9997  1008.3s
+it  718/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.112  std 0.267  lr 1.0e-03  fps   9746  1009.6s
+it  719/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.034  std 0.267  lr 1.0e-03  fps  10183  1010.8s
+it  720/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps  10138  1012.0s
+it  721/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.006  std 0.267  lr 1.0e-03  fps  10067  1013.2s
+it  722/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps  10312  1014.4s
+it  723/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.002  std 0.267  lr 1.0e-03  fps  10390  1015.6s
+it  724/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps  10011  1016.8s
+it  725/4000  reward -150.11  ep_len  300.0  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps   6721  1018.6s
+it  726/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.345  std 0.267  lr 1.0e-03  fps   9792  1019.9s
+it  727/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.154  std 0.267  lr 1.0e-03  fps  10073  1021.1s
+it  728/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.072  std 0.267  lr 1.0e-03  fps   9972  1022.4s
+it  729/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.038  std 0.267  lr 1.0e-03  fps   9936  1023.6s
+it  730/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.025  std 0.267  lr 1.0e-03  fps  10187  1024.8s
+it  731/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.012  std 0.267  lr 1.0e-03  fps   9913  1026.0s
+it  732/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.267  lr 1.0e-03  fps  10331  1027.2s
+it  733/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.083  std 0.267  lr 1.0e-03  fps   9089  1028.6s
+it  734/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.114  std 0.267  lr 1.0e-03  fps  10003  1029.8s
+it  735/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.097  std 0.267  lr 1.0e-03  fps  10082  1031.0s
+it  736/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps  10255  1032.2s
+it  737/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.088  std 0.267  lr 1.0e-03  fps   9967  1033.5s
+it  738/4000  reward -217.93  ep_len  300.0  fell    0  err_xy 0.266  std 0.267  lr 1.0e-03  fps   7230  1035.2s
+it  739/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.312  std 0.267  lr 1.0e-03  fps  10246  1036.4s
+it  740/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.182  std 0.267  lr 1.0e-03  fps  10017  1037.6s
+it  741/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.161  std 0.267  lr 1.0e-03  fps  10125  1038.8s
+it  742/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.158  std 0.267  lr 1.0e-03  fps  10267  1040.0s
+it  743/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.157  std 0.267  lr 1.0e-03  fps  10054  1041.2s
+it  744/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.145  std 0.267  lr 1.0e-03  fps  10114  1042.5s
+it  745/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.150  std 0.267  lr 1.0e-03  fps  10193  1043.7s
+it  746/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.162  std 0.267  lr 1.0e-03  fps  10070  1044.9s
+it  747/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.146  std 0.267  lr 1.0e-03  fps   9983  1046.1s
+it  748/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.146  std 0.267  lr 1.0e-03  fps   9729  1047.4s
+it  749/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.142  std 0.267  lr 1.0e-03  fps   9662  1048.6s
+it  750/4000  reward -459.28  ep_len  300.0  fell    0  err_xy 0.172  std 0.267  lr 1.0e-03  fps   6846  1050.4s
+it  751/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.303  std 0.267  lr 1.0e-03  fps   9356  1051.8s
+it  752/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.204  std 0.267  lr 1.0e-03  fps   8809  1053.2s
+it  753/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.146  std 0.267  lr 1.0e-03  fps   8632  1054.6s
+it  754/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.122  std 0.267  lr 1.0e-03  fps   8929  1056.0s
+it  755/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.106  std 0.267  lr 1.0e-03  fps   9527  1057.3s
+it  756/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.094  std 0.267  lr 1.0e-03  fps   9275  1058.6s
+it  757/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.092  std 0.267  lr 1.0e-03  fps   9570  1059.9s
+it  758/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   9994  1061.1s
+it  759/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   9955  1062.3s
+it  760/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   9881  1063.6s
+it  761/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.089  std 0.267  lr 1.0e-03  fps  10016  1064.8s
+it  762/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.086  std 0.267  lr 1.0e-03  fps  10130  1066.0s
+it  763/4000  reward -1080.19  ep_len  300.0  fell    0  err_xy 0.161  std 0.267  lr 1.0e-03  fps   6983  1067.8s
+it  764/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.244  std 0.267  lr 1.0e-03  fps   9355  1069.1s
+it  765/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.110  std 0.267  lr 1.0e-03  fps   9653  1070.4s
+it  766/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.087  std 0.267  lr 1.0e-03  fps   9728  1071.6s
+it  767/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.082  std 0.267  lr 1.0e-03  fps   9720  1072.9s
+it  768/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.074  std 0.267  lr 1.0e-03  fps   9760  1074.2s
+it  769/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9939  1075.4s
+it  770/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.072  std 0.267  lr 1.0e-03  fps   9903  1076.6s
+it  771/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9323  1078.0s
+it  772/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.076  std 0.267  lr 1.0e-03  fps  10041  1079.2s
+it  773/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.075  std 0.267  lr 1.0e-03  fps   9362  1080.5s
+it  774/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.071  std 0.267  lr 1.0e-03  fps   9428  1081.8s
+it  775/4000  reward -1677.44  ep_len  300.0  fell    0  err_xy 0.069  std 0.267  lr 1.0e-03  fps   6530  1083.7s
+it  776/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.240  std 0.267  lr 1.0e-03  fps   9831  1084.9s
+it  777/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.148  std 0.267  lr 1.0e-03  fps   9301  1086.3s
+it  778/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.070  std 0.267  lr 1.0e-03  fps   9741  1087.5s
+it  779/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.063  std 0.267  lr 1.0e-03  fps   9246  1088.8s
+it  780/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps   9893  1090.1s
+it  781/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps   9453  1091.4s
+it  782/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   9586  1092.7s
+it  783/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   9163  1094.0s
+it  784/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   9856  1095.3s
+it  785/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   9845  1096.5s
+it  786/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   9645  1097.8s
+it  787/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.057  std 0.267  lr 1.0e-03  fps   9952  1099.0s
+it  788/4000  reward -2673.76  ep_len  300.0  fell    0  err_xy 0.138  std 0.267  lr 1.0e-03  fps   7146  1100.7s
+it  789/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.229  std 0.267  lr 1.0e-03  fps   9930  1102.0s
+it  790/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.094  std 0.267  lr 1.0e-03  fps   9678  1103.3s
+it  791/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.061  std 0.267  lr 1.0e-03  fps   9556  1104.5s
+it  792/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.057  std 0.267  lr 1.0e-03  fps   9822  1105.8s
+it  793/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   9816  1107.0s
+it  794/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   9593  1108.3s
+it  795/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   9794  1109.6s
+it  796/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps   9750  1110.8s
+it  797/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps   9878  1112.1s
+it  798/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   8935  1113.5s
+it  799/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.055  std 0.267  lr 1.0e-03  fps   9742  1114.7s
+it  800/4000  reward -3345.79  ep_len  300.0  fell    0  err_xy 0.057  std 0.267  lr 1.0e-03  fps   7062  1116.5s
+eval iteration 800:
+  prone          success   0.0%  time 7.00s  peak_τ 0.93 Nm  return -4059.95
+  supine         success   0.0%  time 7.00s  peak_τ 0.91 Nm  return -4958.28
+  score 0.000
+it  801/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.224  std 0.267  lr 1.0e-03  fps   9813  1119.3s
+it  802/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.154  std 0.267  lr 1.0e-03  fps  10013  1120.5s
+it  803/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.065  std 0.267  lr 1.0e-03  fps   9948  1121.8s
+it  804/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.051  std 0.267  lr 1.0e-03  fps   9612  1123.1s
+it  805/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.051  std 0.267  lr 1.0e-03  fps   9819  1124.3s
+it  806/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   9745  1125.6s
+it  807/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.057  std 0.267  lr 1.0e-03  fps   9886  1126.8s
+it  808/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.055  std 0.267  lr 1.0e-03  fps   9889  1128.1s
+it  809/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   9641  1129.3s
+it  810/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps   9939  1130.6s
+it  811/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.055  std 0.267  lr 1.0e-03  fps   9527  1131.9s
+it  812/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.054  std 0.267  lr 1.0e-03  fps   9728  1133.1s
+it  813/4000  reward -6740.19  ep_len  300.0  fell    0  err_xy 0.129  std 0.267  lr 1.0e-03  fps   7049  1134.9s
+it  814/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.206  std 0.267  lr 1.0e-03  fps  10076  1136.1s
+it  815/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.087  std 0.267  lr 1.0e-03  fps  10054  1137.3s
+it  816/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.063  std 0.267  lr 1.0e-03  fps   9862  1138.6s
+it  817/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps   9630  1139.8s
+it  818/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps   9913  1141.1s
+it  819/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.059  std 0.267  lr 1.0e-03  fps   9917  1142.3s
+it  820/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.061  std 0.267  lr 1.0e-03  fps   9754  1143.6s
+it  821/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps   9642  1144.9s
+it  822/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps   9752  1146.1s
+it  823/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   9667  1147.4s
+it  824/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.267  lr 1.0e-03  fps   9479  1148.7s
+it  825/4000  reward -6394.38  ep_len  300.0  fell    0  err_xy 0.058  std 0.267  lr 1.0e-03  fps   6882  1150.5s
+it  826/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.258  std 0.267  lr 1.0e-03  fps   9530  1151.8s
+it  827/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.138  std 0.267  lr 1.0e-03  fps   9548  1153.1s
+it  828/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.079  std 0.267  lr 1.0e-03  fps   9726  1154.3s
+it  829/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.067  std 0.267  lr 1.0e-03  fps   9558  1155.6s
+it  830/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.065  std 0.267  lr 1.0e-03  fps   9720  1156.9s
+it  831/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.062  std 0.267  lr 1.0e-03  fps   9443  1158.2s
+it  832/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.061  std 0.267  lr 1.0e-03  fps   9647  1159.4s
+it  833/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps   9501  1160.7s
+it  834/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps   9330  1162.1s
+it  835/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.267  lr 1.0e-03  fps   9302  1163.4s
+it  836/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.059  std 0.267  lr 1.0e-03  fps   9682  1164.7s
+it  837/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.061  std 0.267  lr 1.0e-03  fps   9563  1165.9s
+it  838/4000  reward -3976.91  ep_len  300.0  fell    0  err_xy 0.136  std 0.267  lr 1.0e-03  fps   6917  1167.7s
+it  839/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.242  std 0.267  lr 1.0e-03  fps   9696  1169.0s
+it  840/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.100  std 0.267  lr 1.0e-03  fps   9872  1170.2s
+it  841/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.083  std 0.267  lr 1.0e-03  fps   9714  1171.5s
+it  842/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.078  std 0.267  lr 1.0e-03  fps   9773  1172.8s
+it  843/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.076  std 0.267  lr 1.0e-03  fps   9719  1174.0s
+it  844/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.075  std 0.267  lr 1.0e-03  fps   9436  1175.3s
+it  845/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9653  1176.6s
+it  846/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9794  1177.9s
+it  847/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.070  std 0.267  lr 1.0e-03  fps   9580  1179.1s
+it  848/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.070  std 0.267  lr 1.0e-03  fps   9824  1180.4s
+it  849/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9708  1181.7s
+it  850/4000  reward -2627.57  ep_len  300.0  fell    0  err_xy 0.077  std 0.267  lr 1.0e-03  fps   6864  1183.4s
+it  851/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.255  std 0.267  lr 1.0e-03  fps   9987  1184.7s
+it  852/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.154  std 0.267  lr 1.0e-03  fps   9480  1186.0s
+it  853/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.097  std 0.267  lr 1.0e-03  fps   9515  1187.3s
+it  854/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.093  std 0.267  lr 1.0e-03  fps   9747  1188.5s
+it  855/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   9962  1189.8s
+it  856/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.092  std 0.267  lr 1.0e-03  fps   9835  1191.0s
+it  857/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.090  std 0.267  lr 1.0e-03  fps   9800  1192.3s
+it  858/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.086  std 0.267  lr 1.0e-03  fps   9409  1193.6s
+it  859/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.085  std 0.267  lr 1.0e-03  fps   9894  1194.8s
+it  860/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.087  std 0.267  lr 1.0e-03  fps   9896  1196.1s
+it  861/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.085  std 0.267  lr 1.0e-03  fps   9504  1197.4s
+it  862/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.085  std 0.267  lr 1.0e-03  fps   9706  1198.6s
+it  863/4000  reward -1745.90  ep_len  300.0  fell    0  err_xy 0.155  std 0.267  lr 1.0e-03  fps   7110  1200.4s
+it  864/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.238  std 0.267  lr 1.0e-03  fps  10007  1201.6s
+it  865/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.111  std 0.267  lr 1.0e-03  fps   9564  1202.9s
+it  866/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.092  std 0.267  lr 1.0e-03  fps   9644  1204.1s
+it  867/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.093  std 0.267  lr 1.0e-03  fps   9870  1205.4s
+it  868/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.094  std 0.267  lr 1.0e-03  fps   9621  1206.7s
+it  869/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.096  std 0.267  lr 1.0e-03  fps   8928  1208.0s
+it  870/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.098  std 0.267  lr 1.0e-03  fps   8524  1209.5s
+it  871/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.100  std 0.267  lr 1.0e-03  fps   9687  1210.8s
+it  872/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.100  std 0.267  lr 1.0e-03  fps   9706  1212.0s
+it  873/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.102  std 0.267  lr 1.0e-03  fps   8914  1213.4s
+it  874/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.100  std 0.267  lr 1.0e-03  fps   9248  1214.7s
+it  875/4000  reward -1093.11  ep_len  300.0  fell    0  err_xy 0.108  std 0.267  lr 1.0e-03  fps   6686  1216.6s
+it  876/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.264  std 0.267  lr 1.0e-03  fps   7606  1218.2s
+it  877/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.171  std 0.267  lr 1.0e-03  fps   7579  1219.8s
+it  878/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.116  std 0.267  lr 1.0e-03  fps   7535  1221.4s
+it  879/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.110  std 0.267  lr 1.0e-03  fps   7605  1223.1s
+it  880/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.096  std 0.267  lr 1.0e-03  fps   8263  1224.6s
+it  881/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.094  std 0.267  lr 1.0e-03  fps   9300  1225.9s
+it  882/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   9374  1227.2s
+it  883/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.091  std 0.267  lr 1.0e-03  fps   8940  1228.6s
+it  884/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.088  std 0.267  lr 1.0e-03  fps   9202  1229.9s
+it  885/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.097  std 0.267  lr 1.0e-03  fps   9007  1231.3s
+it  886/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.055  std 0.267  lr 1.0e-03  fps   9742  1232.5s
+it  887/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.023  std 0.267  lr 1.0e-03  fps   9710  1233.8s
+it  888/4000  reward -732.63  ep_len  300.0  fell    0  err_xy 0.142  std 0.267  lr 1.0e-03  fps   6456  1235.7s
+it  889/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.283  std 0.267  lr 1.0e-03  fps   9258  1237.0s
+it  890/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.129  std 0.267  lr 1.0e-03  fps   9317  1238.3s
+it  891/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.064  std 0.267  lr 1.0e-03  fps   9684  1239.6s
+it  892/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.267  lr 1.0e-03  fps   9778  1240.9s
+it  893/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.267  lr 1.0e-03  fps   9791  1242.1s
+it  894/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.006  std 0.267  lr 1.0e-03  fps   9852  1243.4s
+it  895/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.004  std 0.267  lr 1.0e-03  fps   9894  1244.6s
+it  896/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps   9253  1246.0s
+it  897/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.002  std 0.267  lr 1.0e-03  fps   9497  1247.2s
+it  898/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.002  std 0.267  lr 1.0e-03  fps   9439  1248.6s
+it  899/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.035  std 0.267  lr 1.0e-03  fps   9591  1249.8s
+it  900/4000  reward -195.97  ep_len  300.0  fell    0  err_xy 0.015  std 0.267  lr 1.0e-03  fps   6807  1251.6s
+it  901/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.290  std 0.267  lr 1.0e-03  fps   9338  1253.0s
+it  902/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.150  std 0.267  lr 1.0e-03  fps   9111  1254.3s
+it  903/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.055  std 0.267  lr 1.0e-03  fps   9455  1255.6s
+it  904/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.267  lr 1.0e-03  fps   9035  1257.0s
+it  905/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   9136  1258.3s
+it  906/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.006  std 0.267  lr 1.0e-03  fps   9475  1259.6s
+it  907/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.003  std 0.267  lr 1.0e-03  fps   9276  1260.9s
+it  908/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.057  std 0.267  lr 1.0e-03  fps   8982  1262.3s
+it  909/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.267  lr 1.0e-03  fps   9239  1263.6s
+it  910/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.002  std 0.267  lr 1.0e-03  fps   9564  1264.9s
+it  911/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.001  std 0.267  lr 1.0e-03  fps   9527  1266.2s
+it  912/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.001  std 0.267  lr 1.0e-03  fps   9254  1267.5s
+it  913/4000  reward -207.02  ep_len  300.0  fell    0  err_xy 0.113  std 0.267  lr 1.0e-03  fps   6580  1269.4s
+it  914/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.276  std 0.267  lr 1.0e-03  fps   9379  1270.7s
+it  915/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.100  std 0.267  lr 1.0e-03  fps   9234  1272.1s
+it  916/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.051  std 0.267  lr 1.0e-03  fps   9214  1273.4s
+it  917/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.073  std 0.267  lr 1.0e-03  fps   9418  1274.7s
+it  918/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.061  std 0.267  lr 1.0e-03  fps   9506  1276.0s
+Process SpawnProcess-7:
+Process SpawnProcess-4:
+Process SpawnProcess-3:
+Process SpawnProcess-5:
+Process SpawnProcess-6:
+Process SpawnProcess-2:
+Process SpawnProcess-8:
+Process SpawnProcess-1:
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+BrokenPipeError: [Errno 32] Broken pipe
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+BrokenPipeError: [Errno 32] Broken pipe
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+BrokenPipeError: [Errno 32] Broken pipe
+BrokenPipeError: [Errno 32] Broken pipe
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+BrokenPipeError: [Errno 32] Broken pipe
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+BrokenPipeError: [Errno 32] Broken pipe
+BrokenPipeError: [Errno 32] Broken pipe
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 315, in _worker
+    conn.send(_step_envs(envs, data))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 420, in _send_bytes
+    self._send(header)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+BrokenPipeError: [Errno 32] Broken pipe

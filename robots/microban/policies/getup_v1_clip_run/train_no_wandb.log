@@ -1,0 +1,240 @@
+/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py:744: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /Users/runner/work/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:821.)
+  "Policy/mean_std": float(log_std.exp().mean()),
+gesture getup: std [0.2800000011920929, 0.2800000011920929, 0.2800000011920929, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.2800000011920929, 0.2800000011920929, 0.2800000011920929, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224, 0.20000000298023224], fixed learning rate
+eval iteration 0:
+  prone          success   0.0%  time 7.00s  peak_τ 0.08 Nm  return 35.94
+  supine         success   0.0%  time 7.00s  peak_τ 0.10 Nm  return 41.62
+  score 0.000
+it    1/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.132  std 0.229  lr 1.0e-03  fps   9161     1.3s
+it    2/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.056  std 0.231  lr 1.0e-03  fps   9643     2.6s
+it    3/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.232  lr 1.0e-03  fps   9411     3.9s
+it    4/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.234  lr 1.0e-03  fps   9502     5.2s
+it    5/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.235  lr 1.0e-03  fps   9414     6.5s
+it    6/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.237  lr 1.0e-03  fps   9786     7.8s
+it    7/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.238  lr 1.0e-03  fps   9838     9.0s
+it    8/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.239  lr 1.0e-03  fps   9768    10.3s
+it    9/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.008  std 0.240  lr 1.0e-03  fps  10156    11.5s
+it   10/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.007  std 0.241  lr 1.0e-03  fps  10175    12.7s
+it   11/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.007  std 0.242  lr 1.0e-03  fps   9487    14.0s
+it   12/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.007  std 0.243  lr 1.0e-03  fps   9918    15.2s
+it   13/4000  reward   40.10  ep_len  300.0  fell    0  err_xy 0.072  std 0.244  lr 1.0e-03  fps   7568    16.9s
+it   14/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.096  std 0.245  lr 1.0e-03  fps   9948    18.1s
+it   15/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.027  std 0.247  lr 1.0e-03  fps  10253    19.3s
+it   16/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.249  lr 1.0e-03  fps  10258    20.5s
+it   17/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.011  std 0.250  lr 1.0e-03  fps   9993    21.7s
+it   18/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.252  lr 1.0e-03  fps  10167    22.9s
+it   19/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.253  lr 1.0e-03  fps  10193    24.1s
+it   20/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.254  lr 1.0e-03  fps   9795    25.4s
+it   21/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.255  lr 1.0e-03  fps   9902    26.6s
+it   22/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.257  lr 1.0e-03  fps  10187    27.9s
+it   23/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.009  std 0.258  lr 1.0e-03  fps  10143    29.1s
+it   24/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.010  std 0.260  lr 1.0e-03  fps  10055    30.3s
+it   25/4000  reward   41.03  ep_len  300.0  fell    0  err_xy 0.010  std 0.261  lr 1.0e-03  fps   8238    31.8s
+it   26/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.153  std 0.263  lr 1.0e-03  fps  10035    33.0s
+it   27/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.050  std 0.265  lr 1.0e-03  fps  10188    34.2s
+it   28/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.267  lr 1.0e-03  fps   9374    35.5s
+it   29/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.268  lr 1.0e-03  fps  10082    36.7s
+it   30/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.271  lr 1.0e-03  fps   9947    38.0s
+it   31/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.273  lr 1.0e-03  fps  10119    39.2s
+it   32/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.274  lr 1.0e-03  fps  10227    40.4s
+it   33/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.275  lr 1.0e-03  fps  10248    41.6s
+it   34/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.276  lr 1.0e-03  fps  10361    42.8s
+it   35/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.278  lr 1.0e-03  fps  10118    44.0s
+it   36/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.279  lr 1.0e-03  fps   9683    45.3s
+it   37/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.013  std 0.280  lr 1.0e-03  fps   9309    46.6s
+it   38/4000  reward   42.28  ep_len  300.0  fell    0  err_xy 0.085  std 0.282  lr 1.0e-03  fps   7491    48.2s
+it   39/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.103  std 0.284  lr 1.0e-03  fps   9672    49.5s
+it   40/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.041  std 0.287  lr 1.0e-03  fps   9081    50.9s
+it   41/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.024  std 0.290  lr 1.0e-03  fps   9130    52.2s
+it   42/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.294  lr 1.0e-03  fps   9258    53.5s
+it   43/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.296  lr 1.0e-03  fps   9417    54.8s
+it   44/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.296  lr 1.0e-03  fps   9806    56.1s
+it   45/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.297  lr 1.0e-03  fps   9680    57.4s
+it   46/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.015  std 0.297  lr 1.0e-03  fps   9883    58.6s
+it   47/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.298  lr 1.0e-03  fps  10011    59.8s
+it   48/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.298  lr 1.0e-03  fps  10247    61.0s
+it   49/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.014  std 0.299  lr 1.0e-03  fps  10123    62.2s
+it   50/4000  reward   46.53  ep_len  300.0  fell    0  err_xy 0.015  std 0.300  lr 1.0e-03  fps   8447    63.7s
+it   51/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.148  std 0.302  lr 1.0e-03  fps  10093    64.9s
+it   52/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.060  std 0.305  lr 1.0e-03  fps  10602    66.1s
+it   53/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.306  lr 1.0e-03  fps  10643    67.2s
+it   54/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.309  lr 1.0e-03  fps  10271    68.4s
+it   55/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.310  lr 1.0e-03  fps   9909    69.7s
+it   56/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.311  lr 1.0e-03  fps   9566    71.0s
+it   57/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.313  lr 1.0e-03  fps  10163    72.2s
+it   58/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.313  lr 1.0e-03  fps   9886    73.4s
+it   59/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.314  lr 1.0e-03  fps   9693    74.7s
+it   60/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.315  lr 1.0e-03  fps  10346    75.9s
+it   61/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.016  std 0.315  lr 1.0e-03  fps  10519    77.0s
+it   62/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.315  lr 1.0e-03  fps  10565    78.2s
+it   63/4000  reward   50.21  ep_len  300.0  fell    0  err_xy 0.083  std 0.317  lr 1.0e-03  fps   8107    79.7s
+it   64/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.101  std 0.318  lr 1.0e-03  fps  10315    80.9s
+it   65/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.031  std 0.321  lr 1.0e-03  fps  10345    82.1s
+it   66/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.322  lr 1.0e-03  fps  10071    83.3s
+it   67/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.324  lr 1.0e-03  fps   9242    84.7s
+it   68/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.326  lr 1.0e-03  fps   9270    86.0s
+it   69/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.326  lr 1.0e-03  fps   9518    87.3s
+it   70/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.327  lr 1.0e-03  fps  10023    88.5s
+it   71/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.328  lr 1.0e-03  fps   9168    89.8s
+it   72/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.328  lr 1.0e-03  fps  10560    91.0s
+it   73/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.329  lr 1.0e-03  fps  10533    92.2s
+it   74/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.017  std 0.328  lr 1.0e-03  fps  10552    93.3s
+it   75/4000  reward   51.75  ep_len  300.0  fell    0  err_xy 0.017  std 0.328  lr 1.0e-03  fps   8460    94.8s
+it   76/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.156  std 0.330  lr 1.0e-03  fps  10334    96.0s
+it   77/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.053  std 0.331  lr 1.0e-03  fps  10173    97.2s
+it   78/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.022  std 0.333  lr 1.0e-03  fps  10195    98.4s
+it   79/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.336  lr 1.0e-03  fps  10397    99.6s
+it   80/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.338  lr 1.0e-03  fps  10232   100.8s
+it   81/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.339  lr 1.0e-03  fps  10396   102.0s
+it   82/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.339  lr 1.0e-03  fps  10406   103.1s
+it   83/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.020  std 0.339  lr 1.0e-03  fps  10254   104.3s
+it   84/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.340  lr 1.0e-03  fps   9757   105.6s
+it   85/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.341  lr 1.0e-03  fps   9286   106.9s
+it   86/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.019  std 0.341  lr 1.0e-03  fps  10063   108.1s
+it   87/4000  reward     nan  ep_len    nan  fell    0  err_xy 0.018  std 0.341  lr 1.0e-03  fps   9717   109.4s
+it   88/4000  reward   53.02  ep_len  300.0  fell    0  err_xy 0.099  std 0.342  lr 1.0e-03  fps   7680   111.0s
+Process SpawnProcess-7:
+Process SpawnProcess-6:
+Process SpawnProcess-8:
+Process SpawnProcess-5:
+Process SpawnProcess-1:
+Process SpawnProcess-2:
+Process SpawnProcess-3:
+Process SpawnProcess-4:
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/robertonavoni/Desktop/Lavoro/Progetti-2026/Progetti Software/microduck-ap-ppo-sitl/tools/robots/train_velocity.py", line 313, in _worker
+    cmd, data = conn.recv()
+                ^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+EOFError
+  File "/Users/robertonavoni/.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+EOFError

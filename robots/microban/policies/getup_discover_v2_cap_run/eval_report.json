@@ -1,0 +1,46 @@
+{
+  "policy": "getup_discover.nnm",
+  "eval": {
+    "prone": {
+      "success": 0.0,
+      "mean_time_s": 7.0,
+      "peak_torque_nm": 0.40727453800890956,
+      "mean_return": 14.816559491080536,
+      "n_episodes": 8,
+      "survival": 0.0,
+      "mean_upright": 0.0,
+      "mean_vx": 0.0,
+      "mean_vy": 0.0,
+      "mean_wz": 0.0,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.0
+    },
+    "supine": {
+      "success": 0.0,
+      "mean_time_s": 7.0,
+      "peak_torque_nm": 0.09782646070259689,
+      "mean_return": 3.4116688837301288,
+      "n_episodes": 8,
+      "survival": 0.0,
+      "mean_upright": 0.0,
+      "mean_vx": 0.0,
+      "mean_vy": 0.0,
+      "mean_wz": 0.0,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.0
+    },
+    "stand": {
+      "survival": 0.0,
+      "mean_upright": 0.0,
+      "mean_vx": 0.0,
+      "mean_vy": 0.0,
+      "mean_wz": 0.0,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "mean_return": 9.114114187405333
+    }
+  }
+}

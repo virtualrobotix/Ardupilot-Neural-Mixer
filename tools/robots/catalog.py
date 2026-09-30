@@ -184,14 +184,73 @@ ROBOTS: dict[str, dict] = {
                                      "`NNM_CLOCK_HZ 0`). Checkpoint 1800 di 2000 (800 + 1200 dopo la correzione di "
                                      "`base_height`): errore medio sui 16 giunti su pose tenute 0,03 rad, saluto in "
                                      "streaming a 40 Hz 0,04 rad sulle braccia, nessuna caduta. Il selettore "
-                                     "stand/walk del trainer non misura la posa: il file è scelto sul tracking."},
+                                     "stand/walk del trainer non misura la posa: il file è scelto sul tracking.",
+                     "getup.nnm": "rialzarsi da prono e da supino (vedi gesture_imitation.md, Fase II). Insegue la "
+                                  "clip registrata dalla policy di scoperta `getup_discover.nnm` (rallentata 2×, "
+                                  "fusione min-jerk a q0 e tenuta; 14,2 s, un solo orologio one-shot "
+                                  "`NNM_GETUP_S 14.2`) con tracking del tronco registrato, bonus a q0 nella tenuta, "
+                                  "un maestro (`walk.nnm`: azione premiata se coincide con quella della walk nello "
+                                  "stesso stato) e penalità sui comandi fuori range dei giunti. Da getup_discover, "
+                                  "16 500 iterazioni cumulative (v9-v16), int8 QAT. Rete int8, partenza sdraiata, "
+                                  "forza zero, 8 episodi per lato: in piedi da prono 100 % (4-11 s), da supino "
+                                  "100 % (1,5-3 s); a fine clip errore medio da q0 0,27-0,29 rad, tronco 11-13°, "
+                                  "comandi entro il range dei giunti (eccesso 0,6 / 0,0 rad); `walk.nnm` e "
+                                  "`walk_md.nnm` prendono in carico e reggono 100 %. Resta un ginocchio al limite "
+                                  "di estensione (−0,79 rad) senza comando saturo.",
+                     "getup_discover.nnm": "Fase I (solo simulazione, non per il firmware): policy di scoperta del "
+                                           "rialzarsi con forza d'aiuto sul tronco a curriculum (HoST), reward per "
+                                           "stadi sulla testa, rotolamento verso prono, vincoli posturali "
+                                           "(anca-yaw ±0,35, braccia ±0,7 da in piedi). 14 200 iterazioni "
+                                           "(v5-v8): a forza zero in piedi da prono 100 % (2,3 s), da supino 94 % "
+                                           "(1,6 s), tronco entro 5-10°. Da questa sono registrate le clip "
+                                           "`robots/microban/motions/getup_*.npz`."},
         # Each clip is the int8 policy on the ArduPilot contract. "env" is the reward/config
         # version of that run; one training iteration is 5 PPO epochs.
         "videos": [{
+            "env": "getup → walk → teleop (mix)",
+            "iteration": "16500",
+            "epochs": "82500",
+            "latest": True,
+            "mp4": "microban_getup_walk_teleop.mp4",
+            "caption": "Sequenza multi-policy con la macchina a stati del firmware simulata: `getup.nnm` da prono "
+                       "(15 s), passaggio a `walk_md.nnm` con cross-fade 500 ms, avanti, spinta, caduta, get-up "
+                       "automatico (lato scelto dalla gravità), ritorno alla walk, avanti e rotazione, fermo, poi "
+                       "`pose_cmd.nnm` con il saluto. 44 s senza cadute non volute.",
+        }, {
+            "env": "getup (Fase II)",
+            "iteration": "16500",
+            "epochs": "82500",
+            "mp4": "microban_getup.mp4",
+            "caption": "`getup.nnm`, rete int8, partenza da prono poi da supino, nessuna forza d'aiuto: in piedi a "
+                       "10,7 s e 1,4 s, poi fusione verso q0 e tenuta fino alla fine della clip (14,2 s). Il tronco "
+                       "resta a 10-13° come nella stance della walk.",
+        }, {
+            "env": "getup_discover (Fase I, v8)",
+            "iteration": "14200",
+            "epochs": "71000",
+            "mp4": "microban_getup_discover_v8_it14200.mp4",
+            "caption": "Policy di scoperta a forza zero: da prono in piedi a 2,3 s (tronco 5°), da supino rotola "
+                       "su un fianco e si alza in 1,6 s (6°). Braccia e anche entro i vincoli posturali; da "
+                       "questi rollout sono registrate le clip della Fase II.",
+        }, {
+            "env": "getup_discover (v7)",
+            "iteration": "11000",
+            "epochs": "55000",
+            "mp4": "microban_getup_discover_v7_it11000.mp4",
+            "caption": "Prima del premio di rotolamento lineare in g_x: da supino si alza, da prono resta a terra "
+                       "(la ricompensa sul solo g_z non distingueva prono da supino).",
+        }, {
+            "env": "getup_discover (v4b, senza vincoli)",
+            "iteration": "8600",
+            "epochs": "43000",
+            "mp4": "microban_getup_discover_it8600.mp4",
+            "caption": "Ottimo locale della scoperta libera: stance \"a papera\" con anche ruotate di ±1 rad, piedi "
+                       "a 14 cm e braccia sature a ±2 rad come contrappeso. Stabile, ma nessuna policy può "
+                       "prenderla in carico: da qui i vincoli posturali della v5.",
+        }, {
             "env": "pose_cmd (MAVLink)",
             "iteration": "1800",
             "epochs": "9000",
-            "latest": True,
             "mp4": "microban_pose_cmd_mavlink_wave.mp4",
             "caption": "Teleoperazione: `tools/mocap/mocap_gcs.py --source clip` manda il saluto come stream "
                        "`NNM_POSE` a 40 Hz via UDP; `play_policy.py --pose-mavlink` lo riceve e la policy "
@@ -329,6 +388,13 @@ ROBOTS: dict[str, dict] = {
             "(`NNM_CLOCK_HZ`, 0 per la camminata) e otto canali di posa comandata via MAVLink (`NNM_POSE`; "
             "a zero = riposo, quindi walk e clip non ne risentono). Saluto, balletto e teleoperazione sono "
             "selezionabili con `NNM_POLICY`: vedi [gesture_imitation.md](gesture_imitation.md).",
+            "Rialzarsi: `getup.nnm` è una policy a orologio one-shot (θ = π·min(t/`NNM_GETUP_S`, 1), 14,2 s). "
+            "Il firmware la avvia da solo quando il tronco supera `NNM_GETUP_TILT` per 300 ms (slot libero), "
+            "e torna alla policy precedente dopo l'intera clip con il robot in piedi per `NNM_GETUP_HOLD`. "
+            "Due stadi come HumanUP: scoperta in simulazione (`getup_discover.nnm`, forza d'aiuto a curriculum), "
+            "poi imitazione della propria clip registrata con tracking del tronco e maestro `walk.nnm` per la "
+            "tenuta a q0. Il replay in anello aperto della clip non sta in piedi sui servo BAM: serve il tracking "
+            "in anello chiuso.",
         ],
     },
     "zeroth": {
@@ -1343,6 +1409,112 @@ ROBOTS["booster_t1"] = {
     ],
 }
 
+# flybody (Google DeepMind + HHMI Janelia, Nature 2025): anatomically detailed MuJoCo model of the fruit fly
+# Drosophila melanogaster, 103 joints, 78 actuators, in cm / g units (gravity -981, timestep 0.1 ms). No
+# hardware: a biomechanics simulation, listed as the first hexapod of the catalog. Numbers read from
+# fruitfly.xml compiled with MuJoCo (Sep 2026): 6 legs x 7 joints (coxa_abduct, coxa_twist, coxa,
+# femur_twist, femur, tibia, tarsus) + a tarsus2 tendon + a claw adhesion actuator per leg; head 3, mouth 5,
+# antennae 6, wings 6 (motors), abdomen 2. The walk_imitation task drives 59 actions (legs 48, adhesion 6,
+# head 3, abdomen 2) at 500 Hz. The contract here takes the classic hexapod triple per leg: coxa (fore/aft
+# swing), femur (levation), tibia (flexion) = 18 joints, inside NNM_MAX_JOINTS 20 / NNM_MAX_OBS 96. The
+# zero pose is the stand: dropped with ctrl 0 the model lands upright with the thorax 1.26 mm above the
+# floor and every leg joint within 0.03 rad of zero; the springref pose is the retracted flight pose.
+ROBOTS["flybody"] = {
+    "index": 13,
+    "class": "hexapod",
+    "display_name": "flybody (Drosophila)",
+    "maker": "Turaga Lab (HHMI Janelia) e Google DeepMind",
+    "status": "needs-model",
+    "joint_names": [
+        "coxa_T1_left", "femur_T1_left", "tibia_T1_left",
+        "coxa_T1_right", "femur_T1_right", "tibia_T1_right",
+        "coxa_T2_left", "femur_T2_left", "tibia_T2_left",
+        "coxa_T2_right", "femur_T2_right", "tibia_T2_right",
+        "coxa_T3_left", "femur_T3_left", "tibia_T3_left",
+        "coxa_T3_right", "femur_T3_right", "tibia_T3_right",
+    ],
+    "q0": [0.0] * 18,
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    # SI values for the metre-scaled scene (notes): a fly walks at 1-3 cm/s and turns at several rad/s
+    # (flybody terminates above 50 cm/s and 200 rad/s); to be tuned on the walking-imitation dataset
+    "command_ranges": {"vx": [-0.03, 0.03], "vy": [-0.01, 0.01], "wz": [-3.0, 3.0]},
+    "upstream": {
+        "repo": "https://github.com/TuragaLab/flybody",
+        "branch": "main",
+        "license": "Apache-2.0",
+        "sim_model": "flybody/fruitfly/assets/floor.xml",
+        "sim_model_note": "floor.xml include fruitfly.xml e un pavimento a z = −0,132; il modello è in "
+                          "centimetri e grammi (gravità −981, massa 0,98 mg, passo fisico 0,1 ms, contatti "
+                          "solref 0,2 ms) mentre nnm_env.py lavora in SI a 200 Hz (passo 5 ms). Prima del "
+                          "training la scena va riscritta in metri con il pavimento a z = 0 e l'ambiente deve "
+                          "accettare un passo fisico più fine (fetch_upstream.py non lo fa ancora)",
+        "cad": "modello anatomico da micro-CT, mesh OBJ in flybody/fruitfly/assets (nessuna parte stampabile: "
+               "non è un robot)",
+        "bom": "nessuna (modello biomeccanico); dati e checkpoint su figshare "
+               "https://doi.org/10.25378/janelia.25309105 (flybody/download_data.py)",
+        "training": "dm_control composer + Acme DMPO distribuito con Ray (flybody/train_dmpo_ray.py); task "
+                    "walk_imitation (inseguimento di traiettorie di mosche reali, 59 azioni, controllo 500 Hz, "
+                    "fisica 10 kHz), walk_on_ball, flight_imitation, vision_flight",
+        "published_policy": "checkpoint TensorFlow/Acme su figshare (chiave trained-policies di "
+                            "download_data.py): osservazione con posizione delle appendici, forze e contatti "
+                            "dei tarsi, riferimenti futuri; azioni con adesione; non convertibili",
+    },
+    # IMU sensors already on the thorax site; claw sites and bodies for foot contact / air time.
+    # home_z is for the metre-scaled scene (thorax 1.26 mm above the floor in stand; 0.126 cm upstream).
+    "sim": {"actuator": "position", "trunk_body": "thorax", "freejoint": "free",
+            "gyro_sensor": "gyro", "accel_sensor": "accelerometer", "home_z": 0.00126,
+            "feet": [{"site": f"claw_{leg}", "body": f"claw_{leg}"}
+                     for leg in ("T1_left", "T1_right", "T2_left", "T2_right", "T3_left", "T3_right")]},
+    "servos": "nessuno: 78 attuatori MuJoCo (56 di posizione sui giunti, kp 0,8 coxa/femore e 0,4 tibia/tarso "
+              "in unità del modello; 8 sui tendini del tarso; 8 di adesione; 6 motori alari)",
+    "link": "sim",
+    "policies": {},
+    "mechanics": {
+        "compare_with": "Petoi Bittle (OpenCat)",
+        "rows": [
+            ("Gradi di libertà per zampa", "7 (+ tendine tarso2 + adesione); 3 nel contratto: coxa, femore, tibia",
+             "2: spalla, ginocchio", "fruitfly.xml"),
+            ("Zampe / giunti comandati", "6 / 18 (42 disponibili)", "4 / 8", "fruitfly.xml, profilo"),
+            ("Lunghezza del corpo", "≈ 3,3 mm (estensione delle geometrie in x)", "≈ 20 cm", "mj_forward in stand"),
+            ("Altezza del torace in stand", "1,26 mm", "47 mm", "modello lasciato cadere con ctrl 0"),
+            ("Massa", "0,98 mg (torace 0,34 mg)", "273,5 g", "body_mass del modello"),
+            ("Attuatore nel MJCF", "posizione kp 0,8 / 0,4, senza limite di coppia; giunti damping 0,01, "
+             "rigidezza 0,01, armature 1e-6", "posizione kp 40, ±0,27 N·m", "fruitfly.xml"),
+            ("Passo fisico / controllo upstream", "0,1 ms / 2 ms (500 Hz)", "—", "tasks/constants.py"),
+            ("Unità", "cm, g, gravità −981", "SI", "fruitfly.xml"),
+            ("IMU", "gyro, accelerometer, velocimeter sul sito `thorax`", "MPU6050", "fruitfly.xml"),
+        ],
+    },
+    "notes": [
+        "Primo esapode del catalogo e primo modello senza hardware: serve a provare il contratto NNMixer su "
+        "una locomozione a sei zampe (tripode alternato L1+R2+L3 / R1+L2+R3) con un corpo anatomico.",
+        "Contratto a 18 giunti: coxa, femore e tibia di ogni zampa, la tripla dei robot esapodi. Gli altri "
+        "24 giunti delle zampe (abduzione e torsione della coxa, torsione del femore, tarso) restano sui loro "
+        "attuatori di posizione a comando zero, i tendini tarso2 e l'adesione delle unghie a zero, testa, "
+        "bocca, antenne, addome fermi, ali retratte (springref). I 42 giunti completi superano "
+        "`NNM_MAX_JOINTS` 20 e `NNM_MAX_OBS` 96 (osservazione 135): il firmware andrebbe allargato.",
+        "q0 = 0: è la posa in piedi del modello (torace a 1,26 mm, tutte e sei le unghie a terra). La posa "
+        "`springref` dei giunti delle zampe è quella retratta del volo.",
+        "Scala e tempi: il modello è in cm/g con passo fisico 0,1 ms e controllo a 500 Hz; una mosca fa "
+        "10-15 passi al secondo, quindi a 50 Hz la policy ha 3-5 tick per passo. L'ambiente a contratto "
+        "gira in SI a 200 Hz: prima del training vanno riscritti scena (metri, pavimento a z = 0) e passo "
+        "fisico (sotto-passi a 0,1 ms dentro il tick da 5 ms). Verifica: `nnm_env.py --robot flybody` carica "
+        "la scena upstream (giunti, attuatori, sensori IMU e unghie risolti, osservazione 63) ma con il passo "
+        "a 5 ms la fisica diverge dopo 40 ms.",
+        "L'adesione delle unghie (6 attuatori 0-1, nel task upstream fa parte dell'azione) non è nel "
+        "contratto NNMixer, che manda solo posizioni: da verificare in simulazione se il passo in piano regge "
+        "senza, altrimenti serve un canale d'azione dedicato. Le zampe nel tripode alternato (L1+R2+L3, "
+        "R1+L2+R3) non hanno ancora un termine di reward: `trot_pairs` dell'ambiente è a due coppie.",
+        "I termini di reward dell'ambiente sono in SI (altezze in metri, velocità in m/s): comandi 1-3 cm/s, "
+        "altezza del tronco 1,3 mm, sollevamento del piede sotto il millimetro; le deviazioni standard dei "
+        "kernel vanno riscalate di conseguenza in `reward` prima del primo run.",
+        "Le policy pubblicate (DMPO, Acme) vedono posizione delle appendici, forze e contatti dei tarsi e i "
+        "riferimenti futuri della traiettoria: non convertibili, la policy va addestrata sul contratto.",
+        "Licenza Apache-2.0; citare Vaxenburg et al., Nature 643, 1312-1320 (2025).",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -1362,6 +1534,8 @@ PHOTOS = {
                "https://github.com/MarcHesse/bittle-mujoco"),
     "booster_t1": ("render del modello MuJoCo T1_locomotion in posa di stand",
                    "https://github.com/BoosterRobotics/booster_gym"),
+    "flybody": ("render del modello (fly-white.png del repo): mesh anatomiche a sinistra, geometrie di "
+                "collisione a destra", "https://github.com/TuragaLab/flybody"),
 }
 
 STATUS_TEXT = {
@@ -1379,4 +1553,5 @@ LINK_TEXT = {
     "bus": "servo su bus seriale: serve il backend bus nel firmware (non ancora scritto)",
     "pwm": "servo PWM: collegabili alle uscite dell'autopilota",
     "can": "attuatori CAN-FD mjbots: serve un backend dedicato",
+    "sim": "nessun hardware: modello di sola simulazione (SITL e HIL)",
 }
