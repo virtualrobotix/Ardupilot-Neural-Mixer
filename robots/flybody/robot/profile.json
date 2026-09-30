@@ -1,0 +1,98 @@
+{
+  "robot_id": "flybody",
+  "nnm_robot": 13,
+  "class": "hexapod",
+  "display_name": "flybody (Drosophila)",
+  "n_joints": 18,
+  "obs_dim": 63,
+  "rate_hz": 50,
+  "q0": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "joint_names": [
+    "coxa_T1_left",
+    "femur_T1_left",
+    "tibia_T1_left",
+    "coxa_T1_right",
+    "femur_T1_right",
+    "tibia_T1_right",
+    "coxa_T2_left",
+    "femur_T2_left",
+    "tibia_T2_left",
+    "coxa_T2_right",
+    "femur_T2_right",
+    "tibia_T2_right",
+    "coxa_T3_left",
+    "femur_T3_left",
+    "tibia_T3_left",
+    "coxa_T3_right",
+    "femur_T3_right",
+    "tibia_T3_right"
+  ],
+  "servo_fn0": 94,
+  "servos": "nessuno: 78 attuatori MuJoCo (56 di posizione sui giunti, kp 0,8 coxa/femore e 0,4 tibia/tarso in unità del modello; 8 sui tendini del tarso; 8 di adesione; 6 motori alari)",
+  "link": "sim",
+  "status": "needs-model",
+  "upstream": {
+    "repo": "https://github.com/TuragaLab/flybody",
+    "branch": "main",
+    "license": "Apache-2.0",
+    "sim_model": "flybody/fruitfly/assets/floor.xml",
+    "sim_model_note": "floor.xml include fruitfly.xml e un pavimento a z = −0,132; il modello è in centimetri e grammi (gravità −981, massa 0,98 mg, passo fisico 0,1 ms, contatti solref 0,2 ms) mentre nnm_env.py lavora in SI a 200 Hz (passo 5 ms). Prima del training la scena va riscritta in metri con il pavimento a z = 0 e l'ambiente deve accettare un passo fisico più fine (fetch_upstream.py non lo fa ancora)",
+    "cad": "modello anatomico da micro-CT, mesh OBJ in flybody/fruitfly/assets (nessuna parte stampabile: non è un robot)",
+    "bom": "nessuna (modello biomeccanico); dati e checkpoint su figshare https://doi.org/10.25378/janelia.25309105 (flybody/download_data.py)",
+    "training": "dm_control composer + Acme DMPO distribuito con Ray (flybody/train_dmpo_ray.py); task walk_imitation (inseguimento di traiettorie di mosche reali, 59 azioni, controllo 500 Hz, fisica 10 kHz), walk_on_ball, flight_imitation, vision_flight",
+    "published_policy": "checkpoint TensorFlow/Acme su figshare (chiave trained-policies di download_data.py): osservazione con posizione delle appendici, forze e contatti dei tarsi, riferimenti futuri; azioni con adesione; non convertibili"
+  },
+  "sim": {
+    "actuator": "position",
+    "trunk_body": "thorax",
+    "freejoint": "free",
+    "gyro_sensor": "gyro",
+    "accel_sensor": "accelerometer",
+    "home_z": 0.00126,
+    "feet": [
+      {
+        "site": "claw_T1_left",
+        "body": "claw_T1_left"
+      },
+      {
+        "site": "claw_T1_right",
+        "body": "claw_T1_right"
+      },
+      {
+        "site": "claw_T2_left",
+        "body": "claw_T2_left"
+      },
+      {
+        "site": "claw_T2_right",
+        "body": "claw_T2_right"
+      },
+      {
+        "site": "claw_T3_left",
+        "body": "claw_T3_left"
+      },
+      {
+        "site": "claw_T3_right",
+        "body": "claw_T3_right"
+      }
+    ]
+  }
+}

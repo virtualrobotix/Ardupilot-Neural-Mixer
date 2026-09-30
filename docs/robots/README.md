@@ -11,7 +11,7 @@ Tutti i robot usano la stessa architettura PPO di MicroDuck (MLP 512-256-128 ELU
 | `NNM_ROBOT` | Foto | Robot | Classe | Giunti | Osservazione | Hz | Collegamento | Policy | Risultato | Stato |
 |---:|---|---|---|---:|---:|---:|---|---|---|---|
 | 0 | <a href="microduck.md"><img src="img/microduck.jpg" alt="MicroDuck" width="110"></a> | [MicroDuck](microduck.md) | bipede | 14 | 61 | 50 | bus | `walk.nnm` | — | policy int8 disponibile; la stessa rete in float32 è validata in SITL e HIL |
-| 1 | <a href="microban.md"><img src="img/microban.jpg" alt="Microban" width="110"></a> | [Microban](microban.md) | bipede | 18 | 73 | 50 | bus | `dance.nnm`, `dance_arms.nnm`, `pose_cmd.nnm`, `walk.nnm`, `walk_md.nnm`, `wave_right.nnm` | [`pose_cmd (MAVLink)` it. 1800](microban.md#risultati-per-versione-di-ambiente-ed-epoca) | policy int8 addestrata in simulazione; video dei checkpoint nella scheda |
+| 1 | <a href="microban.md"><img src="img/microban.jpg" alt="Microban" width="110"></a> | [Microban](microban.md) | bipede | 18 | 73 | 50 | bus | `dance.nnm`, `dance_arms.nnm`, `getup.nnm`, `getup_discover.nnm`, `pose_cmd.nnm`, `walk.nnm`, `walk_md.nnm`, `wave_right.nnm` | [`getup → walk → teleop (mix)` it. 16500](microban.md#risultati-per-versione-di-ambiente-ed-epoca) | policy int8 addestrata in simulazione; video dei checkpoint nella scheda |
 | 2 | <a href="zeroth.md"><img src="img/zeroth.jpg" alt="Zeroth-01" width="110"></a> | [Zeroth-01](zeroth.md) | bipede | 20 | 69 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
 | 3 | <a href="bimo.md"><img src="img/bimo.jpg" alt="Bimo" width="110"></a> | [Bimo](bimo.md) | bipede | 8 | 33 | 25 | bus | — | — | manca una scena MuJoCo pronta per il training |
 | 4 | <a href="legolas.md"><img src="img/legolas.jpg" alt="Legolas" width="110"></a> | [Legolas](legolas.md) | bipede | 10 | 39 | 50 | pwm | — | — | manca una scena MuJoCo pronta per il training |
@@ -23,10 +23,11 @@ Tutti i robot usano la stessa architettura PPO di MicroDuck (MLP 512-256-128 ELU
 | 10 | <a href="freenove.md"><img src="img/freenove.jpg" alt="Freenove Robot Dog" width="110"></a> | [Freenove Robot Dog](freenove.md) | quadrupede | 12 | 47 | 50 | pwm | `walk_v19.nnm`, `walk_v20.nnm`, `walk_v20_it3400.nnm`, `walk_v21.nnm`, `walk_v22.nnm`, `walk_v23.nnm`, `walk_v7.nnm` | [`walk_v23 (orologio + feet_swing, fluidità)` it. 10000](freenove.md#risultati-per-versione-di-ambiente-ed-epoca) | policy int8 addestrata in simulazione; video dei checkpoint nella scheda |
 | 11 | <a href="bittle.md"><img src="img/bittle.jpg" alt="Petoi Bittle (OpenCat)" width="110"></a> | [Petoi Bittle (OpenCat)](bittle.md) | quadrupede | 8 | 33 | 50 | pwm | — | [`modello (passo OpenCat open-loop)` it. —](bittle.md#risultati-per-versione-di-ambiente-ed-epoca) | scena MuJoCo nativa pronta; policy da addestrare |
 | 12 | <a href="booster_t1.md"><img src="img/booster_t1.jpg" alt="Booster T1" width="110"></a> | [Booster T1](booster_t1.md) | bipede | 12 | 47 | 50 | bus | `walk_booster.nnm` | [`walk_booster (policy upstream)` it. —](booster_t1.md#risultati-per-versione-di-ambiente-ed-epoca) | policy upstream convertita in .nnm e verificata nell'ambiente a contratto; da rifinire o riaddestrare sul contratto |
+| 13 | <a href="flybody.md"><img src="img/flybody.jpg" alt="flybody (Drosophila)" width="110"></a> | [flybody (Drosophila)](flybody.md) | esapode | 18 | 63 | 50 | sim | — | — | manca una scena MuJoCo pronta per il training |
 
 Le foto vengono dai repository originali; fonte sotto l'immagine in ogni scheda.
 
-Collegamento: `bus` = servo su bus seriale: serve il backend bus nel firmware (non ancora scritto); `pwm` = servo PWM: collegabili alle uscite dell'autopilota; `can` = attuatori CAN-FD mjbots: serve un backend dedicato.
+Collegamento: `bus` = servo su bus seriale: serve il backend bus nel firmware (non ancora scritto); `pwm` = servo PWM: collegabili alle uscite dell'autopilota; `can` = attuatori CAN-FD mjbots: serve un backend dedicato; `sim` = nessun hardware: modello di sola simulazione (SITL e HIL).
 
 ## Struttura dei file (repo e microSD)
 

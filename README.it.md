@@ -10,7 +10,7 @@ attraverso le uscite servo di ArduPilot. Nessun computer di bordo aggiuntivo: la
 firmware e i pesi si caricano dalla microSD.
 
 Il robot di riferimento è [MicroDuck](docs/robots/microduck.md) (Pollen Robotics, 14 servo). Lo stesso
-firmware e la stessa pipeline di training coprono un [catalogo di bipedi e quadrupedi](docs/robots/README.md).
+firmware e la stessa pipeline di training coprono un [catalogo di bipedi, quadrupedi e un esapode](docs/robots/README.md).
 
 ```
  GCS / MAVProxy ──MAVLink──▶ ArduRover ─ RC, modi ─▶ AP_NNMixer (PPO, 50 Hz) ─▶ SRV_Channels ─▶ giunti

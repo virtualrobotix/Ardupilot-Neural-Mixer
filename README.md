@@ -10,7 +10,7 @@ joints through ArduPilot's servo outputs. No companion computer: the policy is p
 its weights are loaded from the microSD card.
 
 The reference robot is [MicroDuck](docs/robots/microduck.md) (Pollen Robotics, 14 servos). The same firmware
-and the same training pipeline cover a [catalog of bipeds and quadrupeds](docs/robots/README.md).
+and the same training pipeline cover a [catalog of bipeds, quadrupeds and a hexapod](docs/robots/README.md).
 
 ```
  GCS / MAVProxy ──MAVLink──▶ ArduRover ─ RC, modes ─▶ AP_NNMixer (PPO, 50 Hz) ─▶ SRV_Channels ─▶ joints

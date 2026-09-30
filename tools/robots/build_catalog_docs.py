@@ -11,7 +11,7 @@ from urllib.parse import quote
 
 from catalog import PHOTOS
 
-CLASS_IT = {"biped": "bipede", "quadruped": "quadrupede"}
+CLASS_IT = {"biped": "bipede", "quadruped": "quadrupede", "hexapod": "esapode"}
 
 
 def _obs_dim(r: dict) -> int:
@@ -244,7 +244,13 @@ def robot_page(rid: str, r: dict, status_text: dict, link_text: dict, repo_root:
         f"# microSD: /APM/nnm/{rid}/robot.bin  e  /APM/nnm/{rid}/policies/*.nnm",
         "```",
     ]
-    if n <= 16:
+    if r["link"] == "sim":
+        lines += [
+            "",
+            f"Modello di sola simulazione: `robot.bin` e le policy si caricano in SITL e HIL "
+            f"(`NNM_ROBOT {r['index']}`, {n} giunti ≤ `NNM_MAX_JOINTS` 20); non c'è un robot da collegare.",
+        ]
+    elif n <= 16:
         lines += [
             "",
             f"Parametri: `NNM_ENABLE 1`, `NNM_ROBOT {r['index']}` (riavvio), `NNM_POLICY 0`, "
