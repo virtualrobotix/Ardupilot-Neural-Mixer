@@ -1515,6 +1515,141 @@ ROBOTS["flybody"] = {
     ],
 }
 
+# UBTECH Yanshee: the robot behind https://yandev.ubtrobot.com . Educational humanoid, 17 servos,
+# Raspberry Pi on board. The old GitHub SDK (UBTEDU/Yanshee-Raspi-SDK) is deprecated and points at
+# that portal; the portal itself is a web app, not a versioned model. The only public kinematic
+# file is a community URDF (ChancesSon/Yanshee_ROS): 17 revolute joints, no inertias, joint axes
+# named arm1-3 / leg1-5. Specs below are from the FCC filing of model ERHA101 (manual, Sep 2019),
+# not from the portal HTML (the site is a SPA and serves almost no text).
+ROBOTS["yanshee"] = {
+    "index": 14,
+    "class": "biped",
+    "display_name": "Yanshee",
+    "maker": "UBTECH",
+    "status": "needs-model",
+    "joint_names": [
+        "head",
+        "left_arm1", "left_arm2", "left_arm3",
+        "right_arm1", "right_arm2", "right_arm3",
+        "left_leg1", "left_leg2", "left_leg3", "left_leg4", "left_leg5",
+        "right_leg1", "right_leg2", "right_leg3", "right_leg4", "right_leg5",
+    ],
+    "q0": [0.0] * 17,
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    # Yanshee 1.1 walks at about 10 cm/s (reseller spec of the 1.1 revision; the FCC manual
+    # does not state a speed). Lateral command unused until a model exists.
+    "command_ranges": {"vx": [-0.05, 0.10], "vy": [0.0, 0.0], "wz": [-0.8, 0.8]},
+    "upstream": {
+        "repo": "https://yandev.ubtrobot.com/#/en/",
+        "license": "portale yandev (SDK non versionato su git); URDF di comunità "
+                   "https://github.com/ChancesSon/Yanshee_ROS senza licenza dichiarata",
+        "sim_model_note": "nessun MJCF. L'unico URDF pubblico (yanshee/urdf/yanshee.urdf, 17 giunti "
+                          "revolute) non ha masse né inerzie: va ricostruito prima del training e "
+                          "salvato come robots/yanshee/robot/scene.xml",
+        "cad": "non pubblicato. Il portale yandev è l'interfaccia ufficiale; UBTEDU/Yanshee-SDK e "
+               "Yanshee-Raspi-SDK su GitHub sono marcati deprecati e rimandano al portale",
+        "bom": "manuale FCC del modello ERHA101: https://fcc.report/FCC-ID/2AHJX-YANSHEE-1/4483024.pdf "
+               "(370×192×106 mm, ≈2,05 kg, 17 servo, 9,6 V, Raspberry Pi 3B, IMU 9 assi, camera 8 MP)",
+        "training": "nessuna pipeline RL pubblicata: l'SDK esegue azioni e file di motion già pronti",
+        "published_policy": "nessuna",
+    },
+    "sim": {"actuator": "position", "home_z": 0.20},
+    "servos": "17 servo seriali UBTECH ad alta velocità con frizione (9,6 V); il computer di bordo è "
+              "una Raspberry Pi 3B, non un autopilota",
+    "link": "bus",
+    "policies": {},
+    "notes": [
+        "Il portale [yandev.ubtrobot.com](https://yandev.ubtrobot.com/#/en/) documenta Yanshee, l'umanoide "
+        "didattico da 37 cm, non Walker. L'HTML del sito non contiene il modello: è un'applicazione web, "
+        "e l'SDK C/Python che c'era su GitHub è deprecato.",
+        "17 giunti stanno sotto `NNM_MAX_JOINTS` 20 (osservazione 60). I nomi sono quelli dell'URDF di "
+        "comunità (`head`, `left_arm1..3`, `left_leg1..5` e destri): non è scritto quale asse sia "
+        "yaw, roll o pitch, e q0 = 0 è la posa CAD, non una stance misurata. `home_z` 0,20 m è una "
+        "stima del bacino (il robot è alto 370 mm), da rileggere sul MJCF.",
+        "Sul robot vero il controllo passa dall'SDK sulla Raspberry Pi (azioni, motion, servo), non "
+        "dalle uscite PWM di un Pixhawk. Un backend bus nel firmware avrebbe senso solo dopo il "
+        "protocollo dei servo, che nel repo deprecato non è più mantenuto.",
+        "Per la locomozione di un umanoide a grandezza umana UBTECH pubblica altro, ed è quello che "
+        "conviene usare: TienKung-Lab (voce `tienkung`, BSD-3, MuJoCo e policy di cammino) e, a parte, "
+        "il modello Walker S2 (URDF/USD sotto OpenAtom Open Hardware License nel repo "
+        "UBTECH-Robot/WalkerS2-Model, modello ufficiale della Global Humanoid Robot Challenge 2026). "
+        "L'SDK di movimento del Walker S2 non è pubblico (UBTECH lo manda su richiesta) e la baseline "
+        "della challenge è imitazione delle braccia in Isaac Sim (ACT e Pi0, LeRobot), non una policy "
+        "di cammino.",
+    ],
+}
+
+# UBTECH Walker TienKung (天工), the full-size humanoid. TienKung-Lab (BSD-3-Clause, a fork of Legged
+# Lab / Isaac Lab) trains walk and run with AMP plus a periodic gait reward, exports a policy, replays
+# it in the MuJoCo model legged_lab/assets/tienkung2_lite/mjcf/tienkung.xml and has been run on the
+# real robot (Deploy_Tienkung). Joint names and q0 are the MJCF / ArticulationCfg init pose (pelvis
+# spawned at 1.0 m): hip roll, pitch, yaw, knee, ankle pitch, ankle roll, per leg, then 4 arm joints.
+# The Open-X-Humanoid URDF (OpenAtom Open Hardware License 1.0) names the elbows elbow_l_joint instead
+# of elbow_pitch_l_joint and orders hip yaw before hip pitch: the contract follows the MJCF.
+ROBOTS["tienkung"] = {
+    "index": 15,
+    "class": "biped",
+    "display_name": "TienKung (Walker)",
+    "maker": "UBTECH e Beijing Humanoid Robot Innovation Center",
+    "status": "needs-model",
+    "joint_names": [
+        "hip_roll_l", "hip_pitch_l", "hip_yaw_l", "knee_pitch_l", "ankle_pitch_l", "ankle_roll_l",
+        "hip_roll_r", "hip_pitch_r", "hip_yaw_r", "knee_pitch_r", "ankle_pitch_r", "ankle_roll_r",
+        "shoulder_pitch_l", "shoulder_roll_l", "shoulder_yaw_l", "elbow_pitch_l",
+        "shoulder_pitch_r", "shoulder_roll_r", "shoulder_yaw_r", "elbow_pitch_r",
+    ],
+    "q0": [0.0, -0.5, 0.0, 1.0, -0.5, 0.0,
+           0.0, -0.5, 0.0, 1.0, -0.5, 0.0,
+           0.0, 0.1, 0.0, -0.3,
+           0.0, -0.1, 0.0, -0.3],
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    "command_ranges": {"vx": [-0.8, 1.5], "vy": [-0.4, 0.4], "wz": [-1.0, 1.0]},
+    "upstream": {
+        "repo": "https://github.com/UBTECH-Robot/TienKung-Lab",
+        "branch": "main",
+        "license": "BSD-3-Clause (codice TienKung-Lab); URDF e mesh STL sotto OpenAtom Open Hardware "
+                   "License 1.0 in https://github.com/Open-X-Humanoid/TienKung_URDF",
+        "sim_model": "legged_lab/assets/tienkung2_lite/mjcf/tienkung.xml",
+        "sim_model_note": "il MJCF è nel repo (gravità SI, integrator implicitfast, mesh STL in "
+                          "../meshes): va copiato con le mesh in robots/tienkung/robot/scene.xml. "
+                          "fetch_upstream.py non conosce ancora questo repo",
+        "cad": "URDF, STL e STEP (lite, pro, con mani) in Open-X-Humanoid/TienKung_URDF",
+        "bom": "robot commerciale Walker TienKung; attuatori nel lab: anche/ginocchio fino a 300 N·m, "
+               "caviglie 60/30 N·m (ImplicitActuatorCfg di tienkung.py)",
+        "training": "Isaac Sim 4.5 + Isaac Lab 2.1, rsl_rl AMP-PPO, 4096 env, fisica 5 ms e "
+                    "decimazione 4 (policy a 50 Hz), storia di osservazione dell'attore lunga 10; "
+                    "task walk e run, retarget SMPL-X (AMASS, OMOMO) via GMR; sim2sim "
+                    "legged_lab/scripts/sim2sim.py, sim2real in UBTECH-Robot/Deploy_Tienkung",
+        "published_policy": "Exported_policy/walk.pt (e run.pt): rete con 10 frame di storia, non il "
+                            "contratto NNMixer a frame singolo; non convertibile",
+    },
+    "sim": {"actuator": "pd", "home_z": 1.0, "integrator": "implicitfast"},
+    "servos": "attuatori proprietari del Walker TienKung (nel lab: kp 700 / kd 10 su anche e ginocchia, "
+              "kp 500 / kd 5 sullo yaw d'anca; caviglie kp più bassi, coppia 60 e 30 N·m)",
+    "link": "bus",
+    "policies": {},
+    "notes": [
+        "È il pezzo UBTECH realmente usabile per un umanoide a grandezza umana: codice BSD-3, MJCF, "
+        "policy di cammino e di corsa già verificate in MuJoCo e sul robot (Deploy_Tienkung). "
+        "20 giunti = `NNM_MAX_JOINTS`, osservazione 69: SITL e HIL ci stanno, le 16 funzioni servo "
+        "Scripting no (serve il backend bus, come per Booster T1).",
+        "q0 è la posa iniziale di `TIENKUNG2LITE_CFG` (bacino spawnato a 1,0 m: anca pitch −0,5, "
+        "ginocchio 1,0, caviglia pitch −0,5, gomiti −0,3, roll spalle ±0,1). L'URDF pubblicato "
+        "nomina i gomiti `elbow_l_joint` e ordina hip yaw prima di hip pitch: il contratto segue il MJCF.",
+        "La policy pubblicata concatena 10 osservazioni (`actor_obs_history_length` 10) e il premio è "
+        "AMP più un premio di gait periodico: non si converte in .nnm. Si può riaddestrare sul "
+        "contratto, oppure portare il termine di gait e il sim2sim come riferimento, come già fatto "
+        "con Booster Gym.",
+        "Walker S2, l'altro umanoide UBTECH, ha URDF e USD aperti (UBTECH-Robot/WalkerS2-Model, "
+        "OpenAtom Open Hardware License, modello ufficiale della challenge 2026, 42 gradi di libertà "
+        "di cui 12 nelle gambe) ma l'SDK di movimento non è nel repo: UBTECH lo distribuisce su "
+        "richiesta. La baseline della challenge (UBTECH-Robot/GlobalHumanoidRobotChallenge_2026_Baseline, "
+        "LeRobot, Isaac Sim) allena ACT e Pi0 sulle braccia (14 giunti + gripper, 4 camere), non il cammino.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -1536,6 +1671,9 @@ PHOTOS = {
                    "https://github.com/BoosterRobotics/booster_gym"),
     "flybody": ("render del modello (fly-white.png del repo): mesh anatomiche a sinistra, geometrie di "
                 "collisione a destra", "https://github.com/TuragaLab/flybody"),
+    "yanshee": ("foto prodotto", "https://eduk8.gr/en/product/yanshee/"),
+    "tienkung": ("il robot al traguardo di una maratona (docs/Tienkung_marathon.jpg del repo)",
+                 "https://github.com/UBTECH-Robot/TienKung-Lab"),
 }
 
 STATUS_TEXT = {

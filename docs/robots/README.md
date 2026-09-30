@@ -24,6 +24,8 @@ Tutti i robot usano la stessa architettura PPO di MicroDuck (MLP 512-256-128 ELU
 | 11 | <a href="bittle.md"><img src="img/bittle.jpg" alt="Petoi Bittle (OpenCat)" width="110"></a> | [Petoi Bittle (OpenCat)](bittle.md) | quadrupede | 8 | 33 | 50 | pwm | — | [`modello (passo OpenCat open-loop)` it. —](bittle.md#risultati-per-versione-di-ambiente-ed-epoca) | scena MuJoCo nativa pronta; policy da addestrare |
 | 12 | <a href="booster_t1.md"><img src="img/booster_t1.jpg" alt="Booster T1" width="110"></a> | [Booster T1](booster_t1.md) | bipede | 12 | 47 | 50 | bus | `walk_booster.nnm` | [`walk_booster (policy upstream)` it. —](booster_t1.md#risultati-per-versione-di-ambiente-ed-epoca) | policy upstream convertita in .nnm e verificata nell'ambiente a contratto; da rifinire o riaddestrare sul contratto |
 | 13 | <a href="flybody.md"><img src="img/flybody.jpg" alt="flybody (Drosophila)" width="110"></a> | [flybody (Drosophila)](flybody.md) | esapode | 18 | 63 | 50 | sim | — | — | manca una scena MuJoCo pronta per il training |
+| 14 | <a href="yanshee.md"><img src="img/yanshee.jpg" alt="Yanshee" width="110"></a> | [Yanshee](yanshee.md) | bipede | 17 | 60 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
+| 15 | <a href="tienkung.md"><img src="img/tienkung.jpg" alt="TienKung (Walker)" width="110"></a> | [TienKung (Walker)](tienkung.md) | bipede | 20 | 69 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
 
 Le foto vengono dai repository originali; fonte sotto l'immagine in ogni scheda.
 
