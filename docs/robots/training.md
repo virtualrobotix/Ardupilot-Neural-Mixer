@@ -100,3 +100,52 @@ Per una policy completa si usa mjlab + rsl_rl su GPU, con gli stessi pezzi:
    `train_velocity.py --eval` sul file prodotto.
 
 L'export ONNX di rsl_rl resta utile per confronto, ma il file per la scheda è il `.nnm`.
+
+## Imitazione di una clip (MimicKit)
+
+Il riferimento per integrare l'imitazione di un movimento nel training da rinforzo è
+[MimicKit](https://arxiv.org/abs/2510.13794) (Peng, arXiv:2510.13794, 2025; codice
+[xbpeng/MimicKit](https://github.com/xbpeng/MimicKit)). È un framework unico: lo stesso ciclo di RL,
+cambiando algoritmo, rete, compito e simulatore. Questo repo non esegue quel codice. Ne riprende la
+divisione dei ruoli e il metodo di tracking, dentro il contratto ArduPilot e l'export int8.
+
+MimicKit separa quattro pezzi (sezione 3 del paper). Qui stanno già nel trainer di velocità:
+
+| In MimicKit | Qui |
+|---|---|
+| Agent: algoritmo e buffer di esperienza. Il default è PPO; AWR è l'alternativa off-policy | [`train_velocity.py`](../../tools/robots/train_velocity.py), PPO on-policy come sopra |
+| Model: actor, critic, e per AMP/ADD un discriminatore | MLP `obs → 512 → 256 → 128 → n_joints`. Sulla scheda va solo l'actor, in int8 |
+| Environment: osservazione, reward, flag di fine episodio, azione trasformata in comando | [`nnm_env.py`](../../tools/robots/nnm_env.py) |
+| Engine: fisica e modo di controllo (`pos`, `vel`, `torque`, `pd_1d`) su Isaac Gym, Isaac Lab o Newton | MuJoCo. Il comando è `q_target = q0 + a`, tagliato e quantizzato a passi di 3 mrad come il PWM |
+
+Tra i metodi della sezione 4, quello usato per i gesti e per il rialzarsi è **DeepMimic** (sezione 4.1;
+Peng, Abbeel, Levine, van de Panne, ACM TOG 2018): un controllore che insegue una clip di riferimento.
+Il paper lo indica come punto di partenza quando serve replicare quel movimento con precisione, prima
+di passare a metodi che imitano lo stile di un dataset intero (AMP, ASE) o che imparano da soli il
+premio di tracking (ADD). La limitazione dichiarata è la stessa che accettiamo: la policy resta legata
+alla clip e non la adatta a un compito nuovo. Per camminare su un twist si continua a usare il PPO di
+velocità; DeepMimic è una seconda policy.
+
+| Pezzo del tracking | Nel training NNMixer |
+|---|---|
+| `motion_file`: una clip, oppure un dataset di clip (sezione 6) | Pose chiave interpolate con un coseno, oppure `robots/<id>/motions/*.npz` (giunti, fase, quaternione e quota del tronco). Il formato MimicKit è un `.pkl` con posizione e rotazione del root (mappa esponenziale) e rotazioni dei giunti nell'ordine dell'albero cinematico |
+| Fase della clip nell'osservazione | Seno e coseno dopo il twist. Clip periodica: `NNM_CLOCK_HZ`. Clip una volta sola (get-up): θ = π·min(t / `NNM_GETUP_S`, 1), che finisce a (0, −1) |
+| Premio di posa sulla clip a quella fase | `gesture_track`, exp sull'errore quadratico medio dei giunti. Accanto, `gesture` lineare in \|q̂ − q\|, perché l'esponenziale è già ~0 a 1 rad e da solo non muove un braccio abbassato |
+| Tracking del tronco | Sui gesti corti in piedi le gambe fuori clip restano su q0, con i premi di equilibrio della walk. Sul get-up la clip aggiunge gravità del tronco e quota del bacino (`getup_root_g`, `getup_root_z`) |
+| Partenza lungo la clip | Sul get-up di Fase II l'episodio parte a una fase casuale (metà delle partenze nell'ultimo tratto, la fusione verso q0) |
+| Fine episodio per errore di posa | Nel paper è la configurazione di default dei metodi di tracking e rende i run più stabili (sezione 7.1; la Tabella 1 è misurata senza, per confrontarli con AMP). Qui l'episodio dei gesti non si chiude sull'errore di posa; si chiude su una caduta o sul tempo |
+
+Sullo stesso benchmark, il get-up prono dell'umanoide (clip «Getup Facedown», 3,03 s) ha un errore di
+posizione di 0,023 m con DeepMimic (Tabella 1). Sul Microban da 350 g il replay in anello aperto della
+clip non sta in piedi sui servo cedevoli, quindi la Fase II di tracking parte da una clip che una policy
+di scoperta ha già reso fattibile: forza d'aiuto a curriculum, registrazione, rallentamento e fusione
+verso q0, poi imitazione in anello chiuso con `walk.nnm` come maestro della tenuta finale.
+
+Due usi, stesso contratto. Ricetta, reward e risultati: [gesture_imitation.md](gesture_imitation.md).
+
+- **Gesti periodici** (saluto, balletto): clip corta, robot in piedi, orologio che gira.
+- **Abilità una volta sola** (rialzarsi): `getup.nnm`, orologio one-shot.
+
+Il firmware riempie i due canali dell'orologio e, per il get-up, commuta da solo sulla policy one-shot
+(`NNM_GETUP_*`) e torna alla policy precedente a fine clip. La rete sulla scheda resta un forward int8
+per tick.

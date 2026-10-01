@@ -176,7 +176,7 @@ ArduPilot changes and results — is in the [reference document](docs/reference/
 |---|---|
 | [docs/reference/microduck-ppo.md](docs/reference/microduck-ppo.md) ([IT](docs/reference/microduck-ppo.it.md)) | MicroDuck integration in depth, results, glossary |
 | [docs/robots/README.md](docs/robots/README.md) | robot configurations and per-robot pages |
-| [docs/robots/training.md](docs/robots/training.md) | ArduPilot-compatible MuJoCo training, int8 |
+| [docs/robots/training.md](docs/robots/training.md) | ArduPilot-compatible MuJoCo training, int8, clip imitation (MimicKit) |
 | [docs/robots/gesture_imitation.md](docs/robots/gesture_imitation.md) | gestures by clip imitation (wave, dance): gesture clock, reward, why the hand-written reward failed (Italian) |
 | [docs/architecture-integration.pptx](docs/architecture-integration.pptx), [IT pdf](docs/architettura-integrazione.pdf) | architecture slides |
 | [docs/progetto-nnmixer-ardupilot-ppo.md](docs/progetto-nnmixer-ardupilot-ppo.md) | project document (Italian) |

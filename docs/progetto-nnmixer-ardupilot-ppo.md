@@ -267,3 +267,11 @@ Numeri misurati sul Mac (SITL, `-O2`):
 Il tracking di velocità (~0.15 m/s a comando 0.4) è lo stesso del rollout Python sulla stessa pianta CPU: è il gap sim2sim MuJoCo-CPU vs mjlab, non l'integrazione ArduPilot.
 
 Prossimi passi: backend Dynamixel per il joint feedback su robot; benchmark del forward su STM32H7; twist da MAVLink GUIDED oltre agli stick.
+
+---
+
+## 12. Imitazione di clip (MimicKit) nel training
+
+Il riferimento è [MimicKit](https://arxiv.org/abs/2510.13794) (Peng, arXiv:2510.13794, 2025): un framework di RL per l'imitazione di movimento, con Agent, Model, Environment ed Engine separati. Gesti, balletto e rialzarsi usano lo stesso trainer e la stessa MLP int8 della camminata, con il metodo di tracking DeepMimic (sezione 4.1 di quel paper): una clip di riferimento, la fase (seno e coseno) nell'osservazione, un premio denso sulla posa di quella fase. Il firmware riempie quei due canali (`NNM_CLOCK_HZ`, oppure l'orologio one-shot `NNM_GETUP_S` per il get-up).
+
+Come i quattro pezzi del paper stanno nel training, e cosa di DeepMimic è già nel contratto ArduPilot, è in [docs/robots/training.md](robots/training.md#imitazione-di-una-clip-mimickit). La ricetta dei gesti di Microban è in [docs/robots/gesture_imitation.md](robots/gesture_imitation.md).

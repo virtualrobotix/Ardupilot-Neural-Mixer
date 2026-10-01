@@ -14,9 +14,11 @@ riferimento della clip in quell'istante.
 ## L'idea in breve
 
 La camminata insegue una **velocità**: la rete riceve `(vx, vy, wz)` e viene premiata se il tronco si muove
-a quella velocità. Un gesto insegue invece una **posa che cambia nel tempo**. Il metodo è quello che i
-robot umanoidi come l'Unitree G1 usano per ballo e arti marziali (DeepMimic, PBHC), ridotto ai giunti di un
-robot da 350 g:
+a quella velocità. Un gesto insegue invece una **posa che cambia nel tempo**. Il metodo è il tracking
+DeepMimic dentro [MimicKit](https://arxiv.org/abs/2510.13794) (Peng, 2025): lo stesso PPO del training di
+velocità, con una fase nell'osservazione e un premio sulla posa della clip. Come entra nel processo di
+addestramento è in [training.md](training.md#imitazione-di-una-clip-mimickit).
+Qui il dettaglio operativo sui giunti di Microban:
 
 1. **Una clip di riferimento**: poche pose chiave dei giunti su un periodo, interpolate con un coseno. Per il
    saluto sono tre numeri per la spalla e il gomito; per il balletto sedici giunti su diciotto.

@@ -178,7 +178,7 @@ protocollo SITL, modifiche ad ArduPilot e risultati — è nel [documento di rif
 |---|---|
 | [docs/reference/microduck-ppo.it.md](docs/reference/microduck-ppo.it.md) ([EN](docs/reference/microduck-ppo.md)) | integrazione MicroDuck in dettaglio, risultati, glossario |
 | [docs/robots/README.md](docs/robots/README.md) | configurazioni dei robot e pagine per robot |
-| [docs/robots/training.md](docs/robots/training.md) | training MuJoCo compatibile con ArduPilot, int8 |
+| [docs/robots/training.md](docs/robots/training.md) | training MuJoCo compatibile con ArduPilot, int8, imitazione di clip (MimicKit) |
 | [docs/robots/gesture_imitation.md](docs/robots/gesture_imitation.md) | gesti per imitazione di clip (saluto, balletto): orologio dei gesti, reward, perché il reward scritto a mano falliva |
 | [docs/architettura-integrazione.pdf](docs/architettura-integrazione.pdf) / [.pptx](docs/architettura-integrazione.pptx) | slide dell'architettura |
 | [docs/progetto-nnmixer-ardupilot-ppo.md](docs/progetto-nnmixer-ardupilot-ppo.md) | documento di progetto |
