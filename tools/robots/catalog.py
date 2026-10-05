@@ -1650,6 +1650,93 @@ ROBOTS["tienkung"] = {
     ],
 }
 
+# ToddlerBot (Stanford, Haochen Shi / C. Karen Liu; arXiv 2502.00893 and "Locomotion Beyond Feet",
+# arXiv 2601.03607): 0.56 m, 3.45 kg (sum of the MJCF masses) open-source humanoid, 30 Dynamixel motors
+# on a TTL bus, Jetson Orin NX on board, MIT code, CC BY-NC-SA design. Two variants: toddlerbot_2xc
+# (recommended) and toddlerbot_2xm (2XM430 hips and arms). The upstream walk policy (walk.gin) commands
+# the 12 leg motors only (ActionConfig.action_parts = ['leg']) at 50 Hz (timestep 5 ms x n_frames 4),
+# arms, waist and neck held on the home pose: the contract takes the same 12, in motor_ordering order.
+# q0 = home_pos of toddlerbot/descriptions/default.yml (also the "home" keyframe of the MJCF, torso at
+# 0.310 m); hip yaw is a geared drive (hip_yaw_drive -> hip_yaw_driven) so the motor angle is what the
+# policy sees, as upstream. Right-leg signs are mirrored (right knee range 0..+2.09, left -2.09..0).
+ROBOTS["toddlerbot"] = {
+    "index": 16,
+    "class": "biped",
+    "display_name": "ToddlerBot",
+    "maker": "Stanford (Haochen Shi, C. Karen Liu)",
+    "status": "needs-training-mjcf",
+    "joint_names": [
+        "left_hip_pitch", "left_hip_roll", "left_hip_yaw_drive", "left_knee", "left_ankle_roll", "left_ankle_pitch",
+        "right_hip_pitch", "right_hip_roll", "right_hip_yaw_drive", "right_knee", "right_ankle_roll", "right_ankle_pitch",
+    ],
+    "q0": [-0.091312, 0.0, 0.0, -0.380812, 0.0, -0.2895,
+           0.091312, 0.0, 0.0, 0.380812, 0.0, 0.2895],
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    # walk.gin command_range at command_obs_indices 5, 6, 7: vx +-0.1 m/s, vy +-0.05, wz +-1.0 rad/s
+    "command_ranges": {"vx": [-0.1, 0.1], "vy": [-0.05, 0.05], "wz": [-1.0, 1.0]},
+    "upstream": {
+        "repo": "https://github.com/hshi74/toddlerbot",
+        "branch": "main",
+        "license": "MIT (codice e documentazione); CC BY-NC-SA (CAD Onshape, STL)",
+        "sim_model": "toddlerbot/descriptions/toddlerbot_2xc/scene_pos.xml",
+        "sim_model_note": "MJCF nativo generato da Onshape (onshape_to_robot.py): 30 attuatori, 51 qpos, "
+                          "chiusure cinematiche al collo e tendine di accoppiamento al busto. La variante "
+                          "scene_pos.xml ha attuatori di posizione (kp 14 su anche, ginocchia e caviglie "
+                          "pitch, 10 sugli XC330/XC430, coppia ±10) e nessun sensore IMU: l'ambiente li "
+                          "aggiunge sul body torso. Caricato in nnm_env.py sta in piedi a policy zero "
+                          "(150 passi, inclinazione 2°). I 18 attuatori fuori contratto (braccia, busto, "
+                          "collo) restano a ctrl 0, non sulla posa home: prima del training conviene "
+                          "fondere braccia e busto nel tronco, come il T1_locomotion di Booster, oppure "
+                          "aggiungere all'ambiente il mantenimento della posa",
+        "cad": "Onshape (link nel README upstream), STL per la stampa su MakerWorld e in "
+               "toddlerbot/descriptions/toddlerbot_2xc/assets (con URDF toddlerbot_2xc.urdf); manuale di "
+               "assemblaggio docs/_static/assembly_manual.pdf",
+        "bom": "foglio Google pubblicato dalla documentazione (sezione Bill of Materials); PCB TTL power board "
+               "(docs/_static/TTLPowerBoardV8.zip, ordinabile su JLCPCB); Jetson Orin NX, camere stereo, "
+               "batteria LiPo; costo dichiarato dal paper nell'ordine dei 6000 USD",
+        "training": "MJX/Brax PPO (toddlerbot/locomotion/train_mjx.py, config gin per skill: walk, crawl, "
+                    "cartwheel, get_up, climb, ...), fisica 5 ms e decimazione 4 (50 Hz), riferimento ZMP "
+                    "con segnale di fase, osservazione 84 (fase 2, comandi 3, 30 posizioni e 30 velocità "
+                    "motore, 12 azioni precedenti, gyro 3, quaternione 4) impilata su 15 frame, critico "
+                    "privilegiato 151; action_scale 0,25; randomizzazione di kp/kd, massa, posa iniziale; "
+                    "deployment zero-shot sul robot (TensorRT su Jetson)",
+        "published_policy": "checkpoint delle skill su Google Drive (link nel README, sezione Locomotion "
+                            "Beyond Feet): osservazione 84 × 15 frame con quaternione e tutti i 30 motori, "
+                            "non il contratto NNMixer a frame singolo; non convertibile",
+    },
+    "sim": {"actuator": "position", "trunk_body": "torso", "freejoint": "torso_freejoint", "home_z": 0.31,
+            "feet": [{"site": "left_foot_center", "body": "left_ankle_roll_link"},
+                     {"site": "right_foot_center", "body": "right_ankle_roll_link"}]},
+    "servos": "30× Dynamixel su bus TTL: anche 2XC430 (pitch+roll), hip yaw e collo/busto XC330, ginocchia e "
+              "caviglie pitch XM430-W210, caviglie roll e spalle pitch XC430, braccia 2XL430 (variante 2xm: "
+              "2XM430-W350 su anche e braccia); kp upstream 2100 gambe, 1500 XC330/XC430, 600 braccia",
+    "link": "bus",
+    "policies": {},
+    "notes": [
+        "La policy di cammino upstream comanda solo le 12 gambe (`action_parts = ['leg']`) e tiene braccia, "
+        "busto e collo sulla posa home con i loro PD: il contratto fa lo stesso, 12 giunti e osservazione 45, "
+        "dentro le 16 funzioni servo Scripting (SITL e HIL funzionano; il robot vero richiede il backend bus).",
+        "L'ordine dei giunti è il `motor_ordering` upstream del gruppo `leg` (hip pitch, hip roll, hip yaw, "
+        "knee, ankle roll, ankle pitch; sinistra poi destra). `left_hip_yaw_drive` è il motore che muove "
+        "l'anca attraverso un ingranaggio: come upstream la policy vede l'angolo motore, non quello dell'anca.",
+        "q0 è la posa home di `default.yml` (anca pitch ∓0,091, ginocchio ∓0,381, caviglia pitch ∓0,290 rad, "
+        "il destro col segno opposto perché i giunti sono specchiati) con il torso a 0,310 m, la stessa del "
+        "keyframe `home` del MJCF.",
+        "Il MJCF `scene_pos.xml` si carica in `nnm_env.py` così com'è (i 12 giunti del contratto hanno il loro "
+        "attuatore, osservazione 45) e il robot sta in piedi a policy zero: 150 passi, inclinazione finale "
+        "2,1°. I 18 attuatori restanti ricevono però ctrl 0 invece della posa home (spalle yaw ±90°, gomiti "
+        "piegati): le braccia pendono lungo il corpo. Prima del training va fuso il resto del corpo nel "
+        "tronco oppure aggiunto all'ambiente il mantenimento della posa per gli attuatori fuori contratto.",
+        "L'osservazione upstream (84 × 15 frame, quaternione, 30 motori) non si converte in .nnm: si "
+        "riaddestra sul contratto. Il riferimento ZMP con fase e la randomizzazione dei guadagni sono i due "
+        "pezzi da riportare, come già fatto con il gait clock di Booster.",
+        "Il repo copre anche skill oltre il cammino (crawl, cartwheel, get_up, salita di scatole e scale, "
+        "`run_multiple_policy.py` con classificatore di skill su profondità stereo): fuori dal contratto "
+        "velocità, ma riusabili come riferimenti di getup, già presenti per Microban.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -1674,6 +1761,8 @@ PHOTOS = {
     "yanshee": ("foto prodotto", "https://eduk8.gr/en/product/yanshee/"),
     "tienkung": ("il robot al traguardo di una maratona (docs/Tienkung_marathon.jpg del repo)",
                  "https://github.com/UBTECH-Robot/TienKung-Lab"),
+    "toddlerbot": ("i tre esemplari Toddy, Arya e Blake del banner del repo (docs/_static/banner.png)",
+                   "https://github.com/hshi74/toddlerbot"),
 }
 
 STATUS_TEXT = {

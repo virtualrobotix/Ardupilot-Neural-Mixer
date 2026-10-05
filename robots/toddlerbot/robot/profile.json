@@ -1,0 +1,68 @@
+{
+  "robot_id": "toddlerbot",
+  "nnm_robot": 16,
+  "class": "biped",
+  "display_name": "ToddlerBot",
+  "n_joints": 12,
+  "obs_dim": 45,
+  "rate_hz": 50,
+  "q0": [
+    -0.091312,
+    0.0,
+    0.0,
+    -0.380812,
+    0.0,
+    -0.2895,
+    0.091312,
+    0.0,
+    0.0,
+    0.380812,
+    0.0,
+    0.2895
+  ],
+  "joint_names": [
+    "left_hip_pitch",
+    "left_hip_roll",
+    "left_hip_yaw_drive",
+    "left_knee",
+    "left_ankle_roll",
+    "left_ankle_pitch",
+    "right_hip_pitch",
+    "right_hip_roll",
+    "right_hip_yaw_drive",
+    "right_knee",
+    "right_ankle_roll",
+    "right_ankle_pitch"
+  ],
+  "servo_fn0": 94,
+  "servos": "30× Dynamixel su bus TTL: anche 2XC430 (pitch+roll), hip yaw e collo/busto XC330, ginocchia e caviglie pitch XM430-W210, caviglie roll e spalle pitch XC430, braccia 2XL430 (variante 2xm: 2XM430-W350 su anche e braccia); kp upstream 2100 gambe, 1500 XC330/XC430, 600 braccia",
+  "link": "bus",
+  "status": "needs-training-mjcf",
+  "upstream": {
+    "repo": "https://github.com/hshi74/toddlerbot",
+    "branch": "main",
+    "license": "MIT (codice e documentazione); CC BY-NC-SA (CAD Onshape, STL)",
+    "sim_model": "toddlerbot/descriptions/toddlerbot_2xc/scene_pos.xml",
+    "sim_model_note": "MJCF nativo generato da Onshape (onshape_to_robot.py): 30 attuatori, 51 qpos, chiusure cinematiche al collo e tendine di accoppiamento al busto. La variante scene_pos.xml ha attuatori di posizione (kp 14 su anche, ginocchia e caviglie pitch, 10 sugli XC330/XC430, coppia ±10) e nessun sensore IMU: l'ambiente li aggiunge sul body torso. Caricato in nnm_env.py sta in piedi a policy zero (150 passi, inclinazione 2°). I 18 attuatori fuori contratto (braccia, busto, collo) restano a ctrl 0, non sulla posa home: prima del training conviene fondere braccia e busto nel tronco, come il T1_locomotion di Booster, oppure aggiungere all'ambiente il mantenimento della posa",
+    "cad": "Onshape (link nel README upstream), STL per la stampa su MakerWorld e in toddlerbot/descriptions/toddlerbot_2xc/assets (con URDF toddlerbot_2xc.urdf); manuale di assemblaggio docs/_static/assembly_manual.pdf",
+    "bom": "foglio Google pubblicato dalla documentazione (sezione Bill of Materials); PCB TTL power board (docs/_static/TTLPowerBoardV8.zip, ordinabile su JLCPCB); Jetson Orin NX, camere stereo, batteria LiPo; costo dichiarato dal paper nell'ordine dei 6000 USD",
+    "training": "MJX/Brax PPO (toddlerbot/locomotion/train_mjx.py, config gin per skill: walk, crawl, cartwheel, get_up, climb, ...), fisica 5 ms e decimazione 4 (50 Hz), riferimento ZMP con segnale di fase, osservazione 84 (fase 2, comandi 3, 30 posizioni e 30 velocità motore, 12 azioni precedenti, gyro 3, quaternione 4) impilata su 15 frame, critico privilegiato 151; action_scale 0,25; randomizzazione di kp/kd, massa, posa iniziale; deployment zero-shot sul robot (TensorRT su Jetson)",
+    "published_policy": "checkpoint delle skill su Google Drive (link nel README, sezione Locomotion Beyond Feet): osservazione 84 × 15 frame con quaternione e tutti i 30 motori, non il contratto NNMixer a frame singolo; non convertibile"
+  },
+  "sim": {
+    "actuator": "position",
+    "trunk_body": "torso",
+    "freejoint": "torso_freejoint",
+    "home_z": 0.31,
+    "feet": [
+      {
+        "site": "left_foot_center",
+        "body": "left_ankle_roll_link"
+      },
+      {
+        "site": "right_foot_center",
+        "body": "right_ankle_roll_link"
+      }
+    ]
+  }
+}
