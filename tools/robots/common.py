@@ -15,7 +15,8 @@ ROBOTS_DIR = REPO_ROOT / "robots"
 
 # Position = NNM_ROBOT value and NNM_RobotId in AP_NNMixer_Policy.h: append only, never reorder.
 ALL_ROBOTS = ("microduck", "microban", "zeroth", "bimo", "legolas", "upkie", "rex", "yertle", "albert",
-              "openduck", "freenove", "bittle", "booster_t1", "flybody", "yanshee", "tienkung", "toddlerbot")
+              "openduck", "freenove", "bittle", "booster_t1", "flybody", "yanshee", "tienkung", "toddlerbot",
+              "jumper")
 ROBOT_INDEX = {name: i for i, name in enumerate(ALL_ROBOTS)}
 
 

@@ -27,6 +27,7 @@ Tutti i robot usano la stessa architettura PPO di MicroDuck (MLP 512-256-128 ELU
 | 14 | <a href="yanshee.md"><img src="img/yanshee.jpg" alt="Yanshee" width="110"></a> | [Yanshee](yanshee.md) | bipede | 17 | 60 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
 | 15 | <a href="tienkung.md"><img src="img/tienkung.jpg" alt="TienKung (Walker)" width="110"></a> | [TienKung (Walker)](tienkung.md) | bipede | 20 | 69 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
 | 16 | <a href="toddlerbot.md"><img src="img/toddlerbot.jpg" alt="ToddlerBot" width="110"></a> | [ToddlerBot](toddlerbot.md) | bipede | 12 | 45 | 50 | bus | — | — | scena MuJoCo nativa pronta; policy da addestrare |
+| 17 | <a href="jumper.md"><img src="img/jumper.jpg" alt="Jumper" width="110"></a> | [Jumper](jumper.md) | esapode | 20 | 69 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
 
 Le foto vengono dai repository originali; fonte sotto l'immagine in ogni scheda.
 

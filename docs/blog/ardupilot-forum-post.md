@@ -17,7 +17,7 @@ The project is open and on GitHub: **[virtualrobotix/Ardupilot-Neural-Mixer](htt
 
 - `AP_NNMixer` is a new ArduRover library. It runs a PPO locomotion policy (an MLP, 512-256-128, ELU) at **50 Hz**, in plain C, with **int8 weights loaded from the microSD card**. No companion computer, no ROS.
 - **MicroDuck** (the Pollen Robotics open-source biped, 14 servos) stands, walks and turns in SITL with a MuJoCo plant, and the same network runs on a real **Pixhawk 6C Mini**: **4.9 ms per forward pass, 33 % CPU**, 15 s standing hardware-in-the-loop.
-- One firmware, **17 robots** in the catalog (bipeds, quadrupeds, a wheeled biped, a hexapod). Topology comes from `robot.bin` at boot; policies are `.nnm` files, two int8 slots in RAM, hot switch with a 0.5 s blend.
+- One firmware, **18 robots** in the catalog (bipeds, quadrupeds, a wheeled biped, a hexapod). Topology comes from `robot.bin` at boot; policies are `.nnm` files, two int8 slots in RAM, hot switch with a 0.5 s blend.
 - The MuJoCo training environment **is** the ArduPilot deployment contract (same gravity filter, same action clipping, same PWM quantization) and the actor trains on the int8 grid from the first iteration, so the exported file is the trained network. Firmware vs training parity: 2.7e-7.
 - Beyond walking: **gestures by clip imitation** (wave, dance), **pose teleoperation over MAVLink** from a webcam, and a humanoid that **gets up on its own after a fall**, with a small state machine in the firmware.
 - Missing for a real robot: a **servo-bus backend** (Dynamixel / Feetech) for joint feedback. That is the next step and the part where I need the most input.
@@ -112,7 +112,7 @@ Topology is a parameter (`NNM_ROBOT`), policies are files. All robots share the 
 | 1 | Microban | humanoid | 18 | `walk`, `walk_md`, `wave_right`, `dance_arms`, `dance`, `pose_cmd`, `getup` |
 | 10 | Freenove Robot Dog | quadruped, PWM | 12 | `walk_v7` … `walk_v23` |
 | 12 | Booster T1 | humanoid | 12 | upstream policy converted to `.nnm`, verified on the contract |
-| 2–9, 11, 13–16 | Zeroth-01, Bimo, Legolas, Upkie, Rex/SpotMicro, Yertle, AlbertPro, Open Duck Mini v2, Petoi Bittle, flybody, Yanshee, TienKung, ToddlerBot | bipeds, quadrupeds, wheeled, hexapod | 6–20 | profiles and PPO configs; scenes ready for some, policies to train |
+| 2–9, 11, 13–17 | Zeroth-01, Bimo, Legolas, Upkie, Rex/SpotMicro, Yertle, AlbertPro, Open Duck Mini v2, Petoi Bittle, flybody, Yanshee, TienKung, ToddlerBot, Jumper | bipeds, quadrupeds, wheeled, hexapod | 6–20 | profiles and PPO configs; scenes ready for some, policies to train |
 
 Each page links the original repository, model file, CAD and BOM, lists joints, standing pose, servo outputs and every checkpoint video against the environment version and iteration.
 

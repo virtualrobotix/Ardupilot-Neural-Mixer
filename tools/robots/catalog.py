@@ -1737,6 +1737,102 @@ ROBOTS["toddlerbot"] = {
     ],
 }
 
+# Jumper (KingKong Robotics, kingkong.tech/jumper): a 22-DoF crab, 400 x 400 x 200 mm, 1.8 kg
+# (the MJCF sums to 2.54 kg). Two 5-DoF front arms (shoulder yaw/pitch, elbow, wrist, gripper) and
+# four 3-DoF walking legs (hip yaw, hip flexion, knee). The velocity tasks (tripod, flat, ripple,
+# tetrapod) command the 20 joints in GAIT_JOINTS — HOME order minus the two grippers, which stay at
+# 0 held by PD — at 50 Hz (mjlab timestep 0.005 x decimation 4). q0 is HOME in
+# tasks/jumper/common/constants.py, the stance whose six pads are coplanar at STAND_Z 0.10647 m.
+# Names and signs are the MJCF (LF/RF/LM/RM/LR/RR, J0..J3); left and right are mirrored, so the same
+# index does not share a sign. The published actor is 411 -> 20 (five frames of history plus a phase
+# clock), not the single-frame contract.
+ROBOTS["jumper"] = {
+    "index": 17,
+    "class": "hexapod",
+    "display_name": "Jumper",
+    "maker": "KingKong Robotics",
+    "status": "needs-model",
+    "joint_names": [
+        "LF_J0_joint", "LF_J1_joint", "LF_J2_joint", "LF_J3_joint",
+        "RF_J0_joint", "RF_J1_joint", "RF_J2_joint", "RF_J3_joint",
+        "LM_J0_joint", "LM_J1_joint", "LM_J2_joint",
+        "RM_J0_joint", "RM_J1_joint", "RM_J2_joint",
+        "LR_J0_joint", "LR_J1_joint", "LR_J2_joint",
+        "RR_J0_joint", "RR_J1_joint", "RR_J2_joint",
+    ],
+    "q0": [-0.5507, -1.0658, -0.4408, -1.374,
+           0.5524, -1.066, 0.4414, 1.4173,
+           0.0012, 0.5356, -1.8271,
+           -0.0012, -0.5376, 1.8313,
+           0.6313, 0.5534, -1.8648,
+           -0.6326, -0.5548, 1.8678],
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    # tripod command ceilings (velocity_env.py writes the same magnitude on x and y)
+    "command_ranges": {"vx": [-0.5, 0.5], "vy": [-0.5, 0.5], "wz": [-0.75, 0.75]},
+    "upstream": {
+        "repo": "https://github.com/KingKongRobotics/jumper",
+        "branch": "main",
+        "license": "Apache-2.0 (codice e modello); i materiali di terze parti restano sotto la propria licenza",
+        "sim_model": "assets/jumper/jumper.xml",
+        "sim_model_note": "il MJCF ha i 22 giunti, il giunto libero floating_base, l'IMU sul site imu "
+                          "(gyro imu_ang_vel, accelerometro imu_lin_acc) e i sei siti dei piedi, ma "
+                          "nessun blocco actuator: mjlab aggiunge il ServoCurveActuator a runtime "
+                          "(kp 10, kd 0,5, coppia sulla curva misurata, plateau 1,7464 N·m). "
+                          "nnm_env.py rifiuta un giunto senza attuatore, quindi la scena non è ancora "
+                          "eseguibile: vanno aggiunti 22 motori (i due gripper tenuti a 0) prima del training",
+        "cad": "URDF in assets/jumper/urdf/jumper/urdf/jumper.urdf e STL visivi in "
+               "assets/jumper/urdf/jumper/meshes/visual; skin e scene in "
+               "https://github.com/KingKongRobotics/jumper-design",
+        "bom": "docs/HARDWARE.md: 400×400×200 mm, 1,8 kg (prototipo 2,8 kg; il MJCF somma 2,54 kg), "
+               "22 servo tattili, Rockchip RK3576 (8 core, NPU 6 TOPS, 4 GB), IMU 6 assi, dToF 54×42, "
+               "camera 5 MP, batteria Li-ion 25,2 V 3000 mAh. Scheda prodotto: https://kingkong.tech/jumper",
+        "training": "mjlab + rsl_rl + MuJoCo Warp (scripts/train.py). Cammino: jumper.tripod, flat, "
+                    "ripple, tetrapod, fisica 5 ms e decimazione 4 (50 Hz), azione = 0,25 × uscita "
+                    "sommata a HOME, orologio di fase a 3,125 Hz spento da fermo, osservazione 411 "
+                    "(storia di 5 frame) → 20. Altri task: jump a 200 Hz, posture, dance, gesti, "
+                    "five_foot (le chele afferrano). Export ONNX e bundle .app per RKNN sul robot",
+        "published_policy": "nessun checkpoint nel repo: l'attore esportato è 411 → 20 con storia e "
+                            "orologio di fase, non il contratto NNMixer a frame singolo; non convertibile",
+    },
+    "sim": {"actuator": "pd", "trunk_body": "base_link", "freejoint": "floating_base",
+            "gyro_sensor": "imu_ang_vel", "accel_sensor": "imu_lin_acc",
+            "home_z": 0.10647, "integrator": "implicitfast",
+            "pd": {"kp": 10.0, "kd": 0.5},
+            "feet": [{"site": "LF", "body": "LF_palm_pad_b_link"},
+                     {"site": "RF", "body": "RF_palm_pad_b_link"},
+                     {"site": "LM", "body": "LM_foot_tip_link"},
+                     {"site": "RM", "body": "RM_foot_tip_link"},
+                     {"site": "LR", "body": "LR_foot_tip_link"},
+                     {"site": "RR", "body": "RR_foot_tip_link"}]},
+    "action_scale": 0.25,
+    "servos": "22 servo tattili proprietari, tutti lo stesso 50:1 (plateau 1,7464 N·m fino a 293 rpm, "
+              "zero coppia oltre 611 rpm; in sim kp 10 / kd 0,5). Il computer di bordo è un RK3576, "
+              "non un autopilota; il protocollo del bus non è nel repo",
+    "link": "bus",
+    "policies": {},
+    "notes": [
+        "Il contratto prende i 20 giunti di `GAIT_JOINTS`, l'ordine di `HOME` senza le due chele "
+        "(`LF_J4_joint`, `RF_J4_joint`), che upstream tiene a 0 con il PD e che la policy di cammino "
+        "non comanda. 20 = `NNM_MAX_JOINTS`, osservazione 69: SITL e HIL ci stanno, le 16 funzioni "
+        "servo Scripting no.",
+        "I nomi sono quelli del MJCF. Davanti, J0..J3 sono yaw di spalla, pitch di spalla, gomito e "
+        "polso; sulle quattro zampe, J0..J2 sono yaw d'anca, flessione e ginocchio. Destra e sinistra "
+        "sono specchiate: lo stesso indice non ha lo stesso segno (ginocchio sinistro negativo, destro "
+        "positivo).",
+        "q0 è la posa `HOME` di `constants.py`, quella in cui i sei appoggi sono complanari e il corpo "
+        "sta a 0,10647 m. Non è la posa a giunti zero.",
+        "Il file `jumper.xml` non ha attuatori: la coppia la mette mjlab a ogni step, sulla curva "
+        "misurata del servo. Prima di `nnm_env.py` vanno aggiunti i motori (e i due gripper tenuti a "
+        "home, come per le braccia di ToddlerBot).",
+        "L'osservazione upstream da 411 valori, con 5 frame di storia e l'orologio di fase, non si "
+        "converte in .nnm. Si riaddestra sul contratto. L'orologio spento da fermo è lo stesso schema "
+        "già usato per Booster (`NNM_CLOCK_HZ`).",
+        "Il repo allena anche salto, danza, gesti e presa con le chele. Sono fuori dal contratto di "
+        "velocità; il salto in particolare gira a 200 Hz su un moto di riferimento, non a 50 Hz.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -1763,6 +1859,8 @@ PHOTOS = {
                  "https://github.com/UBTECH-Robot/TienKung-Lab"),
     "toddlerbot": ("i tre esemplari Toddy, Arya e Blake del banner del repo (docs/_static/banner.png)",
                    "https://github.com/hshi74/toddlerbot"),
+    "jumper": ("render di prodotto, ritaglio di docs/media/jumper-hero.png",
+               "https://github.com/KingKongRobotics/jumper"),
 }
 
 STATUS_TEXT = {
