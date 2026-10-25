@@ -5,6 +5,7 @@ Solo policy per `phonebot` (13 giunti, osservazione 50). Sulla microSD: `/APM/nn
 - `walk.nnm` — 
 - `walk_air.nnm` — 
 - `walk_fwd.nnm` — 
+- `walk_fwd_it0800.nnm` — 
 - `walk_natural.nnm` — 
 - `walk_slow.nnm` — 
 - `walk_steps.nnm` — 

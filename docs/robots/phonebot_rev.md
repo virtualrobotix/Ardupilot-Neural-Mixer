@@ -64,7 +64,10 @@ File: [`robots/phonebot_rev/robot/ppo.yaml`](../../robots/phonebot_rev/robot/ppo
 
 Cartella: [`robots/phonebot_rev/policies/`](../../robots/phonebot_rev/policies/) → sulla microSD `/APM/nnm/phonebot_rev/policies/`. `NNM_POLICY` = indice del file in ordine alfabetico.
 
-Nessuna policy ancora: va addestrata (sezione successiva).
+| File | Dimensione | Descrizione |
+|---|---:|---|
+| `walk.nnm` | 194 KB |  |
+| `walk_it1800.nnm` | 194 KB |  |
 
 ## Training compatibile con ArduPilot
 

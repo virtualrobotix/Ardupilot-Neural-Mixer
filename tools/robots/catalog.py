@@ -2002,6 +2002,86 @@ ROBOTS["phonebot_rev"]["notes"] = [
     "usare una policy addestrata su questa scena sul robot prima di pesare i link e calibrare q0.",
 ]
 
+# Sprite0825 (Beijing Dynamics, open_sprite): ~0.95 m, 31 actuated joints, V-shaped pelvis.
+# AGPL-3.0 description repo. The public MJCF (sprite0825_external_pd.xml) is a floating base with
+# nu = 0: torque is written through qfrc_applied. Joint names and order are that file; q0 = 0 is the
+# URDF assembly pose (pelvis spawned at 0.65 m). 31 joints and a 102-wide observation are past
+# NNM_MAX_JOINTS 20 and NNM_MAX_OBS 96.
+ROBOTS["open_sprite"] = {
+    "index": 20,
+    "class": "biped",
+    "display_name": "Sprite (Sprite0825)",
+    "maker": "Beijing Dynamics",
+    "status": "needs-model",
+    "joint_names": [
+        "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint", "left_knee_joint",
+        "left_ankle_pitch_joint", "left_ankle_roll_joint",
+        "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint", "right_knee_joint",
+        "right_ankle_pitch_joint", "right_ankle_roll_joint",
+        "waist_roll_joint", "waist_yaw_joint",
+        "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint",
+        "left_elbow_joint", "left_wrist_yaw_joint", "left_wrist_pitch_joint", "left_wrist_roll_joint",
+        "right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint",
+        "right_elbow_joint", "right_wrist_yaw_joint", "right_wrist_pitch_joint", "right_wrist_roll_joint",
+        "head_pitch_joint", "head_roll_joint", "head_yaw_joint",
+    ],
+    "q0": [0.0] * 31,
+    "extra_cmd_dim": 0,
+    "rate_hz": 50,
+    # Stage 2 does not publish command limits. A 0.95 m humanoid; not a measured envelope.
+    "command_ranges": {"vx": [-0.4, 0.8], "vy": [-0.3, 0.3], "wz": [-1.0, 1.0]},
+    "upstream": {
+        "repo": "https://github.com/BeijingDynamics/open_sprite",
+        "branch": "main",
+        "license": "GNU AGPL-3.0 (modello e codice del repo). I dataset di motion di terze parti non sono "
+                   "ridistribuiti",
+        "sim_model": "models/sprite0825/mujoco/sprite0825_external_pd.xml",
+        "sim_model_note": "MJCF a base flottante (pelvis_joint) senza attuatori (nu = 0) e senza sensori "
+                          "IMU: la coppia si scrive in qfrc_applied. La scena del viewer "
+                          "(models/sprite0825/mujoco/scene.xml) ha i giunti bloccati. L'URDF di training "
+                          "è models/sprite0825/sprite0825_sanitized_v4.urdf. Nessuno dei tre è ancora "
+                          "copiato in robots/open_sprite/robot/",
+        "cad": "mesh STL del 25 agosto 2026 in models/sprite0825/meshes/ (AGPL-3.0)",
+        "bom": "umanoide circa 0,95 m, bacino a V; l'URDF somma 14,65 kg. La caviglia fisica accoppia due "
+               "motori DM-J4310P con aste e un giunto cardanico: nel MJCF pitch e roll sono coordinate "
+               "generalizzate. Gli altri motori e il bus non sono nel repo",
+        "training": "Isaac Lab sull'URDF sanitized v4, policy a 50 Hz. V38 è un traguardo di whole-body "
+                    "tracking (osservazione 164, azione = 31 residui di posizione, senza velocità di base "
+                    "né posizione globale dell'ancora) qualificato in Isaac Lab e MuJoCo; lo stage 2 è "
+                    "locomozione a comando (stare fermo, partire e fermarsi, avanti, rotazione). "
+                    "docs/locomotion_milestones.md",
+        "published_policy": "nessun peso nel repo. Il pacchetto V38 (SHA-256 "
+                            "b8d1851de07e654c367d0ad9d6d2e32a9fbc9588e4f26aabd7e5e4d0d71166ff) non è "
+                            "pubblicato: la traiettoria viene da AMASS/BMLrub e i termini di "
+                            "redistribuzione sono in revisione. Anche pubblicato, 164 → 31 non è il "
+                            "contratto NNMixer",
+    },
+    "sim": {"actuator": "pd", "trunk_body": "pelvis_link", "freejoint": "pelvis_joint",
+            "home_z": 0.65},
+    "servos": "31 giunti attuati. La caviglia è un differenziale di due Damiao DM-J4310P; il mapping "
+              "motore/giunto non è nel MJCF. Protocollo del bus non pubblicato",
+    "link": "bus",
+    "policies": {},
+    "notes": [
+        "31 giunti e osservazione 102 superano `NNM_MAX_JOINTS` 20 e `NNM_MAX_OBS` 96: il firmware "
+        "rifiuta questo `robot.bin` finché i due limiti non crescono. L'indice `NNM_ROBOT` 20 è già "
+        "assegnato, così l'ordine del catalogo non si sposta.",
+        "I nomi e l'ordine sono quelli di `sprite0825_external_pd.xml`: gamba sinistra e destra (pitch, "
+        "roll, yaw d'anca, ginocchio, pitch e roll di caviglia), vita roll e yaw, braccio sinistro e "
+        "destro (pitch, roll, yaw di spalla, gomito, yaw, pitch e roll di polso), testa pitch, roll e yaw. "
+        "Gli assi destri di pitch sono specchiati (ginocchio destro `0 -1 0`).",
+        "q0 = 0 è la posa di assemblaggio dell'URDF, quella della scena bloccata del viewer. `home_z` "
+        "0,65 m è la z del bacino scritta nel MJCF, non un'altezza misurata dopo il contatto dei piedi. "
+        "Il README indica un robot di circa 0,95 m.",
+        "Prima del training la scena va copiata con le mesh e completata: 31 attuatori (oggi la coppia "
+        "è esterna), un'IMU sul bacino, e il mapping del differenziale di caviglia se si comanda il "
+        "motore vero. I guadagni PD non sono nel repo.",
+        "La policy V38 non è nel repo e non è un attore a frame singolo: va riaddestrata sul contratto, "
+        "dopo aver allargato il firmware oppure dopo aver scelto un sottoinsieme di giunti (per esempio "
+        "le 12 gambe, come ToddlerBot) e tenuto il resto a q0.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {

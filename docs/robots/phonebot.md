@@ -73,6 +73,7 @@ Cartella: [`robots/phonebot/policies/`](../../robots/phonebot/policies/) → sul
 | `walk.nnm` | 194 KB |  |
 | `walk_air.nnm` | 194 KB |  |
 | `walk_fwd.nnm` | 194 KB |  |
+| `walk_fwd_it0800.nnm` | 194 KB |  |
 | `walk_natural.nnm` | 194 KB |  |
 | `walk_slow.nnm` | 194 KB |  |
 | `walk_steps.nnm` | 194 KB |  |

@@ -250,6 +250,13 @@ def robot_page(rid: str, r: dict, status_text: dict, link_text: dict, repo_root:
             f"Modello di sola simulazione: `robot.bin` e le policy si caricano in SITL e HIL "
             f"(`NNM_ROBOT {r['index']}`, {n} giunti ≤ `NNM_MAX_JOINTS` 20); non c'è un robot da collegare.",
         ]
+    elif n > 20:
+        lines += [
+            "",
+            f"Con {n} giunti il profilo supera `NNM_MAX_JOINTS` 20"
+            + (" e l'osservazione supera `NNM_MAX_OBS` 96" if _obs_dim(r) > 96 else "")
+            + ": il firmware rifiuta `robot.bin` finché quei limiti non crescono.",
+        ]
     elif n <= 16:
         lines += [
             "",
