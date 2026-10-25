@@ -84,7 +84,11 @@ REWARD_TERMS = ["track_linear_velocity", "track_angular_velocity", "upright", "p
                 "foot_swing_height",
                 "foot_slip", "trot", "joint_torque",
                 "self_collisions",
-                "dof_pos_limits", "body_ang_vel", "angular_momentum"]
+                "dof_pos_limits", "body_ang_vel", "angular_momentum",
+                # the CSV header is fixed on the first row, before any episode has ended: list the
+                # clock, posture and progress terms here or they never reach the log
+                "feet_swing", "feet_stance", "gait_ref", "base_height", "no_progress", "orientation",
+                "stand_still", "pose_l2", "joint_vel", "foot_hold", "undesired_contacts"]
 
 
 def eval_modes(cfg: dict) -> dict:
@@ -124,9 +128,12 @@ def evaluate_modes(robot: str, cfg: dict, pk: dict, n_ep: int = 8, horizon: int 
     for mode, cmd in eval_modes(cfg).items():
         rets, ups, surv, vxs, vys, wzs = [], [], [], [], [], []
         for ep in range(n_ep):
-            env = NNMixerEnv(robot, cfg, seed=1000 + ep)
+            env = NNMixerEnv(robot, cfg, seed=1000 + ep, visual=False)
             env.reset()
             env.command = np.array(cmd, np.float32)
+            # the command must hold for the whole horizon, with the gait clock matching it
+            env.next_resample = 10**9
+            env._sample_gait_hz()
             obs = env._observe()
             ret = up = vx = vy = wz = 0.0
             fell = False
@@ -160,7 +167,7 @@ def evaluate_getup(robot: str, cfg: dict, pk: dict, n_ep: int = 8, horizon: int 
     for side in ("prone", "supine"):
         successes, times, peak_taus, rets = [], [], [], []
         for ep in range(n_ep):
-            env = NNMixerEnv(robot, cfg, seed=2000 + ep)
+            env = NNMixerEnv(robot, cfg, seed=2000 + ep, visual=False)
             # force the side and start from lying (no RSI) for a fair eval; zero assist
             env.getup_p_rsi = 0.0
             env.getup_p_stand = 0.0
@@ -321,7 +328,7 @@ def _reset_envs(envs):
 
 
 def _worker(conn, robot, cfg, seeds):
-    envs = [NNMixerEnv(robot, cfg, seed=s) for s in seeds]
+    envs = [NNMixerEnv(robot, cfg, seed=s, visual=False) for s in seeds]
     conn.send(_reset_envs(envs))
     while True:
         cmd, data = conn.recv()
@@ -340,13 +347,13 @@ class VecEnv:
 
     def __init__(self, robot, cfg, n_envs, workers):
         self.n = n_envs
-        probe = NNMixerEnv(robot, cfg, seed=10_000)
+        probe = NNMixerEnv(robot, cfg, seed=10_000, visual=False)
         self.contract = probe.contract
         self.gesture_ids = probe.gesture_ids       # joints of a --gesture clip (None otherwise)
         workers = max(1, min(workers, n_envs))
         self.local = None
         if workers == 1:
-            self.local = [NNMixerEnv(robot, cfg, seed=i) for i in range(n_envs)]
+            self.local = [NNMixerEnv(robot, cfg, seed=i, visual=False) for i in range(n_envs)]
             self.first_obs, self.first_priv = _reset_envs(self.local)
             return
         import multiprocessing as mp
@@ -564,7 +571,11 @@ def train(args) -> None:
               f"{'fixed' if ppo.get('schedule') == 'fixed' else 'adaptive'} learning rate"
               f"{', qat=off' if args.gesture == 'getup_discover' else ''}")
     else:
-        std_cap = None
+        # velocity training: --std-cap holds exploration at init_noise_std; PhoneBot run 1 without it
+        # inflated std 0.25 -> 1.08 and never tracked a command.
+        std_cap = log_std.detach().clone() if args.std_cap and not args.no_std_cap else None
+        if std_cap is not None:
+            print(f"std capped at {float(std_cap.exp().max()):.3f}")
     params = list(actor.parameters()) + list(critic.parameters()) + [log_std]
     if args.resume:
         lr = float(args.lr or ppo["learning_rate"])
@@ -659,7 +670,7 @@ def train(args) -> None:
     getup_lying_success = 0.0
     getup_all_success = 0.0
     if args.gesture == "getup_discover":
-        probe = NNMixerEnv(args.robot, cfg, seed=99)
+        probe = NNMixerEnv(args.robot, cfg, seed=99, visual=False)
         getup_assist_n = float(probe.getup_assist_n) if args.assist_start is None else float(args.assist_start)
         if probe.head_id < 0:
             probe._getup_head()

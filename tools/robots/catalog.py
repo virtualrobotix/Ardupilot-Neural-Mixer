@@ -16,6 +16,7 @@ upstream repositories in September 2026; the "source" notes say where.
 
 from __future__ import annotations
 
+import copy
 import math
 
 DEG = math.pi / 180.0
@@ -1833,6 +1834,174 @@ ROBOTS["jumper"] = {
     ],
 }
 
+# PhoneBot (UCLA RoMeLa, arXiv:2610.08737): compact 13-DoF biped that normally uses
+# an Android phone for its IMU/camera/inference, a Wi-Fi UDP link and an SBC for the
+# Dynamixel bus. Here the phone is deliberately a MAVLink client/perception payload:
+# Pixhawk executes the 50-Hz NNMixer policy and owns the IMU and servo loop; an ESP32
+# on a telemetry UART provides BT Classic / Wi-Fi to the phone. phonebot.dev serves a
+# preview GLB, an assembly GLB and a STEP zip (CC BY-NC 4.0) but no MJCF/URDF or source
+# repo. phonebot.xml (tools/robots/phonebot_mjcf.py) cuts the preview GLB onto joints
+# placed on the XL430 output shafts found in that mesh; masses are approximate boxes.
+ROBOTS["phonebot"] = {
+    "index": 18,
+    "class": "biped",
+    "display_name": "PhoneBot",
+    "maker": "UCLA RoMeLa (Ruochen Hou, Quanyou Wang, Daniel Koh, Dennis Hong)",
+    "status": "needs-training-handmade",
+    # Hardware figure: right J1–J6, left J7–J12, torso yaw J13.
+    "joint_names": [
+        "right_hip_yaw", "right_hip_roll", "right_hip_pitch", "right_knee_pitch",
+        "right_ankle_pitch", "right_ankle_roll",
+        "left_hip_yaw", "left_hip_roll", "left_hip_pitch", "left_knee_pitch",
+        "left_ankle_pitch", "left_ankle_roll", "torso_yaw",
+    ],
+    # Symmetric crouch in the reconstructed MJCF; official home joint angles were not published.
+    "q0": [0.0, 0.0, -0.50, 1.00, -0.50, 0.0,
+           0.0, 0.0, -0.50, 1.00, -0.50, 0.0, 0.0],
+    "extra_cmd_dim": 2,
+    "extra_cmd_desc": "orologio del passo sin, cos 2 (`NNM_CLOCK_HZ`; zero da fermi)",
+    "rate_hz": 50,
+    # legs of ~15 cm: at 0.3 m/s and a 1.25 Hz clock a step is ~12 cm, nearly the leg length, and every
+    # policy up to walk_air shuffled to keep up. 0.15 m/s at ~1.1 Hz is a ~7 cm step.
+    "command_ranges": {"vx": [-0.15, 0.15], "vy": [-0.1, 0.1], "wz": [-0.6, 0.6]},
+    "upstream": {
+        "repo": "https://phonebot.dev/",
+        "no_clone": True,
+        "license": "CAD, STEP, BOM e guide: CC BY-NC 4.0; software promesso come open source ma "
+                   "nessun repository pubblico è linkato al 24 ottobre 2026",
+        "sim_model_note": "nessun MJCF/URDF ufficiale. phonebot.xml usa le mesh del GLB di anteprima "
+                          "ufficiale, tagliate sui 13 link: ogni giunto sta sull'albero di uscita del "
+                          "suo XL430 nel GLB (coscia 78 mm, tibia 71 mm). Masse e collisioni sono box "
+                          "approssimati, da calibrare sul robot",
+        "cad": "phonebot.dev/assets/models/PhoneBot-preview.glb (anteprima, 12 mesh), "
+               "assets/PhoneBot_Asm.glb (assemblato completo), assets/PhoneBot_Assembly_STEP.zip e "
+               "assets/Phonebot_BOM.xlsx (CC BY-NC 4.0); Onshape e STL non pubblicati al 24 ottobre 2026",
+        "bom": "13× DYNAMIXEL XL430-W250-T, batteria 3S, U2D2 e SBC; 48,3 cm, 1,8 kg incluso smartphone, "
+               "≈400 USD escluso telefono. Il nostro assetto usa Pixhawk + ESP32, non l'SBC upstream",
+        "training": "PPO asimmetrico MJX/MuJoCo a 50 Hz: attore 52 (gyro 3, gravità 3, comando 3, q/qdot/"
+                    "azione precedente 39, fase piedi 4) → 13, critico 120; modello XL430 torque-aware, "
+                    "randomizzazione di guadagni, limiti, backlash e spinte; mirror sagittale del batch",
+        "published_policy": "policy TensorFlow Lite descritta nel paper ma pesi/repository non pubblicati; "
+                            "52 → 13, ordine e fase differenti dal contratto NNMixer; da riaddestrare",
+    },
+    "sim": {
+        "actuator": "position", "mjcf": "phonebot.xml", "trunk_body": "pelvis", "freejoint": "floating_base",
+        "gyro_sensor": "imu_ang_vel", "accel_sensor": "imu_accel", "home_z": 0.28, "integrator": "implicitfast",
+        "feet": [{"site": "left_foot_site", "body": "left_ankle_roll_link"},
+                 {"site": "right_foot_site", "body": "right_ankle_roll_link"}],
+    },
+    # Freenove walk recipe (Go2/Go1), the one that walked from scratch in this env. Two runs on the
+    # servo-shaft chain stood still at 100% survival: upright + pose + height paid at no risk, and
+    # 0.25 units of noise (0.06 rad) never found a step. Exploration 0.8 units = 0.2 rad, held by --std-cap.
+    "action_scale": 0.25,
+    "init_noise_std": 0.8,
+    "privileged_critic": True,
+    "ppo": {"schedule": "fixed", "learning_rate": 3.0e-4},
+    "reward": {
+        "only_positive": True,
+        # kernels narrowed with the halved command ranges, or standing still keeps a third of the tracking.
+        # walk_slow it2000 stepped at 3.8 flights/s but reached 0.05 of 0.15 m/s forward and 0.23 of 0.5
+        # rad/s from a standstill: tracking 8 -> 12 and 5 -> 8. walk_track it1400 then held 0.105 of 0.15 m/s,
+        # which sigma 0.01 still paid at 82%: 0.005 pays it 67%
+        "track_lin_vel": 12.0, "tracking_sigma": 0.005, "tracking_filter_s": 0.25,
+        "track_ang_vel": 8.0, "tracking_sigma_ang": 0.08,
+        "tracking_lin_z": 0.0, "tracking_ang_rp": 0.0,
+        "no_progress": -2.5,
+        # walk_natural (fine-tune of walk it1800, which walked but jerkily): steadier trunk
+        "upright": 0.0, "orientation": -8.0,
+        "pose": 0.3, "walking_threshold": 0.01,
+        "pose_std_standing": {".*hip_yaw": 0.05, ".*hip_roll": 0.05, ".*hip_pitch": 0.1, ".*knee_pitch": 0.1,
+                              ".*ankle_pitch": 0.1, ".*ankle_roll": 0.05, "torso_yaw": 0.05},
+        # legs under the hips as a humanoid: hip yaw and roll tighter than in walk
+        "pose_std_walking": {".*hip_yaw": 0.1, ".*hip_roll": 0.1, ".*hip_pitch": 0.5, ".*knee_pitch": 0.5,
+                             ".*ankle_pitch": 0.4, ".*ankle_roll": 0.1, "torso_yaw": 0.1},
+        "pose_l2": -0.3, "stand_still": -1.0,
+        "action_rate": -0.1, "alive": 0.0,
+        "body_ang_vel": -0.3, "dof_pos_limits": -10.0, "joint_vel": -0.005,
+        # walk_natural / walk_steps shuffled at 8-13 touchdowns/s after 60 ms flights lifting the foot 12-16 mm.
+        # A per-hop penalty inside the only_positive clip cost ~0.3 at any weight; outside it, walk_steps3
+        # learned to fall. In range only pays flights past 0.2 s, and a positive term never pays a fall.
+        "air_time": 6.0, "air_time_mode": "in_range", "air_time_min_s": 0.2, "air_time_max_s": 0.5,
+        "air_time_debounce_s": 0.04, "foot_hold": -2.0,
+        "foot_clearance": -1.0, "foot_swing_height": -1.0, "swing_height_m": 0.035, "foot_slip": -0.1,
+        "feet_swing": 5.0,
+        # 0.35 rad lifts the swing sole about 32 mm on this chain
+        "gait_ref": 3.0, "gait_ref_amp": 0.35,
+        "undesired_contacts": -1.0,
+        "base_height": 0.3, "base_height_target_m": 0.277, "base_height_std_m": 0.02,
+    },
+    "env": {
+        "gait_clock": {"hz_range": [0.9, 1.3], "swing_phase": [0.25, 0.75], "swing_period": 0.4},
+        "eval_modes": {"stand": [0.0, 0.0, 0.0], "forward_0.15": [0.15, 0.0, 0.0],
+                       "backward_0.15": [-0.15, 0.0, 0.0], "lateral_0.1": [0.0, 0.1, 0.0],
+                       "turn_0.5": [0.0, 0.0, 0.5]},
+        "episode_s": 20.0, "p_zero_command": 0.05, "p_no_lateral": 0.2,
+        "resample_s": [4.0, 8.0], "push": {"interval_s": [3.0, 6.0], "vel_xy": 0.1},
+        "terminate_on_illegal_contact": True,
+        "posture_limits": {"min_height_m": 0.20},
+        # humanoid swing reference for the gait_ref reward, legs in the order of sim.feet
+        "gait_reference": {"legs": [["left_hip_pitch", "left_knee_pitch", "left_ankle_pitch"],
+                                    ["right_hip_pitch", "right_knee_pitch", "right_ankle_pitch"]],
+                           "gains": [-1.0, 2.0, -1.0]},
+        # per-env policy steps (24 per iteration): smoothness grows over the fine-tune
+        "curriculum": {"action_rate_stages": [[0, -0.5], [12000, -0.8], [24000, -1.2]],
+                       "standing_stages": [[0, 0.15]]},
+    },
+    "servos": "13× DYNAMIXEL XL430-W250-T, ordine del disegno hardware: J1–J6 gamba destra, "
+              "J7–J12 gamba sinistra (yaw, roll, pitch, ginocchio, caviglia pitch, caviglia roll), "
+              "J13 yaw del busto. Limite anca pitch: J3 −90°..+123°, J9 −123°..+90°. "
+              "Sull'hardware: backend Dynamixel TTL su Pixhawk",
+    "link": "bus",
+    "policies": {},
+    "notes": [
+        "Architettura prevista: Pixhawk esegue NNMixer, legge l'IMU fissata al busto e comanda il bus "
+        "Dynamixel; ESP32 su UART telemetria espone MAVLink 2 via Bluetooth Classic e Wi-Fi. Il telefono "
+        "prima è il telecomando (`MANUAL_CONTROL`), poi, nella custodia sul busto, resta client MAVLink "
+        "per camera, UI e percezione; non chiude il ciclo PPO a 50 Hz. Architettura: "
+        "[phonebot-pixhawk-phone.md](../reference/phonebot-pixhawk-phone.md).",
+        "Il telefono può inviare twist, heading, `VISION_POSITION_ESTIMATE` e `OBSTACLE_DISTANCE`; camera "
+        "e ARCore non attraversano Bluetooth. I dati non critici passano su MAVLink; gyro, gravità e "
+        "feedback servo restano nel Pixhawk per evitare jitter wireless nel contratto della policy.",
+        "13 giunti e osservazione 50 (48 di base + sin/cos) stanno nei limiti firmware. La prima policy "
+        "ArduPilot usa l'orologio `NNM_CLOCK_HZ` già presente e un premio per l'alternanza dei due piedi. "
+        "L'attore PhoneBot originale usa quattro fasi: per replicarlo serve estendere il firmware.",
+        "Geometria e assi dei giunti vengono dal GLB ufficiale; masse, inerzie e q0 sono stimati. Non "
+        "usare una policy addestrata su questa scena sul robot prima di pesare i link e calibrare q0.",
+        "`home_z` 0,28 m è l'altezza del bacino con q0 (0,277 m) più qualche millimetro di caduta; il "
+        "paper indica 0,282 m con la sua posa di riposo.",
+        "Il paper usa una policy torque-aware (XL430 limitato in coppia e velocità), mentre l'ambiente "
+        "corrente applica un PD con taglio ±1,4 N·m. Portare curva coppia-velocità, backlash e mirror "
+        "sagittale è necessario prima di mirare al sim-to-real.",
+    ],
+}
+
+# PhoneBot with pelvis and legs turned 180° under the torso (phonebot_mjcf.py --reversed): phone and
+# IMU face what was the back of the legs, knees bend backward. On the GLB layout walk_fwd it800 went
+# 0.13-0.17 m/s backward and 0.10-0.13 forward; reversed, the torso mass sits ~2.7 cm ahead of the feet
+# centre instead of ~1.4 cm behind it. Same servos, contract and reward as phonebot, trained from scratch.
+ROBOTS["phonebot_rev"] = copy.deepcopy(ROBOTS["phonebot"])
+ROBOTS["phonebot_rev"].update({
+    "index": 19,
+    "display_name": "PhoneBot invertito",
+    "policies": {},
+})
+ROBOTS["phonebot_rev"]["sim"]["mjcf"] = "phonebot_rev.xml"
+ROBOTS["phonebot_rev"]["upstream"]["sim_model_note"] = (
+    "variante di PhoneBot: phonebot_rev.xml (phonebot_mjcf.py --reversed) usa le mesh del GLB ufficiale con "
+    "bacino e gambe ruotati di 180° sotto il busto; telefono e IMU guardano il vecchio dietro delle gambe e "
+    "le ginocchia piegano all'indietro. Masse e collisioni come phonebot")
+ROBOTS["phonebot_rev"]["servos"] = (
+    "13× DYNAMIXEL XL430-W250-T come PhoneBot. Con le gambe ruotate la gamba fisica del disegno J7–J12 "
+    "sta a destra e prende i nomi right_*, quella J1–J6 sta a sinistra (left_*): ogni servo tiene limiti "
+    "e verso, cambiano solo gli ID sul bus. Sull'hardware: backend Dynamixel TTL su Pixhawk")
+ROBOTS["phonebot_rev"]["notes"] = [
+    "Variante fisica di PhoneBot per l'avanzamento: bacino e gambe girati di 180° sotto il busto, telefono "
+    "rivolto nel nuovo verso di marcia. Baricentro circa 2,7 cm davanti al centro dei piedi invece di "
+    "1,4 cm dietro. Contratto, premi e firmware identici a PhoneBot.",
+    "Geometria e assi dei giunti vengono dal GLB ufficiale; masse, inerzie e q0 sono stimati. Non "
+    "usare una policy addestrata su questa scena sul robot prima di pesare i link e calibrare q0.",
+]
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -1861,6 +2030,7 @@ PHOTOS = {
                    "https://github.com/hshi74/toddlerbot"),
     "jumper": ("render di prodotto, ritaglio di docs/media/jumper-hero.png",
                "https://github.com/KingKongRobotics/jumper"),
+    "phonebot": ("render hardware sul sito ufficiale", "https://phonebot.dev/"),
 }
 
 STATUS_TEXT = {

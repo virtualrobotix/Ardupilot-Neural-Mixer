@@ -163,10 +163,11 @@ def main() -> None:
     u = upstream(profile)
     if not u.get("repo"):
         raise SystemExit(f"{args.robot}: no upstream.repo in profile")
-    for key in ("repo", "model_repo"):
-        if u.get(key):
-            dest = THIRD_PARTY / args.robot if key == "repo" else THIRD_PARTY / f"{args.robot}_model"
-            git_clone(u[key], dest, u.get("branch") if key == "repo" else u.get("model_branch"))
+    if not u.get("no_clone"):
+        for key in ("repo", "model_repo"):
+            if u.get(key):
+                dest = THIRD_PARTY / args.robot if key == "repo" else THIRD_PARTY / f"{args.robot}_model"
+                git_clone(u[key], dest, u.get("branch") if key == "repo" else u.get("model_branch"))
     note = u.get("sim_model_note")
     sim_model = u.get("sim_model")
     root = THIRD_PARTY / (f"{args.robot}_model" if u.get("model_repo") else args.robot)

@@ -143,6 +143,11 @@ class RewardWeights:
     # Booster Gym feet_swing: foot lifted inside its gait-clock phase window (env.gait_clock); the same
     # weight pays a foot in stance outside every window. Replaces the phase-free gait shaping.
     feet_swing: float = 0.0
+    # humanoid-gym / G1 periodic joint reference: in its swing window a leg's hip pitch, knee and ankle
+    # pitch leave q0 by gait_ref_amp * gains (hip forward, knee bent twice as much, sole parallel to the
+    # floor); stance legs and every other joint stay at q0. exp(-2|q - q_ref|) - 0.2 min(|q - q_ref|, 0.5).
+    gait_ref: float = 0.0
+    gait_ref_amp: float = 0.3
     # get-up: exp(-((trunk_z - z_ref) / std)^2) tracking the clip root height; success bonus when
     # upright, near q0 and still after the clip finishes.
     getup_height: float = 0.0
@@ -160,9 +165,12 @@ def _quat_rotate_inverse(q, v):
 
 class NNMixerEnv:
     def __init__(self, robot_id: str, ppo: dict[str, Any] | None = None, mjcf: Path | None = None,
-                 seed: int = 0, actuator: str | None = None):
+                 seed: int = 0, actuator: str | None = None, visual: bool = True):
         self.profile = load_profile(robot_id)
         self.robot_id = robot_id
+        # visual=False drops mesh geoms that collide with nothing: PhoneBot's GLB visuals are 84 MB per
+        # compiled model, 87 GB over 1024 training envs
+        self.visual = visual
         self.ppo = ppo or {}
         self.contract = dc.Contract.from_profile(self.profile, self.ppo)
         sim = self.profile.get("sim", {})
@@ -213,6 +221,11 @@ class NNMixerEnv:
         self._setup_gesture(env_cfg.get("gesture"))
         self.actuator = actuator or sim.get("actuator", "position")
         self._load(Path(path))
+        # gait_reference.legs: [hip pitch, knee, ankle pitch] per leg, in the order of sim.feet / swing_phase
+        gr = env_cfg.get("gait_reference") or {}
+        names = self.profile["joint_names"]
+        self.gait_ref_legs = [[names.index(j) for j in leg] for leg in gr.get("legs", [])]
+        self.gait_ref_gains = np.array(gr.get("gains", [-1.0, 2.0, -1.0]), dtype=np.float64)
         self.max_steps = int(self.episode_s * self.contract.rate_hz)
         self.reset()
 
@@ -221,6 +234,14 @@ class NNMixerEnv:
         names = self.profile["joint_names"]
         trunk = self.sim.get("trunk_body")
         spec = mujoco.MjSpec.from_file(str(path))
+        if not self.visual:
+            for g in list(spec.geoms):
+                if g.type == mujoco.mjtGeom.mjGEOM_MESH and g.contype == 0 and g.conaffinity == 0:
+                    spec.delete(g)
+            used = {g.meshname for g in spec.geoms if g.type == mujoco.mjtGeom.mjGEOM_MESH}
+            for mesh in list(spec.meshes):
+                if mesh.name not in used:
+                    spec.delete(mesh)
         gyro_name = self.sim.get("gyro_sensor", "nnm_gyro")
         acc_name = self.sim.get("accel_sensor", "nnm_accel")
         have = {s.name for s in spec.sensors}
@@ -1442,6 +1463,17 @@ class NNMixerEnv:
             n += 1
         return n
 
+    def gait_reference(self, phase: float | None = None) -> np.ndarray:
+        """Joint reference of the gait clock: q0 plus a raised-cosine swing on each leg in its window."""
+        ref = np.asarray(self.contract.q0, dtype=np.float64).copy()
+        phi = self.gait_phase if phase is None else phase
+        half = 0.5 * self.gait_swing_period
+        dphi = ((phi - self.gait_swing_phase) + 0.5) % 1.0 - 0.5
+        for i, leg in enumerate(self.gait_ref_legs):
+            if abs(dphi[i]) < half:
+                ref[leg] += self.w.gait_ref_amp * math.cos(0.5 * math.pi * dphi[i] / half) * self.gait_ref_gains
+        return ref
+
     def _gait_terms(self, dt: float) -> dict:
         """feet_air_time, foot_clearance and foot_slip of the MicroDuck mjlab velocity task."""
         w = self.w
@@ -1479,6 +1511,10 @@ class NNMixerEnv:
             out["feet_swing"] = w.feet_swing * float(np.mean(in_window & lifted)) * dt
             # and a foot on the floor outside every swing window (stance) pays the same
             out["feet_stance"] = w.feet_swing * float(np.mean(~in_window & contact)) * dt
+        if w.gait_ref and self.gait_ref_legs and self.gait_clock and self.gait_hz > 0:
+            ref = self.gait_reference()
+            err = float(np.linalg.norm(d.qpos[self.qpos_idx] - ref))
+            out["gait_ref"] = w.gait_ref * (math.exp(-2.0 * err) - 0.2 * min(err, 0.5)) * dt
         # mjlab feet_clearance: |h - target| weighted by foot speed, only with a command
         clearance = float(np.sum(np.abs(height - w.swing_height_m) * vel_xy * ~contact)) * moving
         # mjlab feet_swing_height: peak height error at landing

@@ -1,0 +1,75 @@
+{
+  "policy": "walk_slow.nnm",
+  "eval": {
+    "stand": {
+      "mean_return": 70.37631225585938,
+      "std_return": 1.0066128969192505,
+      "mean_upright": 0.9977154792845249,
+      "survival": 1.0,
+      "mean_vx": 0.0012471603163916737,
+      "mean_vy": 0.005945158060278219,
+      "mean_wz": 0.04204182115440607,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "forward_0.15": {
+      "mean_return": 72.18353271484375,
+      "std_return": 5.420536994934082,
+      "mean_upright": 0.9879899212469658,
+      "survival": 1.0,
+      "mean_vx": 0.11751060945095604,
+      "mean_vy": -0.00449291868516347,
+      "mean_wz": -0.046795566255296336,
+      "command_vx": 0.15,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "backward_0.15": {
+      "mean_return": 72.50553131103516,
+      "std_return": 4.190514087677002,
+      "mean_upright": 0.9892812629540761,
+      "survival": 1.0,
+      "mean_vx": -0.11156040435598974,
+      "mean_vy": 0.016779623764283106,
+      "mean_wz": -0.01535586725183026,
+      "command_vx": -0.15,
+      "command_vy": 0.0,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "lateral_0.1": {
+      "mean_return": 76.65205383300781,
+      "std_return": 3.1311306953430176,
+      "mean_upright": 0.9858935041725636,
+      "survival": 1.0,
+      "mean_vx": 0.008399664451721295,
+      "mean_vy": 0.09851296920033778,
+      "mean_wz": 0.05990846873908761,
+      "command_vx": 0.0,
+      "command_vy": 0.1,
+      "command_wz": 0.0,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    },
+    "turn_0.5": {
+      "mean_return": 74.53245544433594,
+      "std_return": 5.851986408233643,
+      "mean_upright": 0.9867176435639461,
+      "survival": 1.0,
+      "mean_vx": 0.009030240987114222,
+      "mean_vy": 0.010514362528122358,
+      "mean_wz": 0.34755694289523087,
+      "command_vx": 0.0,
+      "command_vy": 0.0,
+      "command_wz": 0.5,
+      "n_episodes": 8,
+      "horizon_steps": 300
+    }
+  }
+}

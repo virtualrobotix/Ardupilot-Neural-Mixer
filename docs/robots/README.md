@@ -28,6 +28,8 @@ Tutti i robot usano la stessa architettura PPO di MicroDuck (MLP 512-256-128 ELU
 | 15 | <a href="tienkung.md"><img src="img/tienkung.jpg" alt="TienKung (Walker)" width="110"></a> | [TienKung (Walker)](tienkung.md) | bipede | 20 | 69 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
 | 16 | <a href="toddlerbot.md"><img src="img/toddlerbot.jpg" alt="ToddlerBot" width="110"></a> | [ToddlerBot](toddlerbot.md) | bipede | 12 | 45 | 50 | bus | — | — | scena MuJoCo nativa pronta; policy da addestrare |
 | 17 | <a href="jumper.md"><img src="img/jumper.jpg" alt="Jumper" width="110"></a> | [Jumper](jumper.md) | esapode | 20 | 69 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
+| 18 | <a href="phonebot.md"><img src="img/phonebot.jpg" alt="PhoneBot" width="110"></a> | [PhoneBot](phonebot.md) | bipede | 13 | 50 | 50 | bus | `walk.nnm`, `walk_air.nnm`, `walk_fwd.nnm`, `walk_natural.nnm`, `walk_slow.nnm`, `walk_steps.nnm`, `walk_steps2.nnm`, `walk_track.nnm` | — | scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare |
+| 19 |  | [PhoneBot invertito](phonebot_rev.md) | bipede | 13 | 50 | 50 | bus | — | — | scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare |
 
 Le foto vengono dai repository originali; fonte sotto l'immagine in ogni scheda.
 

@@ -1,0 +1,73 @@
+{
+  "robot_id": "phonebot",
+  "nnm_robot": 18,
+  "class": "biped",
+  "display_name": "PhoneBot",
+  "n_joints": 13,
+  "obs_dim": 50,
+  "rate_hz": 50,
+  "q0": [
+    0.0,
+    0.0,
+    -0.5,
+    1.0,
+    -0.5,
+    0.0,
+    0.0,
+    0.0,
+    -0.5,
+    1.0,
+    -0.5,
+    0.0,
+    0.0
+  ],
+  "joint_names": [
+    "right_hip_yaw",
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee_pitch",
+    "right_ankle_pitch",
+    "right_ankle_roll",
+    "left_hip_yaw",
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee_pitch",
+    "left_ankle_pitch",
+    "left_ankle_roll",
+    "torso_yaw"
+  ],
+  "servo_fn0": 94,
+  "servos": "13× DYNAMIXEL XL430-W250-T, ordine del disegno hardware: J1–J6 gamba destra, J7–J12 gamba sinistra (yaw, roll, pitch, ginocchio, caviglia pitch, caviglia roll), J13 yaw del busto. Limite anca pitch: J3 −90°..+123°, J9 −123°..+90°. Sull'hardware: backend Dynamixel TTL su Pixhawk",
+  "link": "bus",
+  "status": "needs-training-handmade",
+  "upstream": {
+    "repo": "https://phonebot.dev/",
+    "no_clone": true,
+    "license": "CAD, STEP, BOM e guide: CC BY-NC 4.0; software promesso come open source ma nessun repository pubblico è linkato al 24 ottobre 2026",
+    "sim_model_note": "nessun MJCF/URDF ufficiale. phonebot.xml usa le mesh del GLB di anteprima ufficiale, tagliate sui 13 link: ogni giunto sta sull'albero di uscita del suo XL430 nel GLB (coscia 78 mm, tibia 71 mm). Masse e collisioni sono box approssimati, da calibrare sul robot",
+    "cad": "phonebot.dev/assets/models/PhoneBot-preview.glb (anteprima, 12 mesh), assets/PhoneBot_Asm.glb (assemblato completo), assets/PhoneBot_Assembly_STEP.zip e assets/Phonebot_BOM.xlsx (CC BY-NC 4.0); Onshape e STL non pubblicati al 24 ottobre 2026",
+    "bom": "13× DYNAMIXEL XL430-W250-T, batteria 3S, U2D2 e SBC; 48,3 cm, 1,8 kg incluso smartphone, ≈400 USD escluso telefono. Il nostro assetto usa Pixhawk + ESP32, non l'SBC upstream",
+    "training": "PPO asimmetrico MJX/MuJoCo a 50 Hz: attore 52 (gyro 3, gravità 3, comando 3, q/qdot/azione precedente 39, fase piedi 4) → 13, critico 120; modello XL430 torque-aware, randomizzazione di guadagni, limiti, backlash e spinte; mirror sagittale del batch",
+    "published_policy": "policy TensorFlow Lite descritta nel paper ma pesi/repository non pubblicati; 52 → 13, ordine e fase differenti dal contratto NNMixer; da riaddestrare"
+  },
+  "sim": {
+    "actuator": "position",
+    "mjcf": "phonebot.xml",
+    "trunk_body": "pelvis",
+    "freejoint": "floating_base",
+    "gyro_sensor": "imu_ang_vel",
+    "accel_sensor": "imu_accel",
+    "home_z": 0.28,
+    "integrator": "implicitfast",
+    "feet": [
+      {
+        "site": "left_foot_site",
+        "body": "left_ankle_roll_link"
+      },
+      {
+        "site": "right_foot_site",
+        "body": "right_ankle_roll_link"
+      }
+    ]
+  }
+}
