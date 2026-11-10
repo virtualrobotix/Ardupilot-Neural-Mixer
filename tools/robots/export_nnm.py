@@ -59,9 +59,15 @@ def quantize_rows(W: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def parse_onnx(path: Path):
     import onnx
+
+    return parse_onnx_model(onnx.load(str(path)))
+
+
+def parse_onnx_model(m):
+    """Same as parse_onnx, for a model already loaded (from a file or from bytes)."""
+    import onnx
     from onnx import numpy_helper
 
-    m = onnx.load(str(path))
     g = m.graph
     inits = {t.name: numpy_helper.to_array(t) for t in g.initializer}
     meta = {p.key: p.value for p in m.metadata_props}

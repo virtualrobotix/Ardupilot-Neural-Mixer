@@ -2082,6 +2082,113 @@ ROBOTS["open_sprite"] = {
     ],
 }
 
+# XGO Duck on Arduino Uno Q ("XDuck" App Lab app, based on Microduck). Same 14 joints, joint order and
+# 61-wide observation as MicroDuck; eight ONNX policies trained by the XDuck authors for this hardware.
+# q0 is the home the XDuck deployment uses for every policy except the roller (rl_core.DEFAULT_DEG in
+# policy order), not the default_joint_pos metadata of each ONNX. The policy files carry their own home.
+# Firmware observation: the two clock channels have zero weight in the converted policies, the four
+# head-command inputs sit on the first four NNM_POSE channels (tools/robots/import_xgoduck.py).
+ROBOTS["xgoduck"] = {
+    "index": 21,
+    "class": "biped",
+    "display_name": "XGO Duck (Arduino Uno Q)",
+    "maker": "XGO Duck, app XDuck per Arduino Uno Q basata su Microduck (Pollen Robotics)",
+    "status": "policy-import",
+    "joint_names": [
+        "left_hip_yaw", "left_hip_roll", "left_hip_pitch", "left_knee", "left_ankle",
+        "neck_pitch", "head_pitch", "head_yaw", "head_roll",
+        "right_hip_yaw", "right_hip_roll", "right_hip_pitch", "right_knee", "right_ankle",
+    ],
+    "q0": [0.0, -5 * DEG, -22 * DEG, 0.0, 22 * DEG, 20 * DEG, 20 * DEG, 0.0, 0.0,
+           0.0, 5 * DEG, 22 * DEG, 0.0, -22 * DEG],
+    "extra_cmd_dim": 10,
+    "extra_cmd_desc": "orologio 2 (peso zero nelle policy convertite) + comando testa 4 "
+                      "(collo, testa pitch, yaw, roll; via MAVLink `NNM_POSE`) + 4 canali non usati",
+    "rate_hz": 50,
+    "command_ranges": {"vx": [-0.2, 0.2], "vy": [-0.3, 0.3], "wz": [-1.0, 1.0]},
+    "upstream": {
+        "repo": "https://github.com/pollen-robotics/microduck",
+        "license": "Microduck: Apache-2.0. L'app XDuck e le sue policy ONNX non dichiarano una licenza: "
+                   "i `.nnm` derivati non sono versionati in questo repo",
+        "cad": "non trovato",
+        "bom": "XGO Duck con 15 servo su bus seriale (ID 10–14, 20–24, 30–34) e IMU QMI8658 su "
+               "Arduino Uno Q",
+        "training": "rsl_rl PPO su un fork di microduck_rl (percorsi nei metadati ONNX: xgoduck_velocity, "
+                    "xgoduck_roulade, xgoduck_sitstand, xgoduck_velocity_swizzle)",
+        "published_policy": "otto ONNX nell'app XDuck (`python/xgoduck_*.onnx`), convertiti con "
+                            "`tools/robots/import_xgoduck.py`",
+    },
+    # no MuJoCo model of the XGO Duck is available: the policies are not simulated here
+    "sim": {"actuator": "position"},
+    "servos": "15 servo su bus seriale (protocollo SCS, 1 Mbps): 14 giunti della policy più la bocca "
+              "(ID 34), pilotati dallo sketch XDuck sullo STM32 dell'Uno Q",
+    "link": "xduck",
+    "policies": {
+        "0_walk.nnm": "camminata (`xgoduck_walk.onnx`). Comando: twist e testa.",
+        "1_getup.nnm": "rialzata dopo una caduta (`xgoduck_getup.onnx`), `NNM_GETUP_IDX 1`.",
+        "2_roller.nnm": "pattinata per il robot con i roller (`xgoduck_roller.onnx`): home propria, "
+                        "scala 0,8 incorporata nei pesi.",
+        "3_pick.nnm": "raccolta, skill 1 (`xgoduck_pick.onnx`): 4 s, comando (cos, sin) della fase.",
+        "4_roulade.nnm": "capriola, skill 2 (`xgoduck_roulade.onnx`): 1,7 s.",
+        "5_sitstand.nnm": "seduto / in piedi, skill 3 e 4 (`xgoduck_sitstand.onnx`).",
+        "6_kick_left.nnm": "calcio sinistro, skill 5 (`xgoduck_ballkick_left.onnx`): 0,4 s, scala 0,8 "
+                           "incorporata.",
+        "7_kick_right.nnm": "calcio destro, skill 6 (`xgoduck_ballkick_right.onnx`): 0,4 s, scala 0,8 "
+                            "incorporata.",
+    },
+    # NNM_POSE channels 0..3 = head command (rad), limit as in the XDuck web API
+    "pose_limits": [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+    # auxiliary bus actuator outside the policy: the mouth (servo 34), degrees
+    "aux_max": 30.0,
+    # XDuck deployment chain (NNM_DEPLOY 1): low-pass on the joint targets, per policy file index.
+    # head_joints = [first, count] of the joints filtered with alpha_head.
+    "deploy": {
+        "head_joints": [5, 4],
+        "alpha_leg": 0.35, "alpha_head": 0.45,
+        "policies": [
+            {"policy": 2, "alpha_leg": 0.4, "alpha_head": 0.5, "zero_pose": True, "no_accx": True,
+             "heading_kp": 1.0, "wz_max": 0.45},
+            {"policy": 4, "alpha_leg": 0.05, "alpha_head": 0.05},
+            {"policy": 6, "alpha_leg": 0.0, "alpha_head": 0.0},
+            {"policy": 7, "alpha_leg": 0.0, "alpha_head": 0.0},
+        ],
+    },
+    # Timed actions run by the firmware sequencer (MAV_CMD_USER_1, param1 = id). duration_s 0 = until
+    # another skill replaces it. cmd = twist fed to the policy, "circle" = (cos, sin) of 2*pi*phase.
+    "skills": [
+        {"id": 1, "name": "pick", "policy": 3, "duration_s": 4.0, "cmd": "circle", "zero_pose": True,
+         "aux_deg": 30.0, "aux_until": 0.4},
+        {"id": 2, "name": "roulade", "policy": 4, "duration_s": 1.7, "cmd": [0.0, 0.0, 0.0],
+         "zero_pose": True, "no_getup": True},
+        {"id": 3, "name": "sit", "policy": 5, "duration_s": 0.0, "cmd": [1.0, 0.0, 0.0]},
+        {"id": 4, "name": "stand", "policy": 5, "duration_s": 1.0, "cmd": [0.0, 0.0, 0.0],
+         "requires": 3, "keep_history": True},
+        {"id": 5, "name": "kick_left", "policy": 6, "duration_s": 0.4, "cmd": [0.0, 0.0, 0.0],
+         "zero_pose": True, "aux_deg": 0.0, "aux_until": 1.0},
+        {"id": 6, "name": "kick_right", "policy": 7, "duration_s": 0.4, "cmd": [0.0, 0.0, 0.0],
+         "zero_pose": True, "aux_deg": 0.0, "aux_until": 1.0},
+    ],
+    "notes": [
+        "Robot reale con il backend bus del firmware: `AP_JointBus` parla i pacchetti dello sketch XDuck "
+        "(15 servo e IMU sullo STM32 dell'Uno Q); ArduRover gira sul lato Linux della scheda "
+        "(board `unoq`). App, build e deploy: [`unoq/`](../../unoq/).",
+        "Le otto policy sono quelle dell'app XDuck, addestrate dai suoi autori per questo hardware: stessa "
+        "rete, stessi 14 giunti e stessa osservazione a 61 di MicroDuck, quindi si convertono in `.nnm` "
+        "senza riaddestrare. La conversione sposta il comando testa sui canali `NNM_POSE`, azzera i pesi "
+        "dei due canali dell'orologio e incorpora la scala 0,8 di roller e calci.",
+        "Home: 22° su anca e caviglia per tutte le policy tranne il roller, come nel deploy XDuck. I "
+        "metadati ONNX di get-up e pick indicano 20°: `import_xgoduck.py --home metadata` usa quelli.",
+        "`NNM_DEPLOY` sceglie la catena: 0 standard del firmware, 1 quella del deploy XDuck (filtro sui "
+        "target per policy, smoothing di giroscopio e velocità, stima di gravità, recupero da caduta, "
+        "heading hold).",
+        "Skill: pick, roulade, sit, stand e i due calci partono con `MAV_CMD_USER_1` (param1 = id) solo "
+        "da armato, in piedi e senza altre skill in corso. La tabella viaggia in `skills.bin` accanto a "
+        "`robot.bin`.",
+        "Non esiste qui un modello MuJoCo dell'XGO Duck: le policy non sono provate in simulazione. La "
+        "verifica fatta è la parità numerica fra ONNX e `.nnm` sulle stesse osservazioni.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -2117,6 +2224,7 @@ STATUS_TEXT = {
     "policy": "policy int8 disponibile; la stessa rete in float32 è validata in SITL e HIL",
     "policy-upstream": "policy upstream convertita in .nnm e verificata nell'ambiente a contratto; da rifinire o riaddestrare sul contratto",
     "policy-sim": "policy int8 addestrata in simulazione; video dei checkpoint nella scheda",
+    "policy-import": "policy upstream convertite in .nnm con parità numerica verificata; non simulate in questo repo",
     "needs-training": "scena MuJoCo generata dall'URDF; policy da addestrare",
     "needs-training-mjcf": "scena MuJoCo nativa pronta; policy da addestrare",
     "needs-training-handmade": "scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare",
@@ -2129,4 +2237,5 @@ LINK_TEXT = {
     "pwm": "servo PWM: collegabili alle uscite dell'autopilota",
     "can": "attuatori CAN-FD mjbots: serve un backend dedicato",
     "sim": "nessun hardware: modello di sola simulazione (SITL e HIL)",
+    "xduck": "servo su bus seriale dietro lo sketch XDuck dell'Uno Q: backend `AP_JointBus` (`NNM_OUT 1`)",
 }

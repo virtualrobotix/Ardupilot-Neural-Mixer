@@ -1,0 +1,8 @@
+name: ArduHumanoid
+description: ArduPilot (ArduRover + AP_NNMixer) on Arduino Uno Q driving the XGO Duck. Linux runs the autopilot and the policies; the STM32 drives 15 bus servos and the IMU (MPU6000/6050 or QMI8658) at 100 Hz.
+ports:
+- 9527
+- 5760
+bricks:
+- arduino:web_ui: {}
+icon: 🦆

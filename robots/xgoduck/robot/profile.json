@@ -1,0 +1,178 @@
+{
+  "robot_id": "xgoduck",
+  "nnm_robot": 21,
+  "class": "biped",
+  "display_name": "XGO Duck (Arduino Uno Q)",
+  "n_joints": 14,
+  "obs_dim": 61,
+  "rate_hz": 50,
+  "q0": [
+    0.0,
+    -0.087266,
+    -0.383972,
+    0.0,
+    0.383972,
+    0.349066,
+    0.349066,
+    0.0,
+    0.0,
+    0.0,
+    0.087266,
+    0.383972,
+    0.0,
+    -0.383972
+  ],
+  "joint_names": [
+    "left_hip_yaw",
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee",
+    "left_ankle",
+    "neck_pitch",
+    "head_pitch",
+    "head_yaw",
+    "head_roll",
+    "right_hip_yaw",
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee",
+    "right_ankle"
+  ],
+  "servo_fn0": 94,
+  "servos": "15 servo su bus seriale (protocollo SCS, 1 Mbps): 14 giunti della policy più la bocca (ID 34), pilotati dallo sketch XDuck sullo STM32 dell'Uno Q",
+  "link": "xduck",
+  "status": "policy-import",
+  "upstream": {
+    "repo": "https://github.com/pollen-robotics/microduck",
+    "license": "Microduck: Apache-2.0. L'app XDuck e le sue policy ONNX non dichiarano una licenza: i `.nnm` derivati non sono versionati in questo repo",
+    "cad": "non trovato",
+    "bom": "XGO Duck con 15 servo su bus seriale (ID 10–14, 20–24, 30–34) e IMU QMI8658 su Arduino Uno Q",
+    "training": "rsl_rl PPO su un fork di microduck_rl (percorsi nei metadati ONNX: xgoduck_velocity, xgoduck_roulade, xgoduck_sitstand, xgoduck_velocity_swizzle)",
+    "published_policy": "otto ONNX nell'app XDuck (`python/xgoduck_*.onnx`), convertiti con `tools/robots/import_xgoduck.py`"
+  },
+  "sim": {
+    "actuator": "position"
+  },
+  "pose_limits": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "aux_max": 30.0,
+  "deploy": {
+    "head_joints": [
+      5,
+      4
+    ],
+    "alpha_leg": 0.35,
+    "alpha_head": 0.45,
+    "policies": [
+      {
+        "policy": 2,
+        "alpha_leg": 0.4,
+        "alpha_head": 0.5,
+        "zero_pose": true,
+        "no_accx": true,
+        "heading_kp": 1.0,
+        "wz_max": 0.45
+      },
+      {
+        "policy": 4,
+        "alpha_leg": 0.05,
+        "alpha_head": 0.05
+      },
+      {
+        "policy": 6,
+        "alpha_leg": 0.0,
+        "alpha_head": 0.0
+      },
+      {
+        "policy": 7,
+        "alpha_leg": 0.0,
+        "alpha_head": 0.0
+      }
+    ]
+  },
+  "skills": [
+    {
+      "id": 1,
+      "name": "pick",
+      "policy": 3,
+      "duration_s": 4.0,
+      "cmd": "circle",
+      "zero_pose": true,
+      "aux_deg": 30.0,
+      "aux_until": 0.4
+    },
+    {
+      "id": 2,
+      "name": "roulade",
+      "policy": 4,
+      "duration_s": 1.7,
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "zero_pose": true,
+      "no_getup": true
+    },
+    {
+      "id": 3,
+      "name": "sit",
+      "policy": 5,
+      "duration_s": 0.0,
+      "cmd": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "name": "stand",
+      "policy": 5,
+      "duration_s": 1.0,
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "requires": 3,
+      "keep_history": true
+    },
+    {
+      "id": 5,
+      "name": "kick_left",
+      "policy": 6,
+      "duration_s": 0.4,
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "zero_pose": true,
+      "aux_deg": 0.0,
+      "aux_until": 1.0
+    },
+    {
+      "id": 6,
+      "name": "kick_right",
+      "policy": 7,
+      "duration_s": 0.4,
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "zero_pose": true,
+      "aux_deg": 0.0,
+      "aux_until": 1.0
+    }
+  ]
+}

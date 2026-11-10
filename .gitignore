@@ -26,3 +26,11 @@ wandb/
 robots/*/policies/*_run/*_it[0-9][0-9][0-9][0-9].nnm
 robots/*/policies/*_run/*.pt
 robots/*/policies/*_run/*_it[0-9][0-9][0-9][0-9][0-9].nnm
+
+# deployment extras packed next to robot.bin
+!robots/**/skills.bin
+# XDuck policies: the upstream ONNX declare no license, the converted .nnm stay local
+robots/xgoduck/policies/*.nnm
+robots/xgoduck/policies/*.onnx
+# aarch64 ardurover built by unoq/build_ardurover.sh
+unoq/app/bin/

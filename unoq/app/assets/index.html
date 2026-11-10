@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="it">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArduHumanoid</title>
+<link rel="stylesheet" href="style.css?v=2">
+
+<header class="top">
+  <div class="brand">
+    <h1>ArduHumanoid</h1>
+    <small>ArduPilot · AP_NNMixer · Arduino Uno Q</small>
+  </div>
+  <nav id="tabs">
+    <button data-tab="stato" class="on">Stato</button>
+    <button data-tab="controllo">Controllo</button>
+    <button data-tab="calibrazione">Calibrazione</button>
+    <button data-tab="servo">Servo</button>
+  </nav>
+  <div class="top-right">
+    <span id="armed-pill" class="pill">—</span>
+    <button id="stop" class="danger" title="Disarma e toglie coppia ai servo (barra spaziatrice)">STOP · coppia off</button>
+  </div>
+</header>
+
+<p id="message" role="status" aria-live="polite"></p>
+<ul id="alerts"></ul>
+
+<main>
+<!-- ───────────────────────────── Stato ───────────────────────────── -->
+<section id="tab-stato" class="tab on">
+  <div class="cards">
+    <article><small>Autopilota</small><strong id="c-ap">—</strong><span id="c-ap-sub">—</span></article>
+    <article><small>Microcontrollore</small><strong id="c-mcu">—</strong><span id="c-mcu-sub">—</span></article>
+    <article><small>IMU</small><strong id="c-imu">—</strong><span id="c-imu-sub">—</span></article>
+    <article><small>Servo</small><strong id="c-servo">—</strong><span id="c-servo-sub">—</span></article>
+    <article><small>Policy</small><strong id="c-policy">—</strong><span id="c-policy-sub">—</span></article>
+  </div>
+
+  <div class="two">
+    <div class="panel">
+      <h2>IMU</h2>
+      <div class="imu">
+        <svg id="level" viewBox="-60 -60 120 120" aria-label="Direzione della gravità vista dal sensore">
+          <circle r="54" class="ring"/><circle r="27" class="ring thin"/>
+          <line x1="-54" x2="54" class="ring thin"/><line y1="-54" y2="54" class="ring thin"/>
+          <circle id="level-dot" r="7" class="dot"/>
+        </svg>
+        <dl>
+          <dt>Accelerometro</dt><dd id="imu-acc">—</dd>
+          <dt>Giroscopio</dt><dd id="imu-gyro">—</dd>
+          <dt>Inclinazione</dt><dd id="imu-tilt">—</dd>
+          <dt>Assetto ArduPilot</dt><dd id="imu-att">—</dd>
+          <dt>Sensore</dt><dd id="imu-kind">—</dd>
+        </dl>
+      </div>
+      <p class="hint">Robot in piedi e in piano: accelerometro (0, 0, −1) g, inclinazione 0°, punto al centro.</p>
+    </div>
+    <div class="panel">
+      <h2>Collegamenti</h2>
+      <dl class="wide">
+        <dt>ardurover</dt><dd id="l-proc">—</dd>
+        <dt>MAVLink</dt><dd id="l-mav">—</dd>
+        <dt>Ground station</dt><dd id="l-gcs">—</dd>
+        <dt>Stato dal micro</dt><dd id="l-state">—</dd>
+        <dt>Comandi al micro</dt><dd id="l-cmd">—</dd>
+        <dt>Anello servo (micro)</dt><dd id="l-loop">—</dd>
+        <dt>Task della policy</dt><dd id="l-task">—</dd>
+        <dt>Errori</dt><dd id="l-err">—</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Giunti</h2>
+    <div class="table">
+      <table>
+        <thead><tr><th>Giunto</th><th>ID</th><th>Stato</th><th class="num">Angolo °</th><th class="num">Comando °</th><th class="num">Encoder</th><th class="num">Tensione V</th></tr></thead>
+        <tbody id="joints"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Messaggi dell'autopilota</h2>
+    <ol id="texts" class="log"></ol>
+  </div>
+</section>
+
+<!-- ───────────────────────────── Controllo ───────────────────────────── -->
+<section id="tab-controllo" class="tab">
+  <div class="two">
+    <div class="panel">
+      <h2>Armamento <span id="arm-state" class="tag">—</span></h2>
+      <div class="buttons">
+        <button id="arm" class="primary">Arma</button>
+        <button id="disarm">Disarma</button>
+      </div>
+      <p class="hint">Armato: la policy comanda i servo. Disarmato: i servo tengono la posa di equilibrio, oppure sono liberi (vedi sotto).</p>
+      <h3>Da disarmato</h3>
+      <label class="switch"><input type="checkbox" id="dis-pose"> Posa di equilibrio con i servo in coppia <span class="tag" id="dis-pose-state">—</span></label>
+      <div class="buttons">
+        <button id="torque-off">Rilascia i servo</button>
+        <button id="torque-on">Torna in posa</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Modalità di camminata</h2>
+      <h3>Catena di elaborazione <span class="tag" id="chain-state">—</span></h3>
+      <div class="segmented" id="chain">
+        <button data-value="0">Standard</button>
+        <button data-value="1">XDuck</button>
+      </div>
+      <p class="hint">Standard: filtri e assetto di ArduPilot. XDuck: stessa elaborazione del software originale. Si cambia solo da disarmato.</p>
+      <h3>Policy <span class="tag" id="policy-state">—</span></h3>
+      <div class="segmented" id="policy">
+        <button data-value="0">Camminata</button>
+        <button data-value="2">Pattini</button>
+      </div>
+      <dl class="wide">
+        <dt>In esecuzione</dt><dd id="run-policy">—</dd>
+        <dt>Skill</dt><dd id="run-skill">—</dd>
+        <dt>Rialzata</dt><dd id="run-getup">—</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Movimento</h2>
+    <div class="joysticks">
+      <div>
+        <label>Avanti / laterale</label>
+        <div class="joy" id="joy-left"><div class="knob"></div></div>
+        <p class="mono">vx <span id="vx">0.00</span> · vy <span id="vy">0.00</span> m/s</p>
+      </div>
+      <div>
+        <label>Rotazione</label>
+        <div class="joy" id="joy-right"><div class="knob"></div></div>
+        <p class="mono">ωz <span id="wz">0.00</span> rad/s</p>
+      </div>
+    </div>
+    <p class="hint">Trascina per muovere, rilascia per fermare. Tastiera: W/S avanti e indietro, A/D laterale, Q/E rotazione, barra spaziatrice STOP. <span id="limits"></span></p>
+  </div>
+
+  <div class="two">
+    <div class="panel">
+      <h2>Skill</h2>
+      <div class="buttons" id="skills">
+        <button data-skill="pick">Raccogli</button>
+        <button data-skill="roulade">Capriola</button>
+        <button data-skill="sit" id="sitstand">Siediti</button>
+        <button data-skill="kick_left">Calcio sinistro</button>
+        <button data-skill="kick_right">Calcio destro</button>
+      </div>
+      <p class="hint">Disponibili da armato, con il robot in piedi e nessun'altra skill in corso.</p>
+    </div>
+    <div class="panel">
+      <h2>Testa e bocca</h2>
+      <div class="sliders" id="head"></div>
+      <label class="slider"><span>Bocca <b id="mouth-value">0</b>°</span><input type="range" id="mouth" min="0" max="30" step="1" value="0"></label>
+      <div class="buttons"><button id="head-zero">Azzera</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── Calibrazione ───────────────────────────── -->
+<section id="tab-calibrazione" class="tab">
+  <div class="panel">
+    <h2>Centratura dei giunti <span id="cal-state" class="tag">—</span></h2>
+    <p class="hint">Serve dopo il montaggio: con i servo liberi porta ogni giunto nella posizione di zero meccanico e premi «Centra». Il servo memorizza quella posizione come centro (2047). Si può fare solo da disarmato; durante la sessione i servo non hanno coppia.</p>
+    <div class="buttons">
+      <button id="cal-enter" class="primary">Inizia la calibrazione</button>
+      <button id="cal-exit">Termina</button>
+    </div>
+    <div class="table">
+      <table>
+        <thead><tr><th>Giunto</th><th>ID</th><th class="num">Encoder</th><th class="num">Distanza dal centro</th><th></th></tr></thead>
+        <tbody id="cal-rows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── Servo ───────────────────────────── -->
+<section id="tab-servo" class="tab">
+  <div class="panel">
+    <h2>Configurazione dei servo <span id="servo-state" class="tag">—</span></h2>
+    <p class="hint">Per assegnare gli ID collega <b>un solo servo alla volta</b>: i servo nuovi hanno tutti lo stesso ID. Si può fare solo da disarmato; durante la sessione i servo non hanno coppia.</p>
+    <div class="buttons">
+      <button id="servo-enter" class="primary">Apri la sessione</button>
+      <button id="servo-exit">Chiudi</button>
+    </div>
+    <div class="form">
+      <label>ID del servo<input type="number" id="s-id" min="0" max="253" value="1"></label>
+      <button data-servo="ping">Ping</button>
+      <button data-servo="read">Leggi</button>
+      <button data-servo="reset_mid">Imposta il centro qui</button>
+    </div>
+    <div class="form">
+      <label>Nuovo ID<input type="number" id="s-new" min="0" max="253" value="10"></label>
+      <button data-servo="set_id">Cambia ID</button>
+      <span class="hint">ID del robot: 10–14 gamba sinistra, 20–24 gamba destra, 30–33 collo e testa, 34 bocca.</span>
+    </div>
+    <div class="form">
+      <label>Kp<input type="number" id="s-kp" min="0" max="255" value="5"></label>
+      <label>Kd<input type="number" id="s-kd" min="0" max="255" value="20"></label>
+      <button data-servo="set_gains">Scrivi i guadagni</button>
+    </div>
+    <h3>Tutti i servo sul bus</h3>
+    <div class="form">
+      <button data-servo="set_protection" data-enabled="1">Protezione da sovraccarico ON</button>
+      <button data-servo="set_protection" data-enabled="0">OFF</button>
+      <label>Corrente di protezione (A)<input type="number" id="s-amp" min="0" max="6" step="0.1" value="1.0"></label>
+      <button data-servo="set_protection_current">Scrivi la corrente</button>
+    </div>
+    <pre id="servo-result" class="result">Nessuna operazione eseguita.</pre>
+  </div>
+</section>
+</main>
+
+<footer>ArduRover + AP_NNMixer sul lato Linux, sketch sull'STM32 · le pagine parlano con l'autopilota in MAVLink · <span id="clock">—</span></footer>
+<script src="app.js?v=3"></script>
+</html>
