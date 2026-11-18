@@ -31,8 +31,9 @@ SERVO_IDS = [10, 11, 12, 13, 14, 20, 21, 22, 23, 24, 30, 31, 32, 33, 34]
 
 
 class Relay:
-    def __init__(self, bridge, host='127.0.0.1', port=9003):
+    def __init__(self, bridge, host='127.0.0.1', port=9003, sim=None):
         self.bridge = bridge
+        self.sim = sim
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((host, port))
@@ -54,6 +55,7 @@ class Relay:
         self.voltage = None
         self.rate = dict(state=0.0, command=0.0)
         self._rate_mark = (time.monotonic(), 0, 0)
+        self._remote = None          # TCP socket of the MuJoCo viewer running on the Mac
         for name in frames.RPC_FROM_MCU:
             bridge.provide(name, self._from_mcu(name))
         bridge.provide('duck_imu', self._imu)
@@ -66,6 +68,8 @@ class Relay:
         def handler(payload):
             packet = bytes(payload)
             if packet[:4] != magic or len(packet) != frames.LENGTH[magic]:
+                return
+            if self.remote_active() or (self.sim is not None and self.sim.replaces_mcu()):
                 return
             self.count[name] += 1
             if magic == frames.STATE:
@@ -119,7 +123,47 @@ class Relay:
             self.count['cal'] += 1
         else:
             self.count['servo'] += 1
+        conn = self._remote_socket()
+        if conn is not None:
+            try:
+                conn.sendall(frames.frame(packet))
+            except OSError:
+                self.drop_remote()
+            return
+        if self.sim is not None and self.sim.take_command(packet):
+            return
         self.bridge.notify(frames.RPC_TO_MCU[magic], packet)
+
+    def release_real_servos(self):
+        """Simulation took the bus: the sketch must not keep torque on the real motors."""
+        try:
+            self._disarm()
+        except Exception:
+            self.count['send_errors'] += 1
+
+    def publish_sim(self, packets):
+        """State from MuJoCo, on the same path the sketch uses."""
+        now = time.monotonic()
+        with self.lock:
+            for packet in packets:
+                magic = packet[:4]
+                if magic == frames.STATE:
+                    self.state, self.state_t = packet, now
+                    self.count['duck_state'] += 1
+                elif magic == frames.VOLTAGE:
+                    self.voltage = packet
+                    self.count['duck_voltage'] += 1
+                elif magic == frames.DIAGNOSTIC:
+                    self._diagnostics(packet)
+                    self.count['duck_diagnostics'] += 1
+            peer = self.peer
+        if peer is None:
+            return
+        for packet in packets:
+            try:
+                self.sock.sendto(frames.frame(packet), peer)
+            except OSError:
+                self.count['send_errors'] += 1
 
     def _disarm(self):
         """ardurover is silent: release the servos in its place."""
@@ -166,7 +210,94 @@ class Relay:
 
     def start(self):
         threading.Thread(target=self.run, name='relay', daemon=True).start()
+        threading.Thread(target=self._serve_remote, name='mac-sim', daemon=True).start()
         return self
+
+    def remote_active(self) -> bool:
+        with self.lock:
+            return self._remote is not None
+
+    def _remote_socket(self):
+        with self.lock:
+            return self._remote
+
+    def drop_remote(self):
+        """Close the Mac viewer. The sketch becomes the source again."""
+        with self.lock:
+            conn, self._remote = self._remote, None
+        if conn is None:
+            return
+        try:
+            conn.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            conn.close()
+        except OSError:
+            pass
+
+    def _serve_remote(self):
+        """The Mac viewer connects here. adb forward tcp:7000 reaches this socket."""
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            server.bind(('0.0.0.0', 7000))
+        except OSError as error:
+            print(f'ArduHumanoid: porta 7000 non disponibile ({error})', flush=True)
+            return
+        server.listen(1)
+        server.settimeout(1.0)
+        print('ArduHumanoid: in ascolto del MuJoCo sul Mac, tcp:7000', flush=True)
+        while True:
+            try:
+                conn, addr = server.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                time.sleep(0.5)
+                continue
+            self._remote_session(conn, addr)
+
+    def _remote_session(self, conn, addr):
+        with self.lock:
+            if self._remote is not None:
+                try:
+                    conn.close()
+                except OSError:
+                    pass
+                return
+            self._remote = conn
+        print(f'ArduHumanoid: MuJoCo sul Mac connesso da {addr[0]}', flush=True)
+        if self.sim is not None:
+            try:
+                self.sim.set_mode('off')
+            except Exception as error:
+                print(f'ArduHumanoid: simulazione locale non fermata ({error})', flush=True)
+        self.release_real_servos()
+        conn.settimeout(0.5)
+        deframer = frames.Deframer(accept=(frames.STATE, frames.VOLTAGE, frames.DIAGNOSTIC))
+        try:
+            while self._remote_socket() is conn:
+                try:
+                    data = conn.recv(8192)
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+                if not data:
+                    break
+                packets = deframer.feed(data)
+                if packets:
+                    self.publish_sim(packets)
+        finally:
+            with self.lock:
+                if self._remote is conn:
+                    self._remote = None
+            try:
+                conn.close()
+            except OSError:
+                pass
+            print('ArduHumanoid: MuJoCo sul Mac scollegato', flush=True)
 
     # ---------------------------------------------------------------- status
     def status(self) -> dict:
@@ -206,4 +337,9 @@ class Relay:
                        angle_deg=[round(a, 1) for a in angle])
         if self.voltage is not None and len(self.voltage) == 29:
             out['voltage'] = [round(v / 10.0, 1) for v in self.voltage[14:29]]
+        if self.remote_active():
+            out['remote_sim'] = True
+            out['imu'] = dict(kind='MuJoCo (Mac)', address=None, i2c_who_am_i=None)
+        elif self.sim is not None and self.sim.replaces_mcu():
+            out['imu'] = dict(kind='MuJoCo', address=None, i2c_who_am_i=None)
         return out

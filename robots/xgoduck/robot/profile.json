@@ -9,18 +9,18 @@
   "q0": [
     0.0,
     -0.087266,
-    -0.383972,
-    0.0,
-    0.383972,
+    -0.458149,
+    -0.004887,
+    0.314159,
     0.349066,
     0.349066,
     0.0,
     0.0,
     0.0,
     0.087266,
-    0.383972,
-    0.0,
-    -0.383972
+    0.458149,
+    0.004887,
+    -0.314159
   ],
   "joint_names": [
     "left_hip_yaw",
@@ -173,6 +173,83 @@
       "zero_pose": true,
       "aux_deg": 0.0,
       "aux_until": 1.0
+    }
+  ],
+  "servo_gains": [
+    {
+      "id": 10,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 11,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 12,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 13,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 14,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 20,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 21,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 22,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 23,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 24,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 30,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 31,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 32,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 33,
+      "kp": null,
+      "kd": null
+    },
+    {
+      "id": 34,
+      "kp": 10,
+      "kd": 20
     }
   ]
 }

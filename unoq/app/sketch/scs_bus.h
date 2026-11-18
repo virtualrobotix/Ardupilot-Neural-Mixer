@@ -101,6 +101,26 @@ static void setMouthKpKd() {
   Serial1.flush();
 }
 
+// Live KP/KD (registers 50/51, RAM: they are lost at power off). Only the servos of the run-gain
+// table are written; the mouth keeps its own values unless the table gives it one.
+static void setTempKpKd(uint8_t id, uint8_t kp, uint8_t kd) {
+  const uint8_t live[3] = {ADDR_TEMP_KP, kp, kd};
+  scsWriteBuf(id, 0x03, live, 3);
+  Serial1.flush();
+}
+
+// Table from the host (DQG1), applied at every ARM. It stays in RAM until the next power cycle.
+static uint16_t runMask = 0;
+static uint8_t runKp[NUM_MOTORS] = {};
+static uint8_t runKd[NUM_MOTORS] = {};
+
+static void applyRunGains() {
+  for (uint8_t i = 0; i < NUM_MOTORS; i++) {
+    if (runMask & (1u << i)) setTempKpKd(MOTOR_IDS[i], runKp[i], runKd[i]);
+  }
+  if (!(runMask & (1u << (NUM_MOTORS - 1)))) setMouthKpKd();
+}
+
 static void syncWriteGoalsFromDesPos() {
   uint8_t order[NUM_MOTORS * 7];
   for (uint8_t i = 0; i < NUM_MOTORS; i++) {
@@ -126,12 +146,12 @@ static void sendMotorDesPos() {
   syncWriteGoalsFromDesPos();
 }
 
-static void writeSingleGoalRaw(uint8_t id, uint16_t raw) {
+static void writeSingleGoalRaw(uint8_t id, uint16_t raw, uint16_t speed = 0) {
   uint8_t data[7];
   data[0] = ADDR_GOAL_POS;
   packWordLE(data + 1, satPos(raw));
   packWordLE(data + 3, 0);
-  packWordLE(data + 5, 0);
+  packWordLE(data + 5, speed);
   scsWriteBuf(id, 0x03, data, 7);
 }
 

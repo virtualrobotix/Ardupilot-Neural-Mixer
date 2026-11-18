@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ArduHumanoid</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 
 <header class="top">
   <div class="brand">
@@ -71,10 +71,23 @@
   </div>
 
   <div class="panel">
+    <h2>Ambiente virtuale <span class="tag" id="sim-tag">spento</span></h2>
+    <div class="segmented" id="sim-mode">
+      <button data-sim="off">Spento</button>
+      <button data-sim="simulate">Simulazione</button>
+      <button data-sim="debug">Debug</button>
+    </div>
+    <button id="sim-reset">Ricomincia la scena</button>
+    <p class="hint">Simulazione: se la finestra MuJoCo è aperta sul Mac, l'autopilota usa quella. Altrimenti usa la scena sulla scheda. In entrambi i casi i motori reali restano spenti. Debug: il robot reale resta collegato e la scena sulla scheda ripete gli stessi comandi.</p>
+    <p class="hint" id="sim-detail">La scena è il modello MicroDuck, con gli stessi 14 giunti. Gli attuatori sono quelli di posizione del file, non il modello di tensione dei servo.</p>
+    <p id="sim-state" class="mono"></p>
+  </div>
+
+  <div class="panel">
     <h2>Giunti</h2>
     <div class="table">
       <table>
-        <thead><tr><th>Giunto</th><th>ID</th><th>Stato</th><th class="num">Angolo °</th><th class="num">Comando °</th><th class="num">Encoder</th><th class="num">Tensione V</th></tr></thead>
+        <thead><tr><th>Giunto</th><th>ID</th><th>Stato</th><th class="num">Angolo °</th><th class="num" id="joints-sim-col" hidden>Sim °</th><th class="num">Comando °</th><th class="num">Encoder</th><th class="num">Tensione V</th></tr></thead>
         <tbody id="joints"></tbody>
       </table>
     </div>
@@ -166,7 +179,7 @@
 <section id="tab-calibrazione" class="tab">
   <div class="panel">
     <h2>Centratura dei giunti <span id="cal-state" class="tag">—</span></h2>
-    <p class="hint">Serve dopo il montaggio: con i servo liberi porta ogni giunto nella posizione di zero meccanico e premi «Centra». Il servo memorizza quella posizione come centro (2047). Si può fare solo da disarmato; durante la sessione i servo non hanno coppia.</p>
+    <p class="hint">Serve dopo il montaggio: porta ogni giunto nella posizione di zero meccanico e premi «Centra». Il servo memorizza quella posizione come centro (2047). Si può fare solo da disarmato. Durante la sessione i servo sono liberi; dopo «Centra» quel giunto tiene la posizione con guadagni morbidi, senza cadere.</p>
     <div class="buttons">
       <button id="cal-enter" class="primary">Inizia la calibrazione</button>
       <button id="cal-exit">Termina</button>
@@ -184,7 +197,7 @@
 <section id="tab-servo" class="tab">
   <div class="panel">
     <h2>Configurazione dei servo <span id="servo-state" class="tag">—</span></h2>
-    <p class="hint">Per assegnare gli ID collega <b>un solo servo alla volta</b>: i servo nuovi hanno tutti lo stesso ID. Si può fare solo da disarmato; durante la sessione i servo non hanno coppia.</p>
+    <p class="hint">Per assegnare gli ID collega <b>un solo servo alla volta</b>: i servo nuovi hanno tutti lo stesso ID. Si può fare solo da disarmato. Durante la sessione i servo non hanno coppia finché non muovi uno slider; i guadagni KP/KD sono nella riga di ciascun servo.</p>
     <div class="buttons">
       <button id="servo-enter" class="primary">Apri la sessione</button>
       <button id="servo-exit">Chiudi</button>
@@ -205,6 +218,17 @@
       <label>Kd<input type="number" id="s-kd" min="0" max="255" value="20"></label>
       <button data-servo="set_gains">Scrivi i guadagni</button>
     </div>
+    <h3>Servo configurati <span class="hint">una riga per servo sul bus: tanti quanti ne manda il microcontrollore</span></h3>
+    <div class="buttons">
+      <button id="gains-apply" title="Manda al microcontrollore la tabella KP/KD del robot: li applica al prossimo armamento">Applica la tabella KP/KD</button>
+      <button id="gains-read">Leggi tutti</button>
+    </div>
+    <div class="table">
+      <table>
+        <thead><tr><th>Servo</th><th>ID</th><th>Stato</th><th class="num">Encoder</th><th>Vai a (0–4095)</th><th class="num" title="Valori permanenti in EEPROM, letti con Leggi">Kp EEPROM</th><th class="num" title="Valori permanenti in EEPROM, letti con Leggi">Kd EEPROM</th><th>Azioni</th></tr></thead>
+        <tbody id="servo-rows"></tbody>
+      </table>
+    </div>
     <h3>Tutti i servo sul bus</h3>
     <div class="form">
       <button data-servo="set_protection" data-enabled="1">Protezione da sovraccarico ON</button>
@@ -218,5 +242,5 @@
 </main>
 
 <footer>ArduRover + AP_NNMixer sul lato Linux, sketch sull'STM32 · le pagine parlano con l'autopilota in MAVLink · <span id="clock">—</span></footer>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=6"></script>
 </html>

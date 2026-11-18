@@ -1,10 +1,16 @@
-# Gesti per imitazione di clip: saluto e balletto
+# Gesti per imitazione di clip: saluto, balletto, motion capture, teleoperazione, get-up
 
 [Catalogo robot](README.md) · [Training compatibile con ArduPilot](training.md) · [Microban](microban.md)
 
 Oltre alla camminata, un robot del catalogo può imparare un **gesto a tempo**: un saluto, un balletto,
 una posa. Questa pagina spiega come funziona l'algoritmo, perché il primo approccio non funzionava, e come
 si aggiunge un gesto nuovo. Il banco di prova è Microban (braccia a 3 gradi di libertà, gambe a 6).
+Le sezioni successive coprono:
+
+- le clip ricavate da un movimento umano con il retargeting `frax.ik`, e il confronto con GMR e con il
+  retargeting geometrico della teleop;
+- la teleoperazione della posa via MAVLink;
+- il rialzarsi in due fasi.
 
 Risultati: [`wave_right.nnm`](../../robots/microban/policies/wave_right.nnm) saluta con la destra
 ([video](../media/microban_wave_right_clip_it0300.mp4)), [`dance.nnm`](../../robots/microban/policies/dance.nnm)
@@ -135,6 +141,123 @@ Per un robot che oggi ha `extra_cmd_dim 0`, portarlo a 2 in [`catalog.py`](../..
 rigenerare con `build_catalog.py` e allargare le policy esistenti con
 [`pad_nnm_obs.py`](../../tools/robots/pad_nnm_obs.py): le colonne aggiunte hanno peso zero e l'uscita
 non cambia.
+
+## Clip da motion capture: retargeting con frax.ik
+
+[`retarget_frax.py`](../../tools/mocap/retarget_frax.py) porta un movimento umano sul robot con
+l'IK differenziale di [frax](https://github.com/StanfordASL/frax) (StanfordASL, MIT). Il robot è l'MJCF del
+training, convertito al volo in un URDF minimo perché frax legge solo URDF. La cinematica diretta
+dell'URDF coincide con quella di MuJoCo, come verifica `tests/test_retarget_frax.py`. La clip esce come
+`robots/<id>/motions/<nome>.npz`, densa (un frame per campione e tutti i giunti della policy) e
+nell'ordine del profilo, e si addestra con `--gesture motion`.
+
+```bash
+# venv separato: frax vuole jax >= 0.9.1, il venv del training resta senza JAX
+uv venv .venv-frax --python 3.12
+uv pip install --python .venv-frax/bin/python "frax[ik]==0.2.0" mujoco scipy pyyaml
+
+# 1a. da landmark MediaPipe world (T, 33, 3), registrati dalla webcam
+JAX_ENABLE_X64=1 .venv-frax/bin/python tools/mocap/retarget_frax.py --robot microban \
+    --mediapipe take.npz --name wave_mocap --loop-blend 0.3
+# 1b. da un BVH (LAFAN1)
+JAX_ENABLE_X64=1 .venv-frax/bin/python tools/mocap/retarget_frax.py --robot microban \
+    --bvh dance1_subject1.bvh --start 10 --end 18 --name dance_lafan --free-feet
+
+# 2. imitazione della clip (venv del training)
+.venv/bin/python tools/robots/train_velocity.py --robot microban --gesture motion \
+    --motion robots/microban/motions/wave_mocap.npz \
+    --init-nnm robots/microban/policies/walk_md.nnm --init-std 0.3 --lr 2e-4 \
+    --envs 512 --workers 8 --iters 600 --name wave_mocap
+
+# 3. video con il fantasma verde della clip
+.venv/bin/python tools/robots/play_policy.py --robot microban --nnm robots/microban/policies/wave_mocap.nnm \
+    --gesture motion --motion robots/microban/motions/wave_mocap.npz --stand 8 --video wave_mocap.mp4
+```
+
+Il solutore insegue sette frame: il tronco, i gomiti, le mani e le caviglie. Le braccia sono mappate come
+rotazioni dei segmenti umani a partire dal braccio a riposo, applicate ai segmenti del robot in `q0`; in
+questo modo una spalla umana larga non diventa una posa che Microban non sa fare. L'abbassamento delle
+anche è relativo alla statura in piedi dell'attore. I piedi restano fermi in `q0`, a meno di passare
+`--free-feet`. Ogni frame rispetta il range MJCF ∩ `q0 ± NNM_ACT_MAX` e la velocità massima `--vel-max`
+(6 rad/s, quella dei servo). Una guardia impedisce l'iperestensione delle ginocchia. Le clip cicliche
+(`--loop-blend`) si risolvono su due periodi, così il passaggio dall'ultimo frame al primo è continuo.
+`--oneshot` scrive invece una clip a fase bloccata, come il get-up.
+
+Nell'ambiente, `--gesture motion` interpola linearmente la clip alla fase dell'orologio
+(`hz = fps / frame`) e usa gli stessi pesi dei preset: velocità zero, niente spinte, `action_rate`
+−0,02 e `gesture_pose` 8. Per il reward e per l'esplorazione per giunto valgono solo i giunti che si
+muovono più di 0,02 rad. Sul robot `NNM_CLOCK_HZ` va impostato al valore `hz` stampato dal trainer.
+
+Prova su una ripresa sintetica (saluto con la destra, braccio sinistro in avanti, accosciata; 120 frame
+a 30 fps, 4 s) con Microban:
+
+| Misura | Valore |
+|---|---|
+| Tempo di soluzione | 6,9 ms per 240 frame, i due periodi della clip ciclica (~35 000 frame/s, CPU, dopo la compilazione JIT) |
+| Errore delle mani, mediana / 95° percentile | 20 / 52 mm (il braccio a 3 gradi di libertà non ha la rotazione dell'omero) |
+| Errore dei piedi, mediana / massimo | 0 / 1 mm |
+| Velocità di picco dei giunti | 6,00 rad/s, cioè il limite `--vel-max` |
+| Ginocchia nell'accosciata | da 0 a 0,93 rad, nel verso giusto |
+| Salto tra ultimo e primo frame della clip ciclica | 0,14 rad |
+
+La clip è stata addestrata solo per 2 iterazioni, come verifica della pipeline. Non sono ancora state
+provate né una ripresa reale della webcam né un BVH di LAFAN1.
+
+### frax rispetto a GMR e al retargeting geometrico
+
+Nel progetto si incontrano tre modi di portare un movimento umano su un robot:
+
+- **Retargeting geometrico**, [`retarget_microban.py`](../../tools/mocap/retarget_microban.py): è quello
+  della teleoperazione. Calcola a mano angoli di braccia, ginocchia e ondeggiamento dai landmark MediaPipe
+  e li manda come 8 canali `NNM_POSE` a `pose_cmd.nnm`.
+- **GMR** (General Motion Retargeting, [YanjieZe/GMR](https://github.com/YanjieZe/GMR), Ze et al.,
+  ICRA 2026, MIT): è il retargeting usato a monte per il dataset di TienKung (SMPL-X da AMASS e OMOMO,
+  vedi [tienkung.md](tienkung.md)). Usa l'IK differenziale di [mink](https://github.com/kevinzakka/mink)
+  su MuJoCo e ha configurazioni pronte per circa 17 umanoidi.
+- **frax.ik**, [`retarget_frax.py`](../../tools/mocap/retarget_frax.py): l'IK differenziale in JAX di
+  StanfordASL descritta sopra.
+
+| | Geometrico (`retarget_microban.py`) | GMR | frax.ik (`retarget_frax.py`) |
+|---|---|---|---|
+| Uso | teleop in tempo reale | dataset e teleop in tempo reale | dataset e clip offline |
+| Giunti | 8 canali di posa | tutto il corpo | tutto il corpo (18 su Microban) |
+| Robot | solo Microban, geometria scritta a mano | ~17 umanoidi configurati (G1, H1, Booster T1, TienKung…), non i robot piccoli del catalogo | qualsiasi robot del catalogo, ricavato dall'MJCF |
+| Limiti | taglio a valle sui `POSE_RANGES` | limiti di giunto e velocità nel QP di mink (default 3π rad/s) | range MJCF ∩ `q0 ± NNM_ACT_MAX` e velocità dei servo come vincoli; il QP (ElastiQP) resta sempre risolvibile |
+| Velocità | tempo reale | 35–70 frame/s su CPU desktop (dati GMR) | oltre 100 000 frame/s in batch (dati frax); qui ~35 000 frame/s |
+| Ingressi | MediaPipe | SMPL-X, BVH (LAFAN1, Nokov, Xsens), FBX OptiTrack, video monoculare (GVHMR), stream Xsens/OptiTrack/PICO | MediaPipe, BVH (LAFAN1) |
+| Modello robot | — | MJCF più un file di configurazione IK per robot | URDF (lo genera lo script dall'MJCF) |
+
+Per questo progetto, frax ha cinque vantaggi rispetto a GMR:
+
+1. **Velocità.** frax rielabora l'intero LAFAN1 in pochi secondi; a 70 frame/s GMR impiega ore. Così
+   si può rifare il retargeting di un dataset a ogni modifica dei pesi, dei limiti o della mappatura.
+2. **Il contratto ArduPilot come vincolo.** `NNM_ACT_MAX` e la velocità dei servo stanno nel QP. La
+   clip resta quindi dentro ciò che la policy int8 può comandare, e l'ambiente non deve tagliarla.
+   Con GMR servirebbe un passaggio di taglio a valle, che rompe la continuità del movimento.
+3. **Robot piccoli senza configurazione dedicata.** GMR non conosce Microban né gli altri robot del
+   catalogo: ognuno chiederebbe un file IK (corrispondenze tra corpi, scale, pesi) scritto e tarato a mano.
+   `retarget_frax.py` legge l'MJCF del training e riconosce braccia e gambe dai nomi dei giunti del profilo.
+4. **Soluzione sempre disponibile.** Con bersagli irraggiungibili (un braccio umano più lungo, una posa che
+   il robot non sa fare) ElastiQP rilassa i vincoli in modo controllato invece di fallire.
+5. **JAX.** L'IK è differenziabile e vettorizzabile (`jax.vmap`) su molte clip insieme.
+
+Restano invece dalla parte di GMR:
+
+- le configurazioni già tarate per TienKung e Booster T1, che sono nel catalogo;
+- molti più formati d'ingresso, compreso SMPL-X (AMASS) e il video monoculare;
+- lo streaming dal vivo per la teleoperazione a corpo intero;
+- la lettura diretta dell'MJCF.
+
+Per TienKung e Booster T1 si può quindi partire da un output GMR: va convertito nel formato `.npz` di
+`--gesture motion`, ma questo passaggio non è scritto.
+
+Rispetto al retargeting geometrico, frax lavora su tutti i giunti e tratta i limiti come vincoli invece di
+tagliare a valle; la geometria non va scritta per ogni robot. Sulla stessa ripresa sintetica, il geometrico
+lasciava le ginocchia a 0 durante l'accosciata, perché nei landmark world di MediaPipe l'origine è al centro
+delle anche e l'abbassamento non si vede. Non vedeva nemmeno il braccio sinistro alzato in avanti, perché
+tratta come verso l'alto l'asse y di MediaPipe, che invece punta in basso. frax però lavora offline: la
+teleop in tempo reale resta su `pose_cmd`. frax ha anche un `OnlineRetargeter`, che potrebbe sostituire il
+geometrico nella ground station, ma non è collegato.
 
 ## Deploy
 
@@ -380,6 +503,9 @@ posa a fine clip, i comandi fuori range e il passaggio alla walk vanno misurati 
   `_clock_oneshot`); le clip periodiche restano su `NNM_CLOCK_HZ`.
 - Le gambe nella clip di balletto restano piccoli spostamenti a piedi fermi. Passi, salti o giri
   richiedono il tracking anche della posa del tronco, come nei lavori sul G1.
-- Le pose chiave delle clip periodiche sono scritte a mano; il get-up usa invece motion
-  auto-scoperte (Fase I). La teleoperazione via MediaPipe sostituisce le clip in tempo reale con un
-  riadattamento cinematico semplificato (non un IK a corpo intero).
+- Le pose chiave dei preset periodici sono scritte a mano; il get-up usa invece motion
+  auto-scoperte (Fase I), e le clip `--gesture motion` vengono da motion capture con `frax.ik`.
+  La teleoperazione via MediaPipe sostituisce le clip in tempo reale con un riadattamento
+  cinematico semplificato, non con un IK a corpo intero.
+- Il retargeting `frax.ik` è offline e senza auto-collisioni: il convertitore MJCF → URDF tiene solo
+  i giunti a cerniera e nessuna geometria di collisione. È stato provato solo su dati sintetici.

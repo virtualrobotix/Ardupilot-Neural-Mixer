@@ -73,15 +73,48 @@ def pack(profile: dict) -> bytes:
     return bytes(buf)
 
 
-SKILL_KEYS = ("pose_limits", "aux_max", "deploy", "skills")
+SKILL_KEYS = ("pose_limits", "aux_max", "deploy", "skills", "servo_gains")
+
+# Bus slots of the Uno Q sketch, in MCU order (sketch/duck_config.h MOTOR_IDS). The gain table is
+# indexed by this order and the packer refuses a profile that lists another one.
+GAIN_SLOT_IDS = (10, 11, 12, 13, 14, 20, 21, 22, 23, 24, 30, 31, 32, 33, 34)
+
+
+def pack_servo_gains(entries: list) -> bytes:
+    """Tail of skills.bin version 2: n u8, mask u16 (bit i = slot i has a value), kp[n], kd[n].
+
+    entries: one dict per slot, in GAIN_SLOT_IDS order: {"id", "kp", "kd"}. kp or kd null means the
+    slot is left to the servo's own EEPROM values (its bit stays clear)."""
+    ids = [int(e["id"]) for e in entries]
+    if ids != list(GAIN_SLOT_IDS[:len(ids)]) or len(ids) > len(GAIN_SLOT_IDS):
+        raise SystemExit(f"servo_gains ids must follow the MCU slot order {list(GAIN_SLOT_IDS)}: {ids}")
+    mask, kp, kd = 0, [], []
+    for i, e in enumerate(entries):
+        values = [e.get("kp"), e.get("kd")]
+        if values[0] is None and values[1] is None:
+            kp.append(0)
+            kd.append(0)
+            continue
+        if None in values:
+            raise SystemExit(f"servo_gains id {e['id']}: kp and kd must both be set or both null")
+        if not all(isinstance(v, int) and 0 <= v <= 255 for v in values):
+            raise SystemExit(f"servo_gains id {e['id']}: kp/kd must be integers 0..255")
+        mask |= 1 << i
+        kp.append(values[0])
+        kd.append(values[1])
+    return struct.pack("<BH", len(ids), mask) + bytes(kp) + bytes(kd)
 POLICY_ZERO_POSE, POLICY_NO_ACCX = 1, 2
 SKILL_CIRCLE, SKILL_ZERO_POSE, SKILL_NO_GETUP, SKILL_KEEP_HISTORY, SKILL_AUX = 1, 2, 4, 8, 16
 
 
 def pack_skills(profile: dict) -> bytes | None:
-    """skills.bin for a profile with deployment extras, None when it has none."""
+    """skills.bin for a profile with deployment extras, None when it has none.
+
+    Version 1 when the profile has no servo_gains (unchanged layout); version 2 appends the gain
+    table after the skills."""
     if not any(k in profile for k in SKILL_KEYS):
         return None
+    version = 2 if "servo_gains" in profile else 1
     deploy = profile.get("deploy") or {}
     policies = list(deploy.get("policies") or [])
     skills = list(profile.get("skills") or [])
@@ -99,7 +132,7 @@ def pack_skills(profile: dict) -> bytes | None:
     if len(set(ids)) != len(ids) or any(not 1 <= i <= 255 for i in ids):
         raise SystemExit(f"skill ids must be unique and within 1..255: {ids}")
     buf = bytearray()
-    buf += struct.pack("<4sBBBB", b"NNMS", 1, len(policies), len(skills), 0)
+    buf += struct.pack("<4sBBBB", b"NNMS", version, len(policies), len(skills), 0)
     buf += struct.pack("<BBH", int(head_first), int(head_count), 0)
     buf += struct.pack("<ff", alpha_leg, alpha_head)
     buf += struct.pack("<8f", *limits)
@@ -124,6 +157,8 @@ def pack_skills(profile: dict) -> bytes | None:
         buf += struct.pack("<BBBBf3fff", int(s["id"]), int(s["policy"]), flags, requires,
                            float(s.get("duration_s", 0.0)), *twist,
                            float(s.get("aux_deg", 0.0)), float(s.get("aux_until", 0.0)))
+    if version == 2:
+        buf += pack_servo_gains(profile.get("servo_gains") or [])
     return bytes(buf)
 
 

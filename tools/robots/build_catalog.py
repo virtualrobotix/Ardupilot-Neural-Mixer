@@ -52,7 +52,7 @@ def profile_for(rid: str, r: dict) -> dict:
         "upstream": r["upstream"],
         "sim": r["sim"],
         # optional deployment extras, packed into skills.bin by pack_robot_bin.py
-        **{k: r[k] for k in ("pose_limits", "aux_max", "deploy", "skills") if k in r},
+        **{k: r[k] for k in ("pose_limits", "aux_max", "deploy", "skills", "servo_gains") if k in r},
     }
 
 

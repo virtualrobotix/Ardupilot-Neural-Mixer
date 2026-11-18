@@ -15,6 +15,13 @@ static const uint16_t POS_MAX = 4095;
 // Angle conversion always uses this fixed center. It is never calibrated.
 static constexpr uint16_t SERVO_CENTER_POS = 2047;
 static constexpr uint16_t CAL_HOLD_POS = 2048;
+// Slider positioning only. Live gains, not EEPROM. 0 speed means full speed.
+static const uint8_t CAL_MOVE_KP = 3;
+static const uint8_t CAL_MOVE_KD = 8;
+static const uint16_t CAL_MOVE_SPEED = 20;
+static const uint8_t CAL_HOLD_KP = 8;
+static const uint8_t CAL_HOLD_KD = 16;
+static const uint16_t CAL_HOLD_SPEED = 30;
 
 static const uint8_t ADDR_GOAL_POS = 0x2A;
 static const uint8_t ADDR_PRESENT = 0x38;

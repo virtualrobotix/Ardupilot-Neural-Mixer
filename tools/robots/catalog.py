@@ -389,6 +389,11 @@ ROBOTS: dict[str, dict] = {
             "(`NNM_CLOCK_HZ`, 0 per la camminata) e otto canali di posa comandata via MAVLink (`NNM_POSE`; "
             "a zero = riposo, quindi walk e clip non ne risentono). Saluto, balletto e teleoperazione sono "
             "selezionabili con `NNM_POLICY`: vedi [gesture_imitation.md](gesture_imitation.md).",
+            "Clip da motion capture: `tools/mocap/retarget_frax.py` porta una ripresa MediaPipe o un BVH "
+            "su tutti i 18 giunti con l'IK differenziale di frax (limiti di giunto, `NNM_ACT_MAX` e velocità "
+            "dei servo come vincoli, piedi fermi), e `train_velocity.py --gesture motion --motion <clip.npz>` "
+            "la imita con l'orologio dei gesti. Vedi "
+            "[gesture_imitation.md](gesture_imitation.md#clip-da-motion-capture-retargeting-con-fraxik).",
             "Rialzarsi: `getup.nnm` è una policy a orologio one-shot (θ = π·min(t/`NNM_GETUP_S`, 1), 14,2 s). "
             "Il firmware la avvia da solo quando il tronco supera `NNM_GETUP_TILT` per 300 ms (slot libero), "
             "e torna alla policy precedente dopo l'intera clip con il robot in piedi per `NNM_GETUP_HOLD`. "
@@ -2140,6 +2145,19 @@ ROBOTS["xgoduck"] = {
     "pose_limits": [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
     # auxiliary bus actuator outside the policy: the mouth (servo 34), degrees
     "aux_max": 30.0,
+    # KP/KD per bus slot, MCU order (sketch/duck_config.h MOTOR_IDS). null = keep the servo's own
+    # EEPROM value. Only the mouth (ID 34) has a known value: the sketch has always written 10/20.
+    # The other 14 are filled from the robot with tools/unoq/read_servo_gains.py, not guessed.
+    "servo_gains": [
+        {"id": 10, "kp": None, "kd": None}, {"id": 11, "kp": None, "kd": None},
+        {"id": 12, "kp": None, "kd": None}, {"id": 13, "kp": None, "kd": None},
+        {"id": 14, "kp": None, "kd": None}, {"id": 20, "kp": None, "kd": None},
+        {"id": 21, "kp": None, "kd": None}, {"id": 22, "kp": None, "kd": None},
+        {"id": 23, "kp": None, "kd": None}, {"id": 24, "kp": None, "kd": None},
+        {"id": 30, "kp": None, "kd": None}, {"id": 31, "kp": None, "kd": None},
+        {"id": 32, "kp": None, "kd": None}, {"id": 33, "kp": None, "kd": None},
+        {"id": 34, "kp": 10, "kd": 20},
+    ],
     # XDuck deployment chain (NNM_DEPLOY 1): low-pass on the joint targets, per policy file index.
     # head_joints = [first, count] of the joints filtered with alpha_head.
     "deploy": {

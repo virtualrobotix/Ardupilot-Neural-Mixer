@@ -13,6 +13,8 @@
     POST /api/skill     {"name": "pick"|"roulade"|"sit"|"stand"|"kick_left"|"kick_right"}
     POST /api/param     {"name": "NNM_DEPLOY", "value": 1}
     POST /api/service   {"action": "cal_enter"|"cal_center"|"ping"|..., "id": .., ...}
+                        goto {"id", "raw": 0..4095}; run_gains {} (sends the robot's KP/KD table)
+    POST /api/sim       {"mode": "off"|"simulate"|"debug", "reset": false}
 """
 from __future__ import annotations
 
@@ -20,22 +22,30 @@ import math
 import time
 
 from gateway import PROTECTION_CURRENT_UNIT_A, SLOT_IDS, GatewayError
+from sim_link import SimError
 
 
 class Api:
-    def __init__(self, gateway, relay, supervisor):
-        self.gateway, self.relay, self.supervisor = gateway, relay, supervisor
+    def __init__(self, gateway, relay, supervisor, sim=None):
+        self.gateway, self.relay, self.supervisor, self.simlink = gateway, relay, supervisor, sim
 
     def status(self):
         link = self.relay.status()
+        sim = self.simlink.status() if self.simlink is not None else dict(mode='off', available=False, error=None)
+        if self.relay.remote_active():
+            sim = dict(sim, mode='simulate', available=True, engine='MuJoCo sul Mac', error=None,
+                       powered=bool(link.get('torque')), gravity_g=link.get('acc_g'),
+                       joints_deg=link.get('angle_deg'))
         out = dict(time=time.strftime('%H:%M:%S'), process=self.supervisor.status(), link=link,
-                   autopilot=self.gateway.status())
+                   autopilot=self.gateway.status(), sim=sim)
         acc = link.get('acc_g')
         if acc and link.get('imu_ok'):
             norm = math.sqrt(sum(a * a for a in acc))
             if norm > 0.2:
                 # standing level reads (0, 0, -1) g in the sketch's axes
                 out['tilt_deg'] = round(math.degrees(math.acos(max(-1.0, min(1.0, -acc[2] / norm)))), 1)
+                if self.relay.remote_active():
+                    sim['tilt_deg'] = out['tilt_deg']
         return out
 
     def arm(self, body):
@@ -84,6 +94,25 @@ class Api:
     def param(self, body):
         return dict(name=body['name'], value=self.gateway.param_set(body['name'], body['value']))
 
+    def sim(self, body):
+        if self.simlink is None:
+            raise GatewayError('simulazione non disponibile in questo processo')
+        mode = body.get('mode', self.simlink.mode)
+        remote = self.relay.remote_active()
+        leaving = mode != 'simulate' and (self.simlink.mode == 'simulate' or remote)
+        if leaving and self.gateway.armed:
+            raise GatewayError('disarma prima di uscire dalla simulazione: i comandi tornerebbero ai motori reali')
+        if mode != 'simulate':
+            self.relay.drop_remote()
+        elif remote:
+            if body.get('reset'):
+                self.relay.drop_remote()
+            return self.simlink.status()
+        try:
+            return self.simlink.set_mode(mode, reset=bool(body.get('reset')))
+        except SimError as e:
+            raise GatewayError(str(e))
+
     def service(self, body):
         action = body['action']
         g = self.gateway
@@ -96,6 +125,13 @@ class Api:
             r = g.service(action, index, timeout=4.0)
         elif action in ('ping', 'read', 'unlock', 'reset_mid'):
             r = g.service(action, self._servo_id(body['id']), timeout=4.0)
+        elif action == 'goto':
+            raw = int(body['raw'])
+            if not 0 <= raw <= 4095:
+                raise GatewayError('posizione fuori scala (0..4095)')
+            r = g.service(action, self._servo_id(body['id']), raw, timeout=4.0)
+        elif action == 'run_gains':
+            r = g.service(action, timeout=4.0)
         elif action == 'set_id':
             r = g.service(action, self._servo_id(body['id']), self._servo_id(body['new_id']), timeout=4.0)
         elif action == 'set_gains':
@@ -138,5 +174,5 @@ def register(ui, api: Api):
         return handler
 
     ui.expose_api('GET', '/api/status', api.status)
-    for name in ('arm', 'stop', 'torque', 'motion', 'head', 'skill', 'param', 'service'):
+    for name in ('arm', 'stop', 'torque', 'motion', 'head', 'skill', 'param', 'service', 'sim'):
         ui.expose_api('POST', f'/api/{name}', post(getattr(api, name)))

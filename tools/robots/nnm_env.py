@@ -218,7 +218,7 @@ class NNMixerEnv:
         self.gait_swing_period = float(gc.get("swing_period", 0.4))
         self.gait_hz = 0.0
         self.gait_phase = 0.0
-        self._setup_gesture(env_cfg.get("gesture"))
+        self._setup_gesture(env_cfg.get("gesture"), env_cfg.get("motion_file"))
         self.actuator = actuator or sim.get("actuator", "position")
         self._load(Path(path))
         # gait_reference.legs: [hip pitch, knee, ankle pitch] per leg, in the order of sim.feet / swing_phase
@@ -390,7 +390,7 @@ class NNMixerEnv:
     ], np.float32)
     POSE_TAU_S = 0.15
 
-    def _setup_gesture(self, name: str | None) -> None:
+    def _setup_gesture(self, name: str | None, motion_file: str | None = None) -> None:
         """Motion imitation of a short clip while standing (DeepMimic style, as the G1 dances).
 
         The clip is a few keyframes of arm joints over one period, interpolated with a cosine.
@@ -405,8 +405,12 @@ class NNMixerEnv:
         teleop GCS will send. Random poses, zero-command, and clip-as-stream cover the domain.
 
         getup: one-shot prone/supine → stand clips (getup_clips.py). The policy picks which clip from
-        the gravity direction; the clock is θ = π·min(t/T,1) so sin/cos end at (0, −1)."""
+        the gravity direction; the clock is θ = π·min(t/T,1) so sin/cos end at (0, −1).
+
+        motion: a dense joint clip from a file (robots/<id>/motions/*.npz, e.g. written by
+        tools/mocap/retarget_frax.py), tracked with the same clock and rewards as the presets."""
         self.gesture_spec = None
+        self.motion_traj: dict | None = None
         self.gesture_ids: np.ndarray | None = None
         self.clip_phase = 0.0
         self.pose_cmd = False
@@ -448,6 +452,9 @@ class NNMixerEnv:
             return
         if name == "getup_discover":
             self._setup_getup(discover=True)
+            return
+        if name == "motion":
+            self._setup_motion(motion_file)
             return
         presets = {
             # keyframes: phase in [0, 1) -> joint angle; the clip is periodic
@@ -528,6 +535,62 @@ class NNMixerEnv:
         self.w.action_rate = -0.02
         if not self.w.gesture_pose:
             self.w.gesture_pose = 8.0
+
+    def _setup_motion(self, motion_file: str | None) -> None:
+        """Track a dense joint clip: q (T, joints) in absolute radians, fps, joint_names, oneshot."""
+        if not motion_file:
+            raise ValueError("gesture 'motion' needs a motion file (--motion robots/<id>/motions/<clip>.npz)")
+        path = Path(motion_file)
+        data = np.load(path, allow_pickle=False)
+        names = self.profile["joint_names"]
+        index = {n: i for i, n in enumerate(names)}
+        clip_names = [str(n) for n in data["joint_names"]]
+        missing = [n for n in clip_names if n not in index]
+        if missing:
+            raise ValueError(f"{path}: joints not on this robot: {missing}")
+        q0 = np.asarray(self.contract.q0, dtype=np.float64)
+        q = np.tile(q0, (len(data["q"]), 1))
+        q[:, [index[n] for n in clip_names]] = np.asarray(data["q"], dtype=np.float64)
+        act_max = self.contract.act_max
+        over = float(np.max(np.abs(q - q0)))
+        if over > act_max + 1e-6:
+            print(f"{path.name}: clip reaches |q - q0| {over:.2f} rad, clipped to NNM_ACT_MAX {act_max}")
+            q = np.clip(q, q0 - act_max, q0 + act_max)
+        fps = float(data["fps"])
+        oneshot = bool(data["oneshot"]) if "oneshot" in data.files else False
+        if self.contract.extra_cmd_dim < 2:
+            raise ValueError(f"motion: a timed clip needs two extra observation channels "
+                             f"(extra_cmd_dim >= 2), this robot has {self.contract.extra_cmd_dim}")
+        moving = [n for n in names if np.ptp(q[:, index[n]]) > 0.02]
+        if not moving:
+            raise ValueError(f"{path}: no joint moves more than 0.02 rad")
+        self.motion_traj = {"q": q, "oneshot": oneshot}
+        self.gesture_spec = {
+            "mode": "motion", "hz": fps / len(q), "oneshot": oneshot,
+            "keys": {n: [(0.0, float(np.mean(q[:, index[n]])))] for n in moving},
+        }
+        self.gesture_index = index
+        self.gesture_ids = np.array([index[n] for n in moving])
+        self.p_zero_cmd = 1.0
+        self.push_vel = 0.0
+        self.w.action_rate = -0.02
+        if not self.w.gesture_pose:
+            self.w.gesture_pose = 8.0
+
+    def _motion_reference(self, phase: float) -> np.ndarray:
+        """Linear interpolation of the dense clip; periodic clips wrap from the last frame to the first."""
+        assert self.motion_traj is not None
+        q = self.motion_traj["q"]
+        n = len(q)
+        if self.motion_traj["oneshot"]:
+            f = float(np.clip(phase, 0.0, 1.0)) * (n - 1)
+            i = min(int(f), n - 2)
+            s = f - i
+            return (1.0 - s) * q[i] + s * q[i + 1]
+        f = (phase % 1.0) * n
+        i = int(f) % n
+        s = f - int(f)
+        return (1.0 - s) * q[i] + s * q[(i + 1) % n]
 
     def _setup_pose_cmd(self) -> None:
         """Stand and track an 8-channel pose command (MAVLink teleop domain)."""
@@ -894,6 +957,8 @@ class NNMixerEnv:
                 for i, n in enumerate(getup.JOINT_NAMES):
                     ref[self.gesture_index[n]] = q_ref[i]
                 return ref
+        if self.motion_traj is not None:
+            return self._motion_reference(self.clip_phase)
         oneshot = bool(spec.get("oneshot") or self.getup)
         for n, keys in spec["keys"].items():
             ref[self.gesture_index[n]] = self._clip_value(keys, self.clip_phase, oneshot=oneshot)

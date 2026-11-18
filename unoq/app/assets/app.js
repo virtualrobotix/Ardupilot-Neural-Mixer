@@ -15,6 +15,8 @@ const POLICY_LABEL = { walk: 'Camminata', getup: 'Rialzata', roller: 'Pattini', 
 const SKILL_LABEL = { pick: 'Raccolta', roulade: 'Capriola', sit: 'Seduto', stand: 'In piedi', kick_left: 'Calcio sinistro', kick_right: 'Calcio destro' };
 const GETUP_LABEL = { idle: 'In piedi', falling: 'Caduta rilevata', active: 'Si sta rialzando', recovered: 'Rialzato' };
 const ENCODER_CENTER = 2047;
+const FALLBACK_SERVOS = 15;   // until the status has the joints: the robot has 15 bus slots
+const configuredServos = (ap) => (ap.joints || []).length || FALLBACK_SERVOS;
 
 let status = null;          // last /api/status
 let statusAge = 0;          // failed polls in a row
@@ -58,6 +60,17 @@ function card(id, level, title, sub) {
 
 // ───────────────────────────── tabs
 document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+document.querySelectorAll('#sim-mode button').forEach((b) => b.addEventListener('click', async () => {
+  try {
+    await post('sim', { mode: b.dataset.sim });
+    say(b.dataset.sim === 'off' ? 'Ambiente virtuale spento.' : b.dataset.sim === 'simulate' ? 'Simulazione attiva: i motori reali sono spenti.' : 'Debug attivo: la scena segue i comandi del robot.', 'good');
+  } catch (e) { /* shown by post */ }
+}));
+$('sim-reset').addEventListener('click', async () => {
+  const mode = (status && status.sim && status.sim.mode) || 'off';
+  if (mode === 'off') return;
+  try { await post('sim', { mode, reset: true }); say('Scena riportata in piedi.', 'good'); } catch (e) { /* shown by post */ }
+});
 function showTab(name) {
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
   document.querySelectorAll('.tab').forEach((s) => s.classList.toggle('on', s.id === 'tab-' + name));
@@ -108,7 +121,8 @@ function render() {
     link.imu_ok ? `inclinazione ${fmt(s.tilt_deg, 0)}°` : (imu.spi_who_am_i ? `SPI risponde ${imu.spi_who_am_i}` : 'nessun sensore trovato'));
   const answering = (link.servos_answering || []).length;
   const volts = (ap.joints || []).map((j) => j.voltage).filter((v) => v !== null && v > 0);
-  card('c-servo', answering === 15 ? 'ok' : answering ? 'warn' : 'bad', `${answering} / 15`,
+  const expected = configuredServos(ap);
+  card('c-servo', answering === expected ? 'ok' : answering ? 'warn' : 'bad', `${answering} / ${expected}`,
     volts.length ? `${fmt(Math.min(...volts))}–${fmt(Math.max(...volts))} V · coppia ${link.torque ? 'ON' : 'off'}` : `nessuna tensione letta · coppia ${link.torque ? 'ON' : 'off'}`);
   const task = ap.policy_task || {};
   card('c-policy', robot ? (armed ? 'ok' : '') : 'bad', robot ? (POLICY_LABEL[robot.policy_name] || robot.policy_name) : '—',
@@ -117,14 +131,19 @@ function render() {
   // alerts
   if (!proc.running) alerts.push(['bad', `ardurover non è in esecuzione. ${proc.error || ''}`]);
   else if (!ap.connected) alerts.push(['bad', "ardurover è in esecuzione ma non risponde su MAVLink."]);
-  if (!link.mcu_link) alerts.push(['bad', 'Lo sketch sul microcontrollore non manda lo stato: nessun dato da IMU e servo.']);
-  else {
+  const sim = s.sim || { mode: 'off' };
+  if (sim.mode === 'simulate') card('c-mcu', link.mcu_link ? 'ok' : '', link.mcu_link ? `${fmt(link.state_hz, 0)} Hz` : '—', 'stato da MuJoCo');
+  if (sim.mode === 'simulate') alerts.push(['', 'Simulazione MuJoCo: IMU e servo arrivano dalla scena. I motori reali sono spenti.']);
+  else if (sim.mode === 'debug') alerts.push(['', 'Debug MuJoCo: il robot reale comanda. La colonna Sim ripete gli stessi comandi nella scena.']);
+  if (sim.mode !== 'simulate' && !link.mcu_link) alerts.push(['bad', 'Lo sketch sul microcontrollore non manda lo stato: nessun dato da IMU e servo.']);
+  else if (sim.mode !== 'simulate') {
     if (slow) alerts.push(['', `Il micro manda lo stato a ${fmt(link.state_hz, 0)} Hz invece di 100: il router della scheda è a 115200 baud. Per camminare serve «sudo bash tools/router-2m.sh» e lo sketch a piena velocità.`]);
     if (!link.imu_ok) alerts.push(['bad', "L'IMU non risponde: il microcontrollore non dà coppia ai servo."]);
     else if (s.tilt_deg > 60) alerts.push(['', `Per l'IMU il robot è inclinato di ${fmt(s.tilt_deg, 0)}°: da armato partirebbe la rialzata. Se il robot è in piedi, il sensore è montato con un altro orientamento.`]);
-    if (answering < 15) alerts.push([answering ? '' : 'bad', answering ? `Rispondono ${answering} servo su 15 (mancano gli ID ${link.servos_missing.join(', ')}).` : 'Nessun servo risponde sul bus: alimentazione o collegamento del bus (D0/D1).']);
+    if (answering < expected) alerts.push([answering ? '' : 'bad', answering ? `Rispondono ${answering} servo su ${expected} (mancano gli ID ${link.servos_missing.join(', ')}).` : 'Nessun servo risponde sul bus: alimentazione o collegamento del bus (D0/D1).']);
     if (link.timed_out) alerts.push(['bad', 'Il microcontrollore ha tolto coppia da solo: comandi mancanti per troppo tempo.']);
   }
+  renderSim(sim);
   if (bus && (bus.refused || bus.crc_errors)) alerts.push(['', `Collegamento autopilota–micro: ${bus.refused} comandi rifiutati, ${bus.crc_errors} errori CRC.`]);
   renderAlerts(alerts);
 
@@ -155,6 +174,7 @@ function render() {
   setText('l-err', `CRC ${link.crc_errors} · comandi rifiutati ${c ? c.invalid_commands : '—'} · invii falliti ${link.counts.send_errors}`);
 
   renderJoints(ap.joints || [], busHas('calibration'));
+  renderServoRows(ap.joints || [], busHas('servo_setup'));
   renderTexts(ap.texts || []);
   renderControl(s, armed, busHas);
 }
@@ -164,10 +184,29 @@ function renderAlerts(alerts) {
   if ($('alerts').innerHTML !== html) $('alerts').innerHTML = html;
 }
 
+function renderSim(sim) {
+  const label = { off: 'spento', simulate: 'simulazione', debug: 'debug' }[sim.mode] || sim.mode;
+  setText('sim-tag', label, 'tag ' + (sim.mode === 'off' ? '' : 'ok'));
+  document.querySelectorAll('#sim-mode button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.sim === sim.mode);
+    b.disabled = b.dataset.sim !== 'off' && !sim.available;
+  });
+  $('sim-reset').disabled = !sim.available || sim.mode === 'off';
+  const engine = sim.engine || 'MuJoCo';
+  const line = !sim.available ? (sim.error || 'MuJoCo non è disponibile su questa scheda.')
+    : sim.mode === 'off' ? `Pronto · ${engine} · ${sim.model || 'scena'}`
+    : `${engine} · t ${fmt(sim.sim_time, 2)} s · inclinazione ${fmt(sim.tilt_deg, 1)}° · gravità ${vec(sim.gravity_g, 2)} g`;
+  setText('sim-state', line);
+}
+
 function renderJoints(joints, inCal) {
-  const rows = joints.map((j) => `<tr class="${j.present ? '' : 'missing'}"><td>${JOINT_LABEL[j.name] || j.name}</td><td>${j.id}</td>
+  const sim = status && status.sim;
+  const debug = !!(sim && sim.mode === 'debug' && sim.joints_deg);
+  $('joints-sim-col').hidden = !debug;
+  const rows = joints.map((j, i) => `<tr class="${j.present ? '' : 'missing'}"><td>${JOINT_LABEL[j.name] || j.name}</td><td>${j.id}</td>
     <td><span class="tag ${j.present ? 'ok' : ''}">${j.present ? 'presente' : 'assente'}</span></td>
-    <td class="num">${j.present ? fmt(j.angle) : '—'}</td><td class="num">${fmt(j.target)}</td>
+    <td class="num">${j.present ? fmt(j.angle) : '—'}</td>${debug ? `<td class="num">${fmt(sim.joints_deg[i])}</td>` : ''}
+    <td class="num">${fmt(j.target)}</td>
     <td class="num">${j.present && j.raw ? j.raw : '—'}</td><td class="num">${j.voltage ? fmt(j.voltage) : '—'}</td></tr>`).join('');
   if ($('joints').innerHTML !== rows) $('joints').innerHTML = rows;
 
@@ -187,6 +226,33 @@ function renderJoints(joints, inCal) {
     cells[4].firstElementChild.hidden = !j.held;
     cells[4].lastElementChild.hidden = j.held;
     cells[4].lastElementChild.disabled = !has;
+  });
+}
+
+// One row per configured servo. Built once per count and updated in place, so typing or a slider
+// move is not lost to a redraw. The live encoder column is the feedback of the direct control.
+function renderServoRows(joints, inServo) {
+  const body = $('servo-rows');
+  if (body.children.length !== joints.length) {
+    body.innerHTML = joints.map((j) => `<tr data-slot="${j.slot}" data-id="${j.id}">
+      <td>${JOINT_LABEL[j.name] || j.name}</td><td>${j.id}</td><td class="st"></td><td class="num enc"></td>
+      <td><input type="range" class="goto" min="0" max="4095" value="${ENCODER_CENTER}"> <span class="mono goto-val">${ENCODER_CENTER}</span></td>
+      <td><input type="number" class="kp" min="0" max="255" value="5"></td>
+      <td><input type="number" class="kd" min="0" max="255" value="20"></td>
+      <td class="actions"><button data-row="read">Leggi</button> <button data-row="set_gains">Scrivi</button>
+        <button data-row="ping">Ping</button> <button data-row="reset_mid">Centro qui</button></td></tr>`).join('');
+  }
+  joints.forEach((j, i) => {
+    const row = body.children[i];
+    if (!row) return;
+    row.className = j.present ? '' : 'missing';
+    const st = row.querySelector('.st');
+    const stText = j.present ? 'presente' : 'assente';
+    if (st.textContent !== stText) st.textContent = stText;
+    const enc = row.querySelector('.enc');
+    const encText = j.present && j.raw ? String(j.raw) : '—';
+    if (enc.textContent !== encText) enc.textContent = encText;
+    row.querySelectorAll('button, input').forEach((el) => { el.disabled = !inServo; });
   });
 }
 
@@ -244,6 +310,8 @@ function renderControl(s, armed, busHas) {
   $('servo-enter').disabled = !ready || armed || inServo;
   $('servo-exit').disabled = !inServo;
   document.querySelectorAll('[data-servo]').forEach((b) => { b.disabled = !inServo; });
+  $('gains-apply').disabled = !ready || armed || inServo;
+  $('gains-read').disabled = !inServo;
   session.cal = inCal;
   session.servo = inServo;
 }
@@ -253,7 +321,7 @@ $('arm').addEventListener('click', async () => {
   const s = status, link = s.link;
   const lines = ['Armare il robot?', '', 'La policy comincia a comandare i servo: il robot deve essere a terra, libero di muoversi, con spazio intorno.'];
   if (s.tilt_deg > 60) lines.push('', `ATTENZIONE: per l'IMU il robot è inclinato di ${fmt(s.tilt_deg, 0)}°, quindi partirà la rialzata.`);
-  if ((link.servos_answering || []).length < 15 || !link.imu_ok) lines.push('', 'Servo o IMU non rispondono: la policy girerà senza dare coppia.');
+  if ((link.servos_answering || []).length < configuredServos(s.autopilot) || !link.imu_ok) lines.push('', 'Servo o IMU non rispondono: la policy girerà senza dare coppia.');
   if (!confirm(lines.join('\n'))) return;
   const r = await post('arm', { armed: true });
   say(r.note || 'Armato.', r.note ? '' : 'good');
@@ -409,5 +477,82 @@ document.querySelectorAll('[data-servo]').forEach((b) => b.addEventListener('cli
     out.textContent = e.message;
   }
 }));
+
+// Per-servo row: read, write KP/KD (EEPROM and live), ping, centre here, and the goto slider
+// (sent on release, so one move is one command). The reply shows what the servo answered.
+function showServoResult(lines, ok) {
+  const out = $('servo-result');
+  out.className = 'result' + (ok ? '' : ' bad');
+  out.textContent = lines.join('\n');
+}
+
+async function rowRequest(row, action, extra = {}) {
+  const body = { action, id: Number(row.dataset.id), ...extra };
+  const r = await post('service', body);
+  const label = { read: 'Leggi', set_gains: 'Scrivi KP/KD', ping: 'Ping', reset_mid: 'Centro qui', goto: 'Vai a' }[action];
+  const lines = [`${label} · servo ${r.id}: ${r.ok ? 'riuscito' : 'NON riuscito (' + (r.source === 'autopilot' ? "rifiutato dall'autopilota" : 'nessuna risposta dal servo') + ')'}`];
+  if (r.ok && action !== 'ping') lines.push(`posizione ${r.raw_pos} · centro ${r.center} · Kp ${r.kp} · Kd ${r.kd}`);
+  showServoResult(lines, r.ok);
+  if (r.ok && (action === 'read' || action === 'set_gains')) {
+    row.querySelector('.kp').value = r.kp;
+    row.querySelector('.kd').value = r.kd;
+  }
+  return r;
+}
+
+$('servo-rows').addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-row]');
+  if (!button) return;
+  const row = button.closest('tr');
+  const action = button.dataset.row;
+  if (action === 'reset_mid' && !confirm(`Memorizzare la posizione attuale come centro del servo ${row.dataset.id}?`)) return;
+  try {
+    if (action === 'set_gains') {
+      await rowRequest(row, 'set_gains', { kp: Number(row.querySelector('.kp').value), kd: Number(row.querySelector('.kd').value) });
+    } else {
+      await rowRequest(row, action);
+    }
+  } catch (err) {
+    showServoResult([err.message], false);
+  }
+});
+
+$('servo-rows').addEventListener('change', async (e) => {
+  if (!e.target.classList.contains('goto')) return;
+  const row = e.target.closest('tr');
+  const raw = Number(e.target.value);
+  row.querySelector('.goto-val').textContent = raw;
+  try {
+    await rowRequest(row, 'goto', { raw });
+  } catch (err) {
+    showServoResult([err.message], false);
+  }
+});
+$('servo-rows').addEventListener('input', (e) => {
+  if (e.target.classList.contains('goto')) e.target.closest('tr').querySelector('.goto-val').textContent = e.target.value;
+});
+
+$('gains-apply').addEventListener('click', async () => {
+  if (!confirm('Mandare al microcontrollore la tabella KP/KD del robot? Viene applicata al prossimo armamento.')) return;
+  try {
+    const r = await post('service', { action: 'run_gains' });
+    showServoResult([`Tabella KP/KD · ${r.ok ? 'ricevuta dal microcontrollore' : 'NON ricevuta (' + (r.source === 'autopilot' ? "rifiutata dall'autopilota" : 'nessuna risposta') + ')'}`], r.ok);
+  } catch (err) {
+    showServoResult([err.message], false);
+  }
+});
+
+$('gains-read').addEventListener('click', async () => {
+  const rows = [...$('servo-rows').children];
+  for (const row of rows) {
+    try {
+      await rowRequest(row, 'read');
+    } catch (err) {
+      showServoResult([`${row.dataset.id}: ${err.message}`], false);
+      return;
+    }
+  }
+  showServoResult([`Letti ${rows.length} servo.`], true);
+});
 
 poll();

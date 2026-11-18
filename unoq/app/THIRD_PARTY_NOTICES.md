@@ -17,6 +17,12 @@ This document identifies upstream sources used by the runtime. It does not decla
 - License: Mozilla Public License 2.0; a copy is included in [LICENSES/MPL-2.0.txt](LICENSES/MPL-2.0.txt).
 - `tools/prepare-bridge.py`, `tools/bridge_patch.py`, and `tools/patches/` adapt portions of these libraries. Changes cover the Bridge thread stack, bounded MessagePack framing, bounded RPC waits, retry-safe initialization, UART initialization reuse, and late-response recovery. The helper applies these changes to the installed libraries and retains their original copyright and license headers.
 
+## ZXerniXZ/xgoduck_runtime_arduino (branch getup-hd1910)
+
+- Project: [xgoduck_runtime_arduino](https://github.com/ZXerniXZ/xgoduck_runtime_arduino), branch `getup-hd1910`.
+- License: not declared in that repository. Only the design was taken, not the files.
+- Use: the soft calibration centering (live gains from registers 50/51 with a speed limit, torque kept on while the center is saved), and the single-servo goto used by the setup slider. The constants (`CAL_MOVE_*`, `CAL_HOLD_*`) and the behaviour were re-implemented in `unoq/app/sketch`, on top of this project's own sketch, and are not copied from that repository.
+
 ## Other dependencies and policy assets
 
 Arduino libraries are resolved from `sketch/sketch.yaml`; Python packages are listed in `python/requirements.txt`. Their respective upstream licenses continue to apply. Installed SDKs, dependencies, virtual environments, and compiled firmware are not vendored in this repository.

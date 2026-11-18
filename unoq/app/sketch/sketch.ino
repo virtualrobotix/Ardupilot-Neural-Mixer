@@ -51,6 +51,9 @@ static bool servoPending = false;
 static ServoReplyPacket servoReply = {};
 static bool servoReplyReady = false;
 static uint8_t servoMidId = 0xFF, servoMidCount = 0;
+static uint8_t servoGotoId = 0xFF, servoSoftId = 0xFF;  // slider servo; servo with the soft CAL_MOVE gains
+static RunGainsPacket pendingGains = {};
+static bool gainsPending = false;
 static uint32_t servoMidNextUs = 0;
 static bool rawNotifyEveryTick = false;
 
@@ -150,8 +153,11 @@ static void receiveServo(MsgPack::bin_t<uint8_t> bytes) {
   bool valid = bytes.size() == sizeof(pkt);
   if (valid) {
     memcpy(&pkt, bytes.data(), sizeof(pkt));
-    valid = memcmp(pkt.magic, "DQV2", 4) == 0 && pkt.op <= SERVO_SET_PROTECTION_CURRENT && pkt.op != 4;
-    if (pkt.op == SERVO_SET_PROTECTION || pkt.op == SERVO_SET_PROTECTION_CURRENT) {
+    valid = memcmp(pkt.magic, "DQV2", 4) == 0 && pkt.op <= SERVO_SET_PROTECTION_CURRENT;
+    if (pkt.op == SERVO_GOTO) {
+      valid = valid && pkt.targetId <= 253 && !pkt.newId && !pkt.kp && !pkt.kd &&
+              !pkt.reserved && pkt.rawPos <= POS_MAX;
+    } else if (pkt.op == SERVO_SET_PROTECTION || pkt.op == SERVO_SET_PROTECTION_CURRENT) {
       valid = valid && pkt.targetId == 0xFE && !pkt.newId && !pkt.kp && !pkt.kd;
       if (pkt.op == SERVO_SET_PROTECTION) {
         valid = valid && !pkt.protectionCurrent &&
@@ -167,6 +173,21 @@ static void receiveServo(MsgPack::bin_t<uint8_t> bytes) {
   }
   k_mutex_lock(&hostMu, K_FOREVER);
   if (valid) { pendingServo = pkt; servoPending = true; atomic_set(&lastHostRxUs, micros()); }
+  else {
+    k_mutex_lock(&commandMu, K_FOREVER); ++invalidCommands; k_mutex_unlock(&commandMu);
+  }
+  k_mutex_unlock(&hostMu);
+}
+
+static void receiveGains(MsgPack::bin_t<uint8_t> bytes) {
+  RunGainsPacket pkt;
+  bool valid = bytes.size() == sizeof(pkt);
+  if (valid) {
+    memcpy(&pkt, bytes.data(), sizeof(pkt));
+    valid = memcmp(pkt.magic, "DQG1", 4) == 0 && (pkt.mask >> NUM_MOTORS) == 0;
+  }
+  k_mutex_lock(&hostMu, K_FOREVER);
+  if (valid) { pendingGains = pkt; gainsPending = true; atomic_set(&lastHostRxUs, micros()); }
   else {
     k_mutex_lock(&commandMu, K_FOREVER); ++invalidCommands; k_mutex_unlock(&commandMu);
   }
@@ -200,6 +221,8 @@ static void applyCalOp(const CalPacket &pkt) {
       hostMode = HOST_CAL;
       rawNotifyEveryTick = true;
       calIndex = 0xFF;
+      servoGotoId = 0xFF;
+      servoSoftId = 0xFF;
       k_mutex_lock(&motorsMu, K_FOREVER);
       calHeldMask = 0;
       k_mutex_unlock(&motorsMu);
@@ -210,19 +233,27 @@ static void applyCalOp(const CalPacket &pkt) {
       hostMode = HOST_NORMAL;
       rawNotifyEveryTick = false;
       calIndex = 0xFF;
+      servoGotoId = 0xFF;
+      servoSoftId = 0xFF;
       k_mutex_lock(&motorsMu, K_FOREVER);
       calHeldMask = 0;
       k_mutex_unlock(&motorsMu);
       setTorqueEnable(false);
-      setMouthKpKd();
+      applyRunGains();
       break;
-    case CAL_CENTER_ONE:
+    case CAL_CENTER_ONE: {
       if (hostMode != HOST_CAL || calIndex != 0xFF ||
           (calHeldMask & (1u << pkt.index)) || !(servoRxMask & (1u << pkt.index))) {
         publishCalReply(pkt.seq, pkt.index, false);
         break;
       }
-      scsWriteByte(MOTOR_IDS[pkt.index], ADDR_TORQUE, 0);
+      // Soft gains, torque left as it is: the joint is not dropped while its center is saved.
+      // advanceCalibration() turns the torque on at CAL_HOLD_POS with the CAL_HOLD_SPEED limit.
+      const uint8_t id = MOTOR_IDS[pkt.index];
+      if (servoGotoId == id) servoGotoId = 0xFF;
+      servoSoftId = 0xFF;
+      scsWriteByte(id, ADDR_UNLOCK, 0x00);
+      setTempKpKd(id, CAL_HOLD_KP, CAL_HOLD_KD);
       Serial1.flush();
       k_mutex_lock(&motorsMu, K_FOREVER);
       calHeldMask &= ~(1u << pkt.index);
@@ -232,6 +263,7 @@ static void applyCalOp(const CalPacket &pkt) {
       calMidCount = 0;
       calNextUs = micros();
       break;
+    }
   }
 }
 
@@ -247,9 +279,9 @@ static void advanceCalibration() {
     return;
   }
   // Only this servo is loaded. No goals are written for other joints.
-  // Keep the servo's existing gains while holding its calibrated center.
+  // Soft gains from CAL_CENTER_ONE and a speed limit: the hold at the center is gentle.
   scsWriteByte(id, ADDR_TORQUE, 1);
-  writeSingleGoalRaw(id, CAL_HOLD_POS);
+  writeSingleGoalRaw(id, CAL_HOLD_POS, CAL_HOLD_SPEED);
   Serial1.flush();
   k_mutex_lock(&motorsMu, K_FOREVER);
   calHeldMask |= 1u << calIndex;
@@ -300,16 +332,20 @@ static void applyServoOp(const ServoPacket &pkt) {
       hostMode = HOST_SERVO_DEBUG;
       rawNotifyEveryTick = true;
       servoMidId = 0xFF;
+      servoGotoId = 0xFF;
+      servoSoftId = 0xFF;
       setTorqueEnable(false);
-      setMouthKpKd();
+      applyRunGains();
       break;
     case SERVO_EXIT:
       if (hostMode != HOST_SERVO_DEBUG) break;
       hostMode = HOST_NORMAL;
       rawNotifyEveryTick = false;
       servoMidId = 0xFF;
+      servoGotoId = 0xFF;
+      servoSoftId = 0xFF;
       setTorqueEnable(false);
-      setMouthKpKd();
+      applyRunGains();
       break;
     case SERVO_UNLOCK:
       if (hostMode != HOST_SERVO_DEBUG) { reply.ok = 0; break; }
@@ -317,6 +353,8 @@ static void applyServoOp(const ServoPacket &pkt) {
       break;
     case SERVO_SET_ID:
       if (hostMode != HOST_SERVO_DEBUG) { reply.ok = 0; break; }
+      servoGotoId = 0xFF;
+      servoSoftId = 0xFF;
       setTorqueEnable(false);
       servoSetId(pkt.targetId, pkt.newId);
       break;
@@ -324,6 +362,7 @@ static void applyServoOp(const ServoPacket &pkt) {
       if (hostMode != HOST_SERVO_DEBUG || !pingServo(pkt.targetId)) { reply.ok = 0; break; }
       scsWriteByte(pkt.targetId, ADDR_TORQUE, 0);
       Serial1.flush();
+      if (servoGotoId == pkt.targetId) servoGotoId = 0xFF;
       servoMidId = pkt.targetId;
       servoMidCount = 0;
       servoMidNextUs = micros();
@@ -349,6 +388,24 @@ static void applyServoOp(const ServoPacket &pkt) {
       servoSetProtectionCurrent(pkt.protectionCurrent);
       reply.protectionCurrent = pkt.protectionCurrent;
       break;
+    case SERVO_GOTO:
+      // Slider: torque on and one goal with the soft CAL_MOVE gains. Only one servo is moved at a
+      // time: the previous one is released unless it is held by the calibration.
+      if (hostMode != HOST_SERVO_DEBUG && hostMode != HOST_CAL) { reply.ok = 0; break; }
+      if (servoGotoId != 0xFF && servoGotoId != pkt.targetId) {
+        const int prev = motorIndexById(servoGotoId);
+        if (prev < 0 || !(calHeldMask & (1u << prev))) scsWriteByte(servoGotoId, ADDR_TORQUE, 0);
+      }
+      if (servoSoftId != pkt.targetId) {
+        setTempKpKd(pkt.targetId, CAL_MOVE_KP, CAL_MOVE_KD);
+        servoSoftId = pkt.targetId;
+      }
+      scsWriteByte(pkt.targetId, ADDR_TORQUE, 1);
+      writeSingleGoalRaw(pkt.targetId, pkt.rawPos, CAL_MOVE_SPEED);
+      Serial1.flush();
+      servoGotoId = pkt.targetId;
+      reply.rawPos = pkt.rawPos;
+      break;
     case SERVO_PING:
       if (hostMode != HOST_SERVO_DEBUG) { reply.ok = 0; break; }
       reply.ok = pingServo(pkt.targetId) ? 1 : 0;
@@ -369,11 +426,25 @@ static void applyServoOp(const ServoPacket &pkt) {
   publishServoReply(reply);
 }
 
+// DQG1: stored while the servos have no torque; refused with torque on. Applied at the next ARM.
+static void applyGainsOp(const RunGainsPacket &pkt, bool enabled) {
+  ServoReplyPacket reply = {};
+  memcpy(reply.magic, "DQS3", 4);
+  reply.op = SERVO_SET_RUN_GAINS;
+  reply.ok = enabled ? 0 : 1;
+  if (!enabled) {
+    runMask = pkt.mask;
+    memcpy(runKp, pkt.kp, NUM_MOTORS);
+    memcpy(runKd, pkt.kd, NUM_MOTORS);
+  }
+  publishServoReply(reply);
+}
+
 static void controlTask(void*, void*, void*) {
   Serial1.begin(SERVO_BAUD);
   enableUartFifo(reinterpret_cast<USART_TypeDef*>(DT_REG_ADDR(DT_PHANDLE_BY_IDX(DT_PATH(zephyr_user), serials, 0))));
   for (unsigned i=0; i<3; ++i) { setTorqueEnable(false); k_msleep(5); }
-  setMouthKpKd();
+  applyRunGains();
   // Read temporary KP/KD once at boot (address 50, 2 bytes). Missing IDs stay unset.
   readAllRegisters(ADDR_TEMP_KP, 2); Serial1.flush();
   const uint32_t pdStart=micros();
@@ -391,13 +462,16 @@ static void controlTask(void*, void*, void*) {
 
     CalPacket calPkt;
     ServoPacket servoPkt;
-    bool gotCal = false, gotServo = false;
+    RunGainsPacket gainsPkt;
+    bool gotCal = false, gotServo = false, gotGains = false;
     k_mutex_lock(&hostMu, K_FOREVER);
     if (calPending) { calPkt = pendingCal; calPending = false; gotCal = true; }
     if (servoPending) { servoPkt = pendingServo; servoPending = false; gotServo = true; }
+    if (gainsPending) { gainsPkt = pendingGains; gainsPending = false; gotGains = true; }
     k_mutex_unlock(&hostMu);
     if (gotCal) applyCalOp(calPkt);
     if (gotServo) applyServoOp(servoPkt);
+    if (gotGains) applyGainsOp(gainsPkt, enabled);
     advanceCalibration();
     advanceServoMid();
 
@@ -418,13 +492,13 @@ static void controlTask(void*, void*, void*) {
       // Exclusive modes retain their separate loss-of-host protection.
       hostMode = HOST_NORMAL;
       rawNotifyEveryTick = false;
-      calIndex = servoMidId = 0xFF;
+      calIndex = servoMidId = servoGotoId = servoSoftId = 0xFF;
       k_mutex_lock(&motorsMu, K_FOREVER);
       calHeldMask = 0;
       k_mutex_unlock(&motorsMu);
       enabled = false; timedOut = true;
       setTorqueEnable(false);
-      setMouthKpKd();
+      applyRunGains();
     }
     const bool busTaken = hostMode != HOST_NORMAL;
     if (got && !busTaken) {
@@ -436,7 +510,7 @@ static void controlTask(void*, void*, void*) {
         if (cmd.mode == ARM && !enabled && atomic_get(&bridgeReady) && imuFresh &&
             (uint32_t)(start-sampledImu.sampleUs) < 50000) {
           enabled = true; timedOut = false;
-          setMouthKpKd();
+          applyRunGains();
         }
         k_mutex_lock(&motorsMu, K_FOREVER);
         for (unsigned i = 0; i < NUM_MOTORS; ++i) motors[i].desAngleDeg = cmd.target[i];
@@ -637,7 +711,8 @@ static void bridgeTask(void*, void*, void*) {
       atomic_set(&bridgeStage, 2);
       ready = Bridge.provide("duck_command", receiveCommand) &&
               Bridge.provide("duck_cal", receiveCal) &&
-              Bridge.provide("duck_servo", receiveServo);
+              Bridge.provide("duck_servo", receiveServo) &&
+              Bridge.provide("duck_gains", receiveGains);
     }
     if (!ready) {
       atomic_inc(&bridgeFailures);

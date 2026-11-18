@@ -410,6 +410,10 @@ def train(args) -> None:
     cfg = load_ppo_config(args.robot)
     if args.gesture:
         cfg.setdefault("env", {})["gesture"] = args.gesture
+    if args.gesture == "motion":
+        if args.motion is None or not args.motion.is_file():
+            raise SystemExit("--gesture motion needs --motion <clip.npz> (tools/mocap/retarget_frax.py writes one)")
+        cfg["env"]["motion_file"] = str(args.motion.resolve())
     # Stage I discovery: float32 policy only (not deployable); Stage II keeps QAT int8
     if args.gesture == "getup_discover":
         cfg.setdefault("quantization", {})["qat"] = False
@@ -964,9 +968,11 @@ def main() -> None:
     ap.add_argument("--eval", type=Path, default=None, help="evaluate a .nnm (stand / walk) and exit")
     ap.add_argument("--gesture", default=None,
                     choices=("arms_up", "wave_right", "dance_arms", "dance", "pose_cmd",
-                             "getup", "getup_discover"),
+                             "getup", "getup_discover", "motion"),
                     help="stand and track a scripted clip, pose_cmd (teleop), getup (Stage II), "
-                         "or getup_discover (Stage I assist discovery)")
+                         "getup_discover (Stage I assist discovery), or motion (a clip file, --motion)")
+    ap.add_argument("--motion", type=Path, default=None,
+                    help="with --gesture motion: dense joint clip .npz (e.g. from tools/mocap/retarget_frax.py)")
     ap.add_argument("--init-nnm", type=Path, default=None,
                     help="fine-tune from a .nnm of this robot (dequantized weights and normalizer)")
     ap.add_argument("--init-onnx", type=Path, default=None,

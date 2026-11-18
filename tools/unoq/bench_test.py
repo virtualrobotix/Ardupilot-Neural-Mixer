@@ -297,9 +297,22 @@ def run(bench: Bench, mcu: FakeMcu, home_slot_deg, sitl: bool, report: list):
     check('protection current', r is not None and r['ok'] == 1 and r['current'] == 200 and mcu.protection_current == 200, r)
     r = bench.service(27, 12)
     check('reset centre of id 12', r is not None and r['ok'] == 1, r)
+    r = bench.service(31, 11, 2600)
+    goal = (2600 - 2047) * 360.0 / 4096
+    check('goto id 11 to raw 2600 (slider)', r is not None and r['ok'] == 1 and r['raw_pos'] == 2600
+          and abs(mcu.snapshot()['target'][1] - goal) < 0.01, r)
+    r = bench.service(31, 11, 5000)
+    check('goto out of range refused by the autopilot', r is not None and r['ok'] == 0 and r['source'] == 1, r)
+    r = bench.service(30)
+    check('run-gain table refused inside a servo session', r is not None and r['ok'] == 0 and r['source'] == 1, r)
     r = bench.service(21)
     check('servo session closes', r is not None and r['ok'] == 1 and bench.wait(lambda: mcu.snapshot()['host_mode'] == 0, 2.0))
     check('balance pose after servo setup', bench.wait(at_home, 6.0))
+    # run-gain table (skills.bin version 2 of xgoduck: only the mouth, 10/20) goes out while disarmed
+    check('run-gain table sent to the MCU', bench.wait(lambda: mcu.snapshot()['run_mask'] == 1 << 14, 6.0),
+          f"mask={mcu.snapshot()['run_mask']:#06x}")
+    check('mouth gains from the table: kp 10, kd 20 at the MCU', mcu.snapshot()['kp'][14] == 10 and mcu.snapshot()['kd'][14] == 20,
+          f"kp={mcu.snapshot()['kp'][14]} kd={mcu.snapshot()['kd'][14]}")
 
     # ---- mouth
     bench.array('NNM_AUX', [20.0])
@@ -322,6 +335,7 @@ def run(bench: Bench, mcu: FakeMcu, home_slot_deg, sitl: bool, report: list):
           ' '.join(f'{t:.0f}' for t in s['target']))
     check('hand-over to the policy without steps', s['max_target_step'] < 6.0, f"largest step {s['max_target_step']:.2f} deg")
     check('mouth follows NNM_AUX', abs(s['target'][14] - 20.0) < 0.01, f"{s['target'][14]:.2f} deg")
+    check('gain table applied at ARM', s['kp'][14] == 10 and s['kd'][14] == 20, f"kp={s['kp'][14]} kd={s['kd'][14]}")
     r = bench.service(1)
     check('torque-off refused while armed', r is not None and r['ok'] == 0, r)
     r = bench.service(20)

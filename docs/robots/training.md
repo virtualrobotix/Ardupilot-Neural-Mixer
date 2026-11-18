@@ -75,6 +75,11 @@ PPO come per MicroDuck: 2048 ambienti × 24 passi per iterazione, 5 epoche, 4 mi
 .venv/bin/python tools/robots/train_velocity.py --robot microban \
     --init-onnx robots/microban/policies/walk.onnx --name walk_ap
 
+# 2c. imitazione di una clip da motion capture, ricavata con frax.ik (venv .venv-frax, vedi gesture_imitation.md)
+JAX_ENABLE_X64=1 .venv-frax/bin/python tools/mocap/retarget_frax.py --robot microban --mediapipe take.npz --name mia_clip
+.venv/bin/python tools/robots/train_velocity.py --robot microban --gesture motion \
+    --motion robots/microban/motions/mia_clip.npz --init-nnm robots/microban/policies/walk_md.nnm --name mia_clip
+
 # 3. valutazione del file che andrà sulla scheda
 .venv/bin/python tools/robots/train_velocity.py --robot rex --eval robots/rex/policies/walk.nnm
 
@@ -128,7 +133,7 @@ velocità; DeepMimic è una seconda policy.
 
 | Pezzo del tracking | Nel training NNMixer |
 |---|---|
-| `motion_file`: una clip, oppure un dataset di clip (sezione 6) | Pose chiave interpolate con un coseno, oppure `robots/<id>/motions/*.npz` (giunti, fase, quaternione e quota del tronco). Il formato MimicKit è un `.pkl` con posizione e rotazione del root (mappa esponenziale) e rotazioni dei giunti nell'ordine dell'albero cinematico |
+| `motion_file`: una clip, oppure un dataset di clip (sezione 6) | Pose chiave interpolate con un coseno, oppure `robots/<id>/motions/*.npz` (giunti, fase, quaternione e quota del tronco). Una clip da motion capture (MediaPipe o BVH) si ottiene con il retargeting `frax.ik` e si addestra con `--gesture motion --motion <clip.npz>` ([guida](gesture_imitation.md#clip-da-motion-capture-retargeting-con-fraxik)). Il formato MimicKit è un `.pkl` con posizione e rotazione del root (mappa esponenziale) e rotazioni dei giunti nell'ordine dell'albero cinematico |
 | Fase della clip nell'osservazione | Seno e coseno dopo il twist. Clip periodica: `NNM_CLOCK_HZ`. Clip una volta sola (get-up): θ = π·min(t / `NNM_GETUP_S`, 1), che finisce a (0, −1) |
 | Premio di posa sulla clip a quella fase | `gesture_track`, exp sull'errore quadratico medio dei giunti. Accanto, `gesture` lineare in \|q̂ − q\|, perché l'esponenziale è già ~0 a 1 rad e da solo non muove un braccio abbassato |
 | Tracking del tronco | Sui gesti corti in piedi le gambe fuori clip restano su q0, con i premi di equilibrio della walk. Sul get-up la clip aggiunge gravità del tronco e quota del bacino (`getup_root_g`, `getup_root_z`) |

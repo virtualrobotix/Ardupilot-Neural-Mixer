@@ -41,6 +41,7 @@ CAL_REPLY = struct.Struct('<4sIBB')
 SERVO = struct.Struct('<4sBBBBBBH')
 RAW = struct.Struct('<4sHH15H')
 SERVO_REPLY = struct.Struct('<4sBBBBHHBB')
+RUN_GAINS = struct.Struct('<4sIH15B15B')
 
 DISARM, ARM, POLICY, HOLD = range(4)
 HOST_NORMAL, HOST_CAL, HOST_SERVO = range(3)
@@ -62,7 +63,7 @@ class FakeMcu:
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(self.addr)
         self.peer = None
-        self.deframer = frames.Deframer(accept=(frames.COMMAND, frames.CAL, frames.SERVO))
+        self.deframer = frames.Deframer(accept=(frames.COMMAND, frames.CAL, frames.SERVO, frames.GAINS))
         self.lock = threading.Lock()
         self.t0 = time.perf_counter()
         # servos
@@ -75,6 +76,9 @@ class FakeMcu:
         self.kd = [20] * 15
         self.protection = 0x0D
         self.protection_current = 154
+        self.run_mask = 0              # run-gain table from DQG1, applied at ARM
+        self.run_kp = [0] * 15
+        self.run_kd = [0] * 15
         # imu: gravity direction in the robot frame, pitch about y
         self.tilt_deg = tilt_deg
         self.imu_ok = True
@@ -152,7 +156,8 @@ class FakeMcu:
                         target=list(self.target), modes=list(self.modes), last_mode=self.last_mode,
                         invalid=self.invalid, rx_frames=self.rx_frames, timed_out=self.timed_out,
                         last_source_age_us=self.last_source_age_us, first_policy_step=self.first_policy_step, max_target_step=self.max_target_step, crc_errors=self.deframer.crc_errors,
-                        peer=self.peer, cal_held=self.cal_held, ids=list(self.ids))
+                        peer=self.peer, cal_held=self.cal_held, ids=list(self.ids),
+                        run_mask=self.run_mask, kp=list(self.kp), kd=list(self.kd))
 
     # ------------------------------------------------------------------ receive (sketch receive*())
     def receive(self, packet: bytes):
@@ -178,6 +183,8 @@ class FakeMcu:
             x = SERVO.unpack(packet)
             self.pending_ops.append(('servo',) + x[1:])
             self.last_host_rx = now
+        elif magic == frames.GAINS:
+            self.pending_ops.append(('gains', RUN_GAINS.unpack(packet)))
 
     # ------------------------------------------------------------------ setup sessions
     def servo_reply(self, op, target_id, ok, raw_pos=0, kp=0, kd=0, flags=0):
@@ -188,7 +195,25 @@ class FakeMcu:
             return 2048
         return max(0, min(4095, int(round(2047 + self.angle[i] / 360.0 * 4096))))
 
+    def apply_run_gains(self):
+        """At ARM, as sketch applyRunGains(): the table for its slots, the mouth 10/20 if the table has none."""
+        for i in range(15):
+            if self.run_mask & (1 << i):
+                self.kp[i], self.kd[i] = self.run_kp[i], self.run_kd[i]
+        if not self.run_mask & (1 << 14):
+            self.kp[14], self.kd[14] = 10, 20
+
     def apply_op(self, op, now):
+        if op[0] == 'gains':
+            # DQG1 is refused with torque on; otherwise stored and applied at the next ARM
+            _, (_, _seq, mask, *gains) = op
+            if self.enabled or mask >> 15:
+                self.servo_reply(11, 0, False)
+            else:
+                self.run_mask = mask
+                self.run_kp, self.run_kd = list(gains[:15]), list(gains[15:])
+                self.servo_reply(11, 0, True)
+            return
         if op[0] == 'cal':
             _, seq, code, index = op
             if code == 0:
@@ -241,6 +266,10 @@ class FakeMcu:
         elif code == 5:
             self.kp[index], self.kd[index] = kp, kd
             self.servo_reply(code, target_id, True, self.raw_pos(index), kp, kd)
+        elif code == 4:
+            # SERVO_GOTO: torque on, goal raw 0..4095 (current field), the servo tracks it at the next tick
+            self.target[index] = (current - 2047) * 360.0 / 4096
+            self.servo_reply(code, target_id, True, current)
         elif code == 8:
             self.mid_job = (target_id, now + 0.03)
         else:   # unlock, read, ping
@@ -294,6 +323,7 @@ class FakeMcu:
                     self.enabled, self.timed_out = False, False
                 if mode == ARM and not self.enabled and self.imu_ok:
                     self.enabled, self.timed_out = True, False
+                    self.apply_run_gains()
                     self.event('torque on')
                 if mode == POLICY:
                     if self.last_policy_rx is not None:

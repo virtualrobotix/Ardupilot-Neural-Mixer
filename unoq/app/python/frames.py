@@ -16,11 +16,11 @@ import binascii
 # MCU -> host
 STATE, DIAGNOSTIC, VOLTAGE, CAL_REPLY, RAW, SERVO_REPLY = b'DQS1', b'DQD1', b'DQV1', b'DQA1', b'DQR2', b'DQS3'
 # host -> MCU
-COMMAND, CAL, SERVO = b'DQC1', b'DQL2', b'DQV2'
+COMMAND, CAL, SERVO, GAINS = b'DQC1', b'DQL2', b'DQV2', b'DQG1'
 
 LENGTH = {
     STATE: 240, DIAGNOSTIC: 68, VOLTAGE: 29, CAL_REPLY: 10, RAW: 38, SERVO_REPLY: 14,
-    COMMAND: 80, CAL: 10, SERVO: 12,
+    COMMAND: 80, CAL: 10, SERVO: 12, GAINS: 40,
 }
 
 # Arduino Bridge RPC name of each packet (sketch.ino)
@@ -28,7 +28,7 @@ RPC_FROM_MCU = {
     'duck_state': STATE, 'duck_diagnostics': DIAGNOSTIC, 'duck_voltage': VOLTAGE,
     'duck_cal_reply': CAL_REPLY, 'duck_raw': RAW, 'duck_servo_reply': SERVO_REPLY,
 }
-RPC_TO_MCU = {COMMAND: 'duck_command', CAL: 'duck_cal', SERVO: 'duck_servo'}
+RPC_TO_MCU = {COMMAND: 'duck_command', CAL: 'duck_cal', SERVO: 'duck_servo', GAINS: 'duck_gains'}
 
 
 def crc16(data: bytes) -> int:

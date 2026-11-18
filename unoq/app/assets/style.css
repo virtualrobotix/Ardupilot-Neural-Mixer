@@ -58,6 +58,8 @@ button.danger:hover { background: #bd3a33; }
 .segmented button { border: 0; border-radius: 0; background: none; padding: 8px 18px; }
 .segmented button + button { border-left: 1px solid #3a424d; }
 .segmented button.on { background: var(--accent); color: #17120a; font-weight: 600; }
+#sim-reset { margin-left: 12px; }
+#sim-state { margin: 8px 0 0; color: var(--dim); }
 
 .pill, .tag { display: inline-block; border-radius: 999px; padding: 3px 12px; font-size: 12px; font-weight: 600; letter-spacing: .4px;
   background: #21262d; color: var(--dim); border: 1px solid var(--line); }
@@ -110,3 +112,8 @@ td button { padding: 4px 12px; }
 .form .hint { margin: 0; flex-basis: 100%; }
 .result { margin: 16px 0 0; padding: 12px; background: #0f141a; border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; color: #a8e0c6; }
 .result.bad { color: #f6b1ac; }
+
+/* servo rows: one per configured servo, slider for the direct goal */
+#servo-rows input[type=range] { width: 150px; accent-color: var(--accent); vertical-align: middle; }
+#servo-rows input[type=number] { width: 66px; padding: 4px 6px; border-radius: 6px; border: 1px solid #3a424d; background: #0f141a; color: var(--text); font: inherit; }
+#servo-rows td.actions button { padding: 4px 9px; margin: 2px 0; }

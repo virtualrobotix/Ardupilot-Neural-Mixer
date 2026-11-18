@@ -29,7 +29,9 @@ rete → MuJoCo). Hardware-in-the-loop su Pixhawk 6C: [`docs/media/pixhawk6c_mlp
 | MicroDuck su Pixhawk 6C Mini (hardware-in-the-loop, build float32) | 15 s in piedi, forward p50 4,9 ms, CPU 32,8% |
 | Policy da microSD, due slot int8, switch con fusione di 0,5 s | SITL: batteria 8/8 PASS con `walk.nnm` da SD (parità firmware vs `.nnm` 2,7e-7), test di switch 5/5; Pixhawk 6C: compila, non ancora provato sulla scheda |
 | Twist da stick in MANUAL, HOLD, GUIDED / AUTO / RTL / SMART_RTL | nel firmware |
-| Altri robot | profili, configurazioni PPO, scene MuJoCo. Microban `walk_md` cammina in simulazione ([it. 3000](docs/media/microban_walk_md_it3000.mp4)), saluta ([`wave_right`](docs/media/microban_wave_right_clip_it0300.mp4)) e balla ([`dance`](docs/media/microban_dance_it0400.mp4)) per imitazione di clip con un orologio dei gesti ([come](docs/robots/gesture_imitation.md)); Freenove Robot Dog `walk_v7` cammina in avanti ([it. 2700](docs/media/freenove_walk_v7_it2700.mp4)). I video dei checkpoint sono nella [scheda di ogni robot](docs/robots/README.md) |
+| Altri robot | 21 robot nel catalogo con profili, configurazioni PPO e scene MuJoCo. Microban `walk_md` cammina in simulazione ([it. 3000](docs/media/microban_walk_md_it3000.mp4)), saluta ([`wave_right`](docs/media/microban_wave_right_clip_it0300.mp4)) e balla ([`dance`](docs/media/microban_dance_it0400.mp4)) per imitazione di clip con un orologio dei gesti ([come](docs/robots/gesture_imitation.md)), si rialza da prono e da supino ([`getup`](docs/media/microban_getup.mp4)) e passa dal get-up alla camminata e alla teleop ([mix, it. 16500](docs/media/microban_getup_walk_teleop.mp4)). Freenove Robot Dog `walk_v23` cammina, regge le spinte e sale una rampa di 7° ([it. 10000](docs/media/freenove_walk_v23_it10000_full.mp4)). Booster T1 usa la policy upstream convertita in `.nnm` ([video](docs/media/booster_t1_walk_booster.mp4)); PhoneBot ha le prime walk in simulazione. I video dei checkpoint sono nella [scheda di ogni robot](docs/robots/README.md) |
+| Teleoperazione della posa | MediaPipe sulla webcam della GCS → 8 canali `NNM_POSE` via MAVLink → `pose_cmd.nnm` di Microban, che esegue la posa e resta in equilibrio; provata in simulazione pura ([video](docs/media/microban_pose_cmd_mavlink_wave.mp4)) |
+| Clip da motion capture | retargeting offline a corpo intero con `frax.ik` (MediaPipe o BVH → clip `.npz` → `--gesture motion`); pipeline verificata su dati sintetici, nessuna policy addestrata a fondo ([dettagli](#motion-capture-e-retargeting)) |
 | Robot reale senza simulatore | serve un backend bus servo (Dynamixel / Feetech) per il feedback giunti, non ancora scritto |
 
 ---
@@ -80,6 +82,7 @@ Si copiano da [`sitl/APM/nnm/`](sitl/APM/nnm/) oppure da `robots/<id>/robot/robo
 | `NNM_CLOCK_HZ` | 0 | orologio dei gesti / del passo: seno e coseno di una fase nei due canali dopo il twist (Microban saluto 0,5, balletto 0,625; Freenove walk_v21 1,5; Booster T1 1,0); 0 = canali a zero |
 | `NNM_CLOCK_AUTO` | 0 | 1: l'orologio avanza solo con un twist comandato ed è zero da fermo (policy di locomozione addestrate con `env.gait_clock`, convenzione Booster Gym) |
 | `NNM_POSE_WD` / `NNM_POSE_TAU` | 500 ms / 0,15 s | teleoperazione della posa via MAVLink (`DEBUG_FLOAT_ARRAY` nome `NNM_POSE`, Microban `pose_cmd.nnm`): watchdog oltre il quale gli 8 canali di posa tornano a riposo, e il passa-basso su di essi. Vedi [gesture_imitation.md](docs/robots/gesture_imitation.md#teleoperazione-posa-in-ingresso-via-mavlink) |
+| `NNM_GAINS` | 1 | con una tabella `skills.bin` versione 2 (XGO Duck: KP/KD per servo), la invia al micro del bus da disarmato; il micro la applica a ogni ARM. 0 non la invia mai. Vedi [servo-guadagni-xgoduck.md](docs/servo-guadagni-xgoduck.md) |
 | `SERVO1..14_FUNCTION` | 94..107 | uscite dei giunti (Scripting1..14) |
 | `INS_GYRO_FILTER` | 0 | la policy vuole il gyro grezzo; i 4 Hz di default di Rover fanno cadere il bipede |
 | `SCHED_LOOP_RATE` | 200 | filtro di gravità a 200 Hz, come in training |
@@ -121,7 +124,7 @@ dimensioni di ingresso e uscita.
 | `NNM_ROBOT` | Robot | Tipo | Giunti | Obs | Policy nel repo | Ultimo video di training |
 |---:|---|---|---:|---:|---|---|
 | 0 | [MicroDuck](docs/robots/microduck.md) | bipede | 14 | 61 | `walk.nnm` | — |
-| 1 | [Microban](docs/robots/microban.md) | umanoide | 18 | 65 | `walk.nnm`, `walk_md.nnm`, `wave_right.nnm`, `dance_arms.nnm`, `dance.nnm` | [`dance`, it. 400, 2000 epoche](docs/robots/microban.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 1 | [Microban](docs/robots/microban.md) | umanoide | 18 | 73 | `walk.nnm`, `walk_md.nnm`, `wave_right.nnm`, `dance_arms.nnm`, `dance.nnm`, `pose_cmd.nnm`, `getup.nnm`, `getup_discover.nnm` | [`getup → walk → teleop`, it. 16500, 82500 epoche](docs/robots/microban.md#risultati-per-versione-di-ambiente-ed-epoca) |
 | 2 | [Zeroth-01](docs/robots/zeroth.md) | umanoide | 20 | 69 | — | — |
 | 3 | [Bimo](docs/robots/bimo.md) | bipede | 8 | 33 | — | — |
 | 4 | [Legolas](docs/robots/legolas.md) | bipede | 10 | 39 | — | — |
@@ -130,12 +133,23 @@ dimensioni di ingresso e uscita.
 | 7 | [Yertle](docs/robots/yertle.md) | quadrupede | 12 | 45 | — | — |
 | 8 | [AlbertPro](docs/robots/albert.md) | quadrupede | 8 | 33 | — | — |
 | 9 | [Open Duck Mini v2](docs/robots/openduck.md) | bipede | 14 | 51 | — | — |
-| 10 | [Freenove Robot Dog](docs/robots/freenove.md) | quadrupede | 12 | 45 | `walk_v7.nnm` | [`walk_v7`, it. 2700, 13500 epoche](docs/robots/freenove.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 10 | [Freenove Robot Dog](docs/robots/freenove.md) | quadrupede | 12 | 47 | `walk_v23.nnm` (riferimento), `walk_v7`, `walk_v19`–`walk_v22` | [`walk_v23`, it. 10000, 50000 epoche](docs/robots/freenove.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 11 | [Petoi Bittle (OpenCat)](docs/robots/bittle.md) | quadrupede | 8 | 33 | — | [passo OpenCat open-loop sul modello](docs/robots/bittle.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 12 | [Booster T1](docs/robots/booster_t1.md) | umanoide | 12 | 47 | `walk_booster.nnm` (upstream convertita) | [`walk_booster`](docs/robots/booster_t1.md#risultati-per-versione-di-ambiente-ed-epoca) |
+| 13 | [flybody (Drosophila)](docs/robots/flybody.md) | esapode | 18 | 63 | — | — |
+| 14 | [Yanshee](docs/robots/yanshee.md) | umanoide | 17 | 60 | — | — |
+| 15 | [TienKung (Walker)](docs/robots/tienkung.md) | umanoide | 20 | 69 | — | — |
+| 16 | [ToddlerBot](docs/robots/toddlerbot.md) | umanoide | 12 | 45 | — | — |
+| 17 | [Jumper](docs/robots/jumper.md) | esapode | 20 | 69 | — | — |
+| 18 | [PhoneBot](docs/robots/phonebot.md) | bipede | 13 | 50 | `walk.nnm` e 8 varianti (`walk_fwd`, `walk_natural`, `walk_steps`…) | — |
+| 19 | [PhoneBot invertito](docs/robots/phonebot_rev.md) | bipede | 13 | 50 | `walk.nnm`, `walk_it1800.nnm` | — |
+| 20 | [Sprite (Sprite0825)](docs/robots/open_sprite.md) | umanoide | 31 | 102 | — | — |
 
 Ogni pagina linka il repo originale, il file del modello, CAD e BOM, ed elenca giunti, `q0`, uscite servo,
-il file di architettura PPO (`robots/<id>/robot/ppo.yaml`) e le policy disponibili. Microban e Freenove
-Robot Dog elencano anche ogni video di checkpoint con la versione di ambiente e l'iterazione di training
-(un'iterazione corrisponde a 5 epoche PPO).
+il file di architettura PPO (`robots/<id>/robot/ppo.yaml`) e le policy disponibili. I robot con policy
+elencano anche ogni video di checkpoint con la versione di ambiente e l'iterazione di training
+(un'iterazione corrisponde a 5 epoche PPO). La tabella completa, con foto e stato, è in
+[docs/robots/README.md](docs/robots/README.md), generata da `tools/robots/catalog.py`.
 
 ## Addestrare una policy che si installa così com'è
 
@@ -152,6 +166,40 @@ addestrata, senza quantizzazione successiva.
 
 Dettagli, elenco dei comportamenti del firmware replicati e ricetta GPU (mjlab):
 [docs/robots/training.md](docs/robots/training.md).
+
+Opzioni avanzate di `train_velocity.py`:
+
+- `--gesture` sceglie un gesto a tempo: `wave_right`, `dance`… per un preset, `pose_cmd` per la teleop,
+  `getup_discover` e `getup` per il rialzarsi, `motion --motion <clip.npz>` per una clip da motion capture.
+- `--init-nnm` / `--init-onnx` / `--resume` fanno da punto di partenza.
+
+La ricetta di ogni gesto è in [gesture_imitation.md](docs/robots/gesture_imitation.md).
+
+## Motion capture e retargeting
+
+Due strumenti in `tools/mocap/` portano un movimento umano sul robot:
+
+| | Retargeting geometrico ([`retarget_microban.py`](tools/mocap/retarget_microban.py)) | Retargeting `frax.ik` ([`retarget_frax.py`](tools/mocap/retarget_frax.py)) |
+|---|---|---|
+| Uso | teleop in tempo reale: [`mocap_gcs.py`](tools/mocap/mocap_gcs.py) → `NNM_POSE` → `pose_cmd.nnm` | clip offline da imitare con `--gesture motion` |
+| Ingresso | webcam MediaPipe | landmark MediaPipe registrati, BVH (LAFAN1) |
+| Uscita | 8 canali di posa | tutti i giunti della policy, `robots/<id>/motions/<nome>.npz` |
+| Limiti | taglio a valle | range dei giunti, `NNM_ACT_MAX` e velocità dei servo come vincoli dell'IK |
+
+[frax](https://github.com/StanfordASL/frax) (StanfordASL, MIT) è una libreria JAX di cinematica e
+dinamica. Il suo IK differenziale si confronta con **GMR** (General Motion Retargeting, usato a monte
+per il dataset di TienKung), rispetto al quale ha quattro vantaggi:
+
+- **Velocità:** oltre 100 000 frame/s in batch, contro i 35–70 frame/s di GMR.
+- **Contratto nel solutore:** il contratto di deployment ArduPilot è un vincolo dell'IK.
+- **Nessuna configurazione dedicata:** non serve un file per robot, perché il modello si ricava dall'MJCF
+  del catalogo.
+- **Solutore sempre risolvibile:** trova una soluzione anche con bersagli irraggiungibili.
+
+GMR resta più ricco di formati d'ingresso (SMPL-X, FBX, video, streaming) e ha già la configurazione per
+TienKung e Booster T1. frax gira in un venv separato (`.venv-frax`, JAX ≥ 0.9.1). Setup, comandi, misure e
+confronto completo sono in
+[gesture_imitation.md](docs/robots/gesture_imitation.md#clip-da-motion-capture-retargeting-con-fraxik).
 
 ---
 
@@ -179,9 +227,11 @@ protocollo SITL, modifiche ad ArduPilot e risultati — è nel [documento di rif
 | [docs/reference/microduck-ppo.it.md](docs/reference/microduck-ppo.it.md) ([EN](docs/reference/microduck-ppo.md)) | integrazione MicroDuck in dettaglio, risultati, glossario |
 | [docs/robots/README.md](docs/robots/README.md) | configurazioni dei robot e pagine per robot |
 | [docs/robots/training.md](docs/robots/training.md) | training MuJoCo compatibile con ArduPilot, int8, imitazione di clip (MimicKit) |
-| [docs/robots/gesture_imitation.md](docs/robots/gesture_imitation.md) | gesti per imitazione di clip (saluto, balletto): orologio dei gesti, reward, perché il reward scritto a mano falliva |
+| [docs/robots/gesture_imitation.md](docs/robots/gesture_imitation.md) | gesti per imitazione di clip (saluto, balletto): orologio dei gesti, reward, perché il reward scritto a mano falliva; clip da motion capture con `frax.ik` e confronto con GMR; teleoperazione della posa via MAVLink; get-up in due fasi |
+| [docs/blog/ardupilot-forum-post.md](docs/blog/ardupilot-forum-post.md) | post per il forum ArduPilot (inglese) |
 | [docs/architettura-integrazione.pdf](docs/architettura-integrazione.pdf) / [.pptx](docs/architettura-integrazione.pptx) | slide dell'architettura |
 | [docs/progetto-nnmixer-ardupilot-ppo.md](docs/progetto-nnmixer-ardupilot-ppo.md) | documento di progetto |
+| [docs/servo-guadagni-xgoduck.md](docs/servo-guadagni-xgoduck.md) | guadagni KP/KD dei servo dell'XGO Duck: dove stanno, valori attuali, tabella per servo, pagina di configurazione |
 
 ## Struttura del repository
 
@@ -192,9 +242,11 @@ protocollo SITL, modifiche ad ArduPilot e risultati — è nel [documento di rif
 | `ardupilot/libraries/AP_HAL_ChibiOS/hwdef/Pixhawk6C-NNMixer*/` | target Pixhawk 6C |
 | `robots/<id>/robot/` | `profile.json` (topologia), `ppo.yaml` (PPO + ambiente), `robot.bin`, `scene.xml` |
 | `robots/<id>/policies/` | policy `.nnm` di quel robot (e `.onnx` di origine) |
+| `robots/<id>/motions/` | clip dense da imitare (`.npz`: registrate dal get-up o ricavate con `retarget_frax.py`) |
 | `sitl/APM/nnm/` | struttura microSD usata dal SITL |
 | `tools/robots/` | catalogo, download upstream, ambiente a contratto, training int8, export, `robot.bin` |
+| `tools/mocap/` | ground station MediaPipe per la teleop (`mocap_gcs.py`), retargeting geometrico e retargeting `frax.ik` |
 | `tools/` | export ONNX → C di MicroDuck, test di parità, rollout di riferimento |
 | `plant/mujoco_json_plant.py` | pianta MuJoCo per il SITL (SIM_JSON) |
 | `scripts/` | avvio SITL e pianta, demo, batteria HIL, ponte HIL Pixhawk |
-| `tests/` | `test_nnm_pipeline.py`: training int8 → `.nnm` → forward C del firmware |
+| `tests/` | `test_nnm_pipeline.py`: training int8 → `.nnm` → forward C del firmware; `test_retarget_frax.py`: clip `motion` nell'ambiente e cinematica URDF di frax = MuJoCo |

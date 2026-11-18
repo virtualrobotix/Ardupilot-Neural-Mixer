@@ -54,6 +54,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--binary', required=True)
     ap.add_argument('--robot-dir', default=str(ROOT / 'robots' / 'xgoduck'))
+    ap.add_argument('--gcs-port', type=int, default=14550, help='UDP port the gateway listens on (SITL instances on 14550 talk to it too)')
+    ap.add_argument('--sitl', action='store_true', help='the binary is the SITL build (board defaults from the Uno Q file)')
+    ap.add_argument('--defaults', default=str(ROOT / 'ardupilot/libraries/AP_HAL_Linux/boards/unoq/defaults.parm'))
     args = ap.parse_args()
 
     robot = Path(args.robot_dir)
@@ -70,11 +73,16 @@ def main():
         shutil.copy(p, data / 'policies' / p.name)
 
     mcu = FakeMcu('127.0.0.1', 9003, rest_deg=[12.0] * 15).start()
-    gateway = Gateway('udpin:127.0.0.1:14550').start()
+    gateway = Gateway(f'udpin:127.0.0.1:{args.gcs_port}').start()
     api = Api(gateway, RelayStandIn(mcu), SupervisorStandIn())
     log = open(work / 'ardurover.log', 'w')
-    proc = subprocess.Popen([str(Path(args.binary).resolve()), '--serial0', 'udp:127.0.0.1:14550', '--serial2', 'udp:127.0.0.1:9003'],
-                            cwd=work, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+    binary = str(Path(args.binary).resolve())
+    if args.sitl:
+        cmd = [binary, '--model', 'rover', '--speedup', '1', '-I0', '-w', '--defaults', str(Path(args.defaults).resolve()),
+               '--sim-address=127.0.0.1', '--serial0', f'udpclient:127.0.0.1:{args.gcs_port}', '--serial2', 'udpclient:127.0.0.1:9003']
+    else:
+        cmd = [binary, '--serial0', f'udp:127.0.0.1:{args.gcs_port}', '--serial2', 'udp:127.0.0.1:9003']
+    proc = subprocess.Popen(cmd, cwd=work, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
     results = []
 
     def check(name, ok, detail=''):
@@ -120,7 +128,9 @@ def main():
         a = s['autopilot']
         check('disarmed, XDuck chain, walk policy', not a['armed'] and a['robot']['chain'] == 'xduck'
               and a['robot']['policy_name'] == 'walk', a['robot'])
-        check('all servos present with their ids', [j['id'] for j in a['joints'] if j['present']] == SERVO_IDS)
+        check('all servos present with their ids', wait(
+            lambda: [j['id'] for j in st()['joints'] if j['present']] == SERVO_IDS, 8.0),
+              [(j['id'], j['present']) for j in st()['joints']][:3] + [st()['bus']])
         check('tilt computed', s.get('tilt_deg') == 0.0, s.get('tilt_deg'))
         check('balance pose reached while disarmed', wait(at_home, 10.0))
         check('voltages reported', wait(lambda: all(j['voltage'] for j in st()['joints']), 5.0),
@@ -195,7 +205,7 @@ def main():
         print('calibration session', flush=True)
         r = api.service(dict(action='cal_enter'))
         check('session opens, servos free', r['ok'] and wait(lambda: 'calibration' in st()['bus']['status'], 2.0)
-              and not mcu.snapshot()['enabled'])
+              and wait(lambda: not mcu.snapshot()['enabled'], 2.0))
         check('raw encoders shown', wait(lambda: all(j['raw'] > 0 for j in st()['joints']), 3.0), [j['raw'] for j in st()['joints']][:4])
         r = api.service(dict(action='cal_center', index=3))
         check('centre one joint', r['ok'] and wait(lambda: st()['joints'][3]['held'], 2.0), r)
@@ -227,6 +237,12 @@ def main():
         check('protection off', r['ok'] and r['protection'] == 0, r)
         api.service(dict(action='set_protection', enabled=True))
         check('bad servo id refused', refused(lambda: api.service(dict(action='ping', id=300))))
+        r = api.service(dict(action='goto', id=11, raw=2600))
+        check('slider goto id 11 to raw 2600', r['ok'] and r['raw_pos'] == 2600
+              and abs(mcu.snapshot()['target'][1] - (2600 - 2047) * 360.0 / 4096) < 0.01, r)
+        check('goto out of range refused', refused(lambda: api.service(dict(action='goto', id=11, raw=5000))))
+        r = api.service(dict(action='run_gains'))
+        check('run-gain table refused inside a session', not r['ok'], r)
         check('unknown operation refused', refused(lambda: api.service(dict(action='explode'))))
         r = api.service(dict(action='servo_exit'))
         check('session closes, pose back', r['ok'] and wait(at_home, 6.0))

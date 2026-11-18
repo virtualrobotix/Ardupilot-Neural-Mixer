@@ -20,6 +20,11 @@ trap 'rm -rf "$STAGE"' EXIT
 APP="$STAGE/arduhumanoid"
 mkdir -p "$APP/data/APM/nnm/xgoduck/policies"
 for d in sketch python assets tools LICENSES bin; do cp -R "$ROOT/unoq/app/$d" "$APP/"; done
+SIM_SRC="$ROOT/third_party/microduck/src/mjlab_microduck/robot/microduck"
+if [[ -f "$SIM_SRC/scene.xml" ]]; then
+  mkdir -p "$APP/sim"
+  cp -R "$SIM_SRC" "$APP/sim/microduck"
+fi
 cp "$ROOT/unoq/app/app.yaml" "$ROOT/unoq/app/THIRD_PARTY_NOTICES.md" "$APP/"
 cp "$ROBOT/robot/robot.bin" "$ROBOT/robot/skills.bin" "$APP/data/APM/nnm/xgoduck/"
 cp "$ROBOT"/policies/*.nnm "$APP/data/APM/nnm/xgoduck/policies/"

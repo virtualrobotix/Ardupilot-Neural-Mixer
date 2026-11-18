@@ -33,13 +33,14 @@ enum ServoOp : uint8_t {
   SERVO_EXIT = 1,
   SERVO_UNLOCK = 2,
   SERVO_SET_ID = 3,
-  // 4 was the removed arbitrary-position operation.
+  SERVO_GOTO = 4, // One servo: torque on, goal 0..4095 at the speed of CAL_MOVE_* (slider).
   SERVO_SET_PERM_KP_KD = 5, // Legacy opcode: write and verify EEPROM + live KP/KD.
   SERVO_READ = 6,
   SERVO_PING = 7,
   SERVO_RESET_MID = 8,
   SERVO_SET_PROTECTION = 9,
-  SERVO_SET_PROTECTION_CURRENT = 10
+  SERVO_SET_PROTECTION_CURRENT = 10,
+  SERVO_SET_RUN_GAINS = 11        // Not a DQV2 operation: answers the DQG1 table frame in DQS3.
 };
 
 // Little endian, binary payload inside MessagePack RPC. ABI shared with wire.py.
@@ -86,7 +87,15 @@ struct __attribute__((packed)) ServoPacket {
   char magic[4];
   uint8_t op, targetId, newId, kp, kd;
   union { uint8_t reserved; uint8_t protectionFlags; };
-  union { uint16_t reserved2; uint16_t protectionCurrent; };
+  union { uint16_t reserved2; uint16_t protectionCurrent; uint16_t rawPos; };
+};
+// Host -> MCU: run-gain table of all servos in one frame (DQG1). Bit i of mask: slot i has a value.
+struct __attribute__((packed)) RunGainsPacket {
+  char magic[4];
+  uint32_t seq;
+  uint16_t mask;
+  uint8_t kp[15];
+  uint8_t kd[15];
 };
 struct __attribute__((packed)) RawPacket {
   char magic[4];
@@ -110,3 +119,4 @@ static_assert(sizeof(CalReplyPacket) == 10, "Cal reply ABI");
 static_assert(sizeof(ServoPacket) == 12, "Servo ABI");
 static_assert(sizeof(RawPacket) == 38, "Raw ABI");
 static_assert(sizeof(ServoReplyPacket) == 14, "Servo reply ABI");
+static_assert(sizeof(RunGainsPacket) == 40, "Run gains ABI");

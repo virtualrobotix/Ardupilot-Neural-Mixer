@@ -44,7 +44,8 @@ SLOT_NAMES = ['left_hip_yaw', 'left_hip_roll', 'left_hip_pitch', 'left_knee', 'l
 # NNM_SRV operations
 OPS = dict(torque_off=1, default_pose=2, cal_enter=10, cal_exit=11, cal_center=12, heartbeat=13,
            servo_enter=20, servo_exit=21, unlock=22, set_id=23, set_gains=24, read=25, ping=26,
-           reset_mid=27, set_protection=28, set_protection_current=29)
+           reset_mid=27, set_protection=28, set_protection_current=29,
+           run_gains=30, goto=31)   # run_gains: send the robot's KP/KD table; goto: arg0 = raw 0..4095
 PROTECTION_CURRENT_UNIT_A = 0.0065
 
 # parameters the pages may read and change: name -> (min, max)

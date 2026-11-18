@@ -26,6 +26,7 @@ wandb/
 robots/*/policies/*_run/*_it[0-9][0-9][0-9][0-9].nnm
 robots/*/policies/*_run/*.pt
 robots/*/policies/*_run/*_it[0-9][0-9][0-9][0-9][0-9].nnm
+.venv-frax/
 
 # deployment extras packed next to robot.bin
 !robots/**/skills.bin

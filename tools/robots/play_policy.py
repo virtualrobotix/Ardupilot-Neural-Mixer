@@ -33,6 +33,7 @@ from nnm_env import NNMixerEnv, load_ppo_config  # noqa: E402
 
 SIGNATURE = "Realizzati da Roberto Navoni — DelphyAI LAB"
 GESTURE: str | None = None      # --gesture: env clip whose clock channels the policy expects
+MOTION: Path | None = None       # --motion: dense clip file for --gesture motion
 POSE_MAVLINK: str | None = None  # listen for DEBUG_FLOAT_ARRAY NNM_POSE (pure-sim teleop)
 CLOCK_HZ: float | None = None    # --clock-hz: gait clock of a locomotion policy (default: middle of the range)
 
@@ -106,6 +107,8 @@ def run(robot: str, nnm: Path, vx: float, wz: float, viewer=None, renderer=None,
         gesture = "pose_cmd"
     if gesture:
         cfg.setdefault("env", {})["gesture"] = gesture    # the env then supplies the clock / pose channels
+        if MOTION is not None:
+            cfg["env"]["motion_file"] = str(MOTION)
     pk = unpack_nnm(nnm.read_bytes())
     env = NNMixerEnv(robot, cfg, seed=0)
     env.max_steps = 10 ** 9
@@ -273,13 +276,16 @@ def main() -> None:
     ap.add_argument("--stand", type=float, default=0.0,
                     help="seconds standing with a zero command (a gesture policy)")
     ap.add_argument("--gesture", default=None, help="gesture clip whose clock the env feeds (e.g. wave_right)")
+    ap.add_argument("--motion", type=Path, default=None,
+                    help="with --gesture motion: the dense clip .npz the policy was trained on")
     ap.add_argument("--pose-mavlink", default=None, metavar="CONN",
                     help="listen for NNM_POSE on this MAVLink endpoint (implies --gesture pose_cmd)")
     ap.add_argument("--clock-hz", type=float, default=None,
                     help="gait clock frequency for a locomotion policy trained with env.gait_clock (NNM_CLOCK_HZ)")
     args = ap.parse_args()
-    global GESTURE, POSE_MAVLINK, CLOCK_HZ
+    global GESTURE, MOTION, POSE_MAVLINK, CLOCK_HZ
     GESTURE = args.gesture
+    MOTION = args.motion
     POSE_MAVLINK = args.pose_mavlink
     CLOCK_HZ = args.clock_hz
     if POSE_MAVLINK and not GESTURE:

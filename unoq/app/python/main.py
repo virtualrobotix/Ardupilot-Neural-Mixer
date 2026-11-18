@@ -28,15 +28,18 @@ from arduino.app_utils import App, Bridge
 from api import Api, register
 from gateway import Gateway
 from relay import Relay
+from sim_link import SimLink
 from supervisor import Supervisor
 
 APP_DIR = Path(os.environ.get('APP_HOME_IN_CONTAINER', Path(__file__).resolve().parents[1]))
 
 ui = WebUI(port=9527, cors_origins='')
-relay = Relay(Bridge).start()
+sim = SimLink()
+relay = Relay(Bridge, sim=sim).start()
+sim.attach(relay)
 supervisor = Supervisor(APP_DIR).start()
 gateway = Gateway().start()
-api = Api(gateway, relay, supervisor)
+api = Api(gateway, relay, supervisor, sim)
 register(ui, api)
 
 

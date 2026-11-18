@@ -2,8 +2,8 @@
 
 **Autore:** Roberto Navoni — DelphyAI LAB  
 **Contatto:** r.navoni74@gmail.com  
-**Data:** 24 settembre 2026  
-**Stato:** implementato e validato in SITL (§11); repo privato `virtualrobotix/Ardupilot-Neural-Mixer`  
+**Data:** 24 settembre 2026 (aggiornato il 10 novembre 2026)  
+**Stato:** implementato e validato in SITL e in HIL su Pixhawk 6C (§11); catalogo di 21 robot, imitazione di clip (§12), retargeting del movimento umano (§13); repo privato `virtualrobotix/Ardupilot-Neural-Mixer`  
 **Disclaimer:** *Developed by Roberto Navoni : r.navoni74@gmail.com*
 
 Portare la policy PPO MLP del NNMixer (61 obs → 14 azioni, 50 Hz) **dentro ArduPilot** come task dello scheduler, in modo che lo stesso sorgente giri prima in SITL su Linux/macOS e poi sul microcontrollore del flight controller. MuJoCo non è un secondo autopilota: è il **backend fisico del SITL**, esattamente come Gazebo o RealFlight per un drone. Il test e il comando passano da **MAVProxy**.
@@ -159,7 +159,7 @@ Fork `virtualrobotix/ardupilot`, branch `microduck-ppo`, su `master` upstream ag
 | `libraries/SITL/SIM_JSON.cpp` | Parsing del campo opzionale `"joints": {"pos":[14], "vel":[14]}` → `AP_JointFeedback` |
 | `libraries/AP_JointFeedback/` | Singleton con timestamp; backend SITL (JSON) e, in futuro, Robotis |
 
-Parametri: `NNM_ENABLE`, `NNM_POLICY` (0 MLP), `NNM_VX_MAX`, `NNM_VY_MAX`, `NNM_WZ_MAX`, `NNM_WD_MS` (40), `NNM_ATT_SRC`, `NNM_ATT_TAU`, `NNM_RC_VX/VY/WZ`, `NNM_ACT_MAX`, `NNM_LOG`, `NNM_HOLD_MODE`, `NNM_SRV_FN0`. Nel file SITL vanno anche `INS_GYRO_FILTER 0` e `INS_ACCEL_FILTER 20` (vedi §11).
+Parametri: `NNM_ENABLE`, `NNM_POLICY` (0 MLP), `NNM_VX_MAX`, `NNM_VY_MAX`, `NNM_WZ_MAX`, `NNM_WD_MS` (40), `NNM_ATT_SRC`, `NNM_ATT_TAU`, `NNM_RC_VX/VY/WZ`, `NNM_ACT_MAX`, `NNM_LOG`, `NNM_HOLD_MODE`, `NNM_SRV_FN0`, `NNM_GAINS` (indice 32: invia al micro la tabella KP/KD per servo di `skills.bin` versione 2, da disarmato; vedi [servo-guadagni-xgoduck.md](servo-guadagni-xgoduck.md)). Nel file SITL vanno anche `INS_GYRO_FILTER 0` e `INS_ACCEL_FILTER 20` (vedi §11).
 
 Telemetria: `NAMED_VALUE_FLOAT` `PPO_MS` (tempo forward), `PPO_UP` (gz proiettata), `PPO_VX` (comando); messaggio DataFlash `PPO` con obs compressi e 14 azioni per il replay offline.
 
@@ -266,7 +266,23 @@ Numeri misurati sul Mac (SITL, `-O2`):
 
 Il tracking di velocità (~0.15 m/s a comando 0.4) è lo stesso del rollout Python sulla stessa pianta CPU: è il gap sim2sim MuJoCo-CPU vs mjlab, non l'integrazione ArduPilot.
 
-Prossimi passi: backend Dynamixel per il joint feedback su robot; benchmark del forward su STM32H7; twist da MAVLink GUIDED oltre agli stick.
+Prossimi passi (settembre): backend Dynamixel per il joint feedback su robot; benchmark del forward su STM32H7; twist da MAVLink GUIDED oltre agli stick.
+
+### 11.1 Aggiornamento (10 novembre 2026)
+
+| Area | Stato |
+|---|---|
+| Pixhawk 6C Mini, HIL con build float32 | 15 s in piedi, forward p50 4,9 ms, CPU 32,8% |
+| Policy da microSD | due slot int8 in RAM, cambio con fusione di 0,5 s; in SITL batteria 8/8 PASS da SD (parità firmware vs `.nnm` 2,7e-7) e test di switch 5/5 |
+| Twist | MANUAL, HOLD, GUIDED / AUTO / RTL / SMART_RTL |
+| Catalogo | 21 robot (`NNM_ROBOT` 0–20): un solo firmware, topologia da `robot.bin`, stessa MLP int8 |
+| Training | ambiente a contratto (`deploy_contract.py`) e int8 QAT dalla prima iterazione: il `.nnm` è la rete addestrata |
+| Microban | camminata, saluto, balletto, teleoperazione della posa via MAVLink (`pose_cmd.nnm`), get-up da prono e supino (`getup.nnm`) |
+| Freenove Robot Dog | `walk_v23`: camminata, spinte, rampa di 7° |
+| Retargeting | clip da motion capture con `frax.ik` e `--gesture motion` (§13) |
+
+Restano aperti il backend bus servo (Dynamixel / Feetech) per il feedback dei giunti su un robot reale e la
+prova delle policy da SD sulla scheda.
 
 ---
 
@@ -275,3 +291,44 @@ Prossimi passi: backend Dynamixel per il joint feedback su robot; benchmark del 
 Il riferimento è [MimicKit](https://arxiv.org/abs/2510.13794) (Peng, arXiv:2510.13794, 2025): un framework di RL per l'imitazione di movimento, con Agent, Model, Environment ed Engine separati. Gesti, balletto e rialzarsi usano lo stesso trainer e la stessa MLP int8 della camminata, con il metodo di tracking DeepMimic (sezione 4.1 di quel paper): una clip di riferimento, la fase (seno e coseno) nell'osservazione, un premio denso sulla posa di quella fase. Il firmware riempie quei due canali (`NNM_CLOCK_HZ`, oppure l'orologio one-shot `NNM_GETUP_S` per il get-up).
 
 Come i quattro pezzi del paper stanno nel training, e cosa di DeepMimic è già nel contratto ArduPilot, è in [docs/robots/training.md](robots/training.md#imitazione-di-una-clip-mimickit). La ricetta dei gesti di Microban è in [docs/robots/gesture_imitation.md](robots/gesture_imitation.md).
+
+---
+
+## 13. Retargeting del movimento umano
+
+Una clip da imitare può venire da una persona invece che da pose chiave scritte a mano. Nel progetto ci sono
+due strumenti, più un termine di confronto esterno.
+
+**Retargeting geometrico** (`tools/mocap/retarget_microban.py`). È il percorso della teleoperazione:
+MediaPipe gira sulla webcam della ground station e ne ricava 8 canali di posa, che arrivano al firmware via
+MAVLink (`NNM_POSE`) e a `pose_cmd.nnm`. Lavora in tempo reale, ma la geometria è scritta a mano per
+Microban e i limiti sono un taglio a valle.
+
+**Retargeting `frax.ik`** (`tools/mocap/retarget_frax.py`). [frax](https://github.com/StanfordASL/frax)
+(StanfordASL, MIT) è una libreria JAX di cinematica e dinamica. Il suo IK differenziale risolve un QP con
+ElastiQP, che resta sempre risolvibile. Lo script:
+
+- converte l'MJCF del training in un URDF, la cui cinematica coincide con MuJoCo (verificato da un test);
+- insegue tronco, gomiti, mani e caviglie da landmark MediaPipe o da un BVH;
+- impone come vincoli il range dei giunti, `q0 ± NNM_ACT_MAX` e la velocità dei servo;
+- scrive `robots/<id>/motions/<nome>.npz`.
+
+`train_velocity.py --gesture motion --motion <clip.npz>` addestra poi l'imitazione con lo stesso orologio
+dei gesti (`NNM_CLOCK_HZ = fps / frame`). Gira offline in un venv separato (`.venv-frax`).
+
+**GMR** (General Motion Retargeting, Ze et al., ICRA 2026) è il retargeting usato a monte per il dataset di
+TienKung. Lavora su mink e MuJoCo, con configurazioni pronte per circa 17 umanoidi. Rispetto a GMR, frax:
+
+- è molto più veloce: oltre 100 000 frame/s in batch contro 35–70 frame/s, quindi un dataset intero si
+  rifà in secondi invece che in ore;
+- tiene il contratto ArduPilot dentro il solutore;
+- non chiede una configurazione IK scritta per ogni robot, che GMR non ha per i robot piccoli del catalogo;
+- dà sempre una soluzione con bersagli irraggiungibili.
+
+GMR resta più completo sugli ingressi (SMPL-X, FBX, video monoculare, streaming dal vivo) e ha già TienKung
+e Booster T1.
+
+Stato: la pipeline completa è verificata su una ripresa sintetica (mani 20 mm di errore mediano, piedi
+fermi entro 1 mm, velocità entro il limite dei servo) e con un training di prova di 2 iterazioni. Non sono
+ancora state provate una ripresa reale né un BVH di LAFAN1. Dettagli e confronto completo:
+[gesture_imitation.md](robots/gesture_imitation.md#clip-da-motion-capture-retargeting-con-fraxik).

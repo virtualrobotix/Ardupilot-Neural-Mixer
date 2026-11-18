@@ -14,9 +14,9 @@ things differ from the firmware contract and are folded into the weights, so not
                 the constant contribution of the always-zero columns goes into the bias.
   action scale  roller and kicks run at 0.8 in the XDuck deployment. The last layer is scaled, and
                 the previous-action columns are rescaled so the network still sees the raw action.
-  home pose     the deployment home (rl_core.py), not each file's default_joint_pos metadata:
-                22 deg hips and ankles for every policy, a fixed leg home for the roller.
-                --home metadata keeps the metadata instead.
+  home pose     walk: the measured HD-1910 stance (stance.py). get-up: the ONNX default_joint_pos.
+                roller: that metadata with the fixed leg home. the other policies: factory ±22°.
+                --home metadata keeps each file's default_joint_pos instead.
 
 The files are numbered so NNM_POLICY, NNM_GETUP_IDX and the skill table have stable indices.
 
@@ -48,15 +48,19 @@ import deploy_contract as dc  # noqa: E402
 ROBOT = "xgoduck"
 DEG = np.pi / 180.0
 
-# XDuck deployment home, policy joint order (rl_core.DEFAULT_DEG through POLICY_INDEX)
+# XDuck deployment home, policy joint order (rl_core.DEFAULT_DEG through POLICY_INDEX).
+# Factory ±22°. Walk and get-up on the HD-1910 duck do not use this: walk uses the measured
+# stance, get-up uses the ONNX default_joint_pos (controller.load use_model_home=True).
 HOME_DEG = np.array([0, -5, -22, 0, 22, 20, 20, 0, 0, 0, 5, 22, 0, -22], dtype=np.float64)
+# python/stance.py BASELINE_HOME_DEG, the pose measured on this HD-1910 duck.
+STANCE_DEG = np.array([0, -5, -26.24, -0.28, 18, 20, 20, 0, 0, 0, 5, 26.24, 0.28, -18], dtype=np.float64)
 # rl_core.ROLLER_LEG_DEFAULT_DEG, policy joint order; neck and head keep the model metadata
 ROLLER_LEG_DEG = {0: 0.0, 1: 2.0, 2: -8.5, 3: 8.5, 4: 17.0, 9: 0.0, 10: -2.0, 11: 8.5, 12: -8.5, 13: -17.0}
 
-# (output name, XDuck file, action scale, home: "deploy" | "roller", feeds the head command)
+# (output name, XDuck file, action scale, home: "deploy" | "stance" | "model" | "roller", feeds the head command)
 POLICIES = [
-    ("0_walk", "xgoduck_walk.onnx", 1.0, "deploy", True),
-    ("1_getup", "xgoduck_getup.onnx", 1.0, "deploy", False),
+    ("0_walk", "xgoduck_walk.onnx", 1.0, "stance", True),
+    ("1_getup", "xgoduck_getup.onnx", 1.0, "model", False),
     ("2_roller", "xgoduck_roller.onnx", 0.8, "roller", False),
     ("3_pick", "xgoduck_pick.onnx", 1.0, "deploy", False),
     ("4_roulade", "xgoduck_roulade.onnx", 1.0, "deploy", False),
@@ -102,8 +106,10 @@ def home_for(kind: str, meta: dict, use_metadata: bool) -> np.ndarray:
     meta_home = np.array([float(v) for v in meta["default_joint_pos"].split(",")], dtype=np.float64)
     if meta_home.size != NJ:
         raise SystemExit(f"default_joint_pos has {meta_home.size} values, expected {NJ}")
-    if use_metadata:
+    if use_metadata or kind == "model":
         return meta_home.astype(np.float32)
+    if kind == "stance":
+        return (STANCE_DEG * DEG).astype(np.float32)
     if kind == "roller":
         home = meta_home.copy()
         for i, deg in ROLLER_LEG_DEG.items():
@@ -184,6 +190,9 @@ def main() -> None:
     ap.add_argument("--out-dir", type=Path, default=robot_dir(ROBOT) / "policies")
     ap.add_argument("--home", choices=("deploy", "metadata"), default="deploy",
                     help="deploy: the XDuck runtime home (default); metadata: each ONNX default_joint_pos")
+    ap.add_argument("--stance-ankle", type=float, default=None, metavar="DEG",
+                    help="ankle of the walk stance. The robot stands at 18; the MicroDuck scene used "
+                         "by the simulator stands at 25.95 and falls on its beak at 18")
     ap.add_argument("--samples", type=int, default=2000)
     ap.add_argument("--check-c", action="store_true",
                     help="also run the firmware C forward (tools/nnmixer_infer.c) on the written files")
@@ -194,6 +203,8 @@ def main() -> None:
     if int(profile["n_joints"]) != NJ or int(profile["obs_dim"]) != OBS:
         raise SystemExit(f"profile {ROBOT}: expected {NJ} joints and observation {OBS}")
     sources = read_sources(args.src)
+    if args.stance_ankle is not None:
+        STANCE_DEG[4], STANCE_DEG[13] = args.stance_ankle, -args.stance_ankle
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     exe = None
