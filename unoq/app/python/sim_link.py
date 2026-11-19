@@ -185,7 +185,7 @@ class Duck:
         gyro = self.read()['gyro_dps']
         gyro_counts = [_i16(v * GYRO_COUNTS_PER_DEG) for v in gyro]
         flags = 1 | (2 if powered else 0)
-        sample = self.seq * 10000
+        sample = (self.seq * 10000) & 0xFFFFFFFF      # microseconds in 32 bits: wraps after 71 minutes, as on the sketch
         packets = [STATE.pack(b'DQS1', 1, flags, 0x7FFF, self.seq, sample, sample, 0,
                               0, 10000, 500, 0, 0, 0, *acc, *gyro_counts, *angles, *velocity, *self.targets_deg)]
         if self.seq % 100 == 0:

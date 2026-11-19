@@ -56,6 +56,7 @@ class Relay:
         self.rate = dict(state=0.0, command=0.0)
         self._rate_mark = (time.monotonic(), 0, 0)
         self._remote = None          # TCP socket of the MuJoCo viewer running on the Mac
+        self.on_remote_lost = None   # called when the viewer goes away by itself (main.py: disarm)
         for name in frames.RPC_FROM_MCU:
             bridge.provide(name, self._from_mcu(name))
         bridge.provide('duck_imu', self._imu)
@@ -291,13 +292,20 @@ class Relay:
                     self.publish_sim(packets)
         finally:
             with self.lock:
-                if self._remote is conn:
+                lost = self._remote is conn          # not closed by drop_remote(): the viewer crashed or was closed
+                if lost:
                     self._remote = None
             try:
                 conn.close()
             except OSError:
                 pass
             print('ArduHumanoid: MuJoCo sul Mac scollegato', flush=True)
+            if lost and self.on_remote_lost is not None:
+                # the commands would go back to the real servos: never while still armed from the simulation
+                try:
+                    self.on_remote_lost()
+                except Exception as error:
+                    print(f'ArduHumanoid: disarmo dopo la perdita del MuJoCo non riuscito ({error})', flush=True)
 
     # ---------------------------------------------------------------- status
     def status(self) -> dict:

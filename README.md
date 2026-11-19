@@ -18,6 +18,9 @@ and the same training pipeline cover a [catalog of bipeds, quadrupeds and a hexa
                              microSD /APM/nnm/<robot>/robot.bin + policies/*.nnm  → 2 int8 slots in RAM
 ```
 
+On an Arduino Uno Q the same firmware drives the XGO Duck as **ArduDuck**, with its own web pages and MuJoCo
+on a host computer as the simulated body: [Quickstart 3](#quickstart-3--arduduck-on-arduino-uno-q-mujoco-on-the-host-computer).
+
 Demo video: [`docs/media/demo_mavproxy_mlp.mp4`](docs/media/demo_mavproxy_mlp.mp4) (MAVProxy → ArduPilot →
 network → MuJoCo). Pixhawk 6C hardware-in-the-loop: [`docs/media/pixhawk6c_mlp_battery_imu.mp4`](docs/media/pixhawk6c_mlp_battery_imu.mp4).
 
@@ -32,6 +35,7 @@ network → MuJoCo). Pixhawk 6C hardware-in-the-loop: [`docs/media/pixhawk6c_mlp
 | Other robots | 21 robots in the catalog with profiles, PPO configs and MuJoCo scenes. Microban `walk_md` walks in sim ([it. 3000](docs/media/microban_walk_md_it3000.mp4)), waves ([`wave_right`](docs/media/microban_wave_right_clip_it0300.mp4)) and dances ([`dance`](docs/media/microban_dance_it0400.mp4)) by clip imitation with a gesture clock ([how](docs/robots/gesture_imitation.md)), gets up from prone and supine ([`getup`](docs/media/microban_getup.mp4)) and hands over from get-up to walking and teleop ([mix, it. 16500](docs/media/microban_getup_walk_teleop.mp4)). Freenove Robot Dog `walk_v23` walks, rejects pushes and climbs a 7° ramp ([it. 10000](docs/media/freenove_walk_v23_it10000_full.mp4)). Booster T1 runs the upstream policy converted to `.nnm` ([video](docs/media/booster_t1_walk_booster.mp4)); PhoneBot has its first sim walks. Checkpoint videos are on each [robot page](docs/robots/README.md) |
 | Pose teleoperation | MediaPipe on the GCS webcam → 8 `NNM_POSE` channels over MAVLink → Microban `pose_cmd.nnm`, which holds the pose and its balance; tested in pure simulation ([video](docs/media/microban_pose_cmd_mavlink_wave.mp4)) |
 | Clips from motion capture | offline whole-body retargeting with `frax.ik` (MediaPipe or BVH → `.npz` clip → `--gesture motion`); pipeline checked on synthetic data, no policy fully trained yet ([details](#motion-capture-and-retargeting)) |
+| ArduDuck: XGO Duck on Arduino Uno Q | ArduRover and the policies run on the board, with web pages in four languages, Wi-Fi setup with access point fallback, and MuJoCo on a host computer in place of the body: 100 Hz of state and 50 Hz of commands over USB and over Wi-Fi ([Quickstart 3](#quickstart-3--arduduck-on-arduino-uno-q-mujoco-on-the-host-computer)) |
 | Real robot without the simulator | needs a servo-bus backend (Dynamixel / Feetech) for joint feedback, not written yet |
 
 ---
@@ -112,6 +116,186 @@ The demo arms, stands, walks forward, backward, sideways, turns 90°, switches t
 automatic test battery: [reference document §8](docs/reference/microduck-ppo.md#8-running-the-demo-and-the-tests).
 `scripts/policy_switch_test.py` checks the two-slot switch (deferred while walking, done in HOLD) and the
 rejection of another robot's file.
+
+---
+
+## Quickstart 3 — ArduDuck on Arduino Uno Q, MuJoCo on the host computer
+
+**ArduDuck** is the XGO Duck (15 bus servos) driven by an **Arduino Uno Q**. ArduRover with AP_NNMixer runs
+on the Linux side of the board, the STM32 sketch drives the servo bus and the IMU, and the board serves its
+own web pages. Nothing else is needed on the robot.
+
+| Status | Control |
+|---|---|
+| ![Status page](docs/media/arduduck/status-en.png) | ![Control page](docs/media/arduduck/control-en.png) |
+
+### What is new
+
+- **ArduDuck pages** on `http://<board address>:9527`: Status, Control, Calibration, Servo, Network, About.
+- **Four languages**: Italian, English, German, Spanish, from the selector in the header. The choice is
+  remembered by the browser; `?lang=en` (or `it`, `de`, `es`) in the address sets it directly.
+- **Network tab**: choose a Wi-Fi network, reconfigure or forget a saved one, or detach the board from Wi-Fi so
+  that only its own access point works.
+- **Access point fallback**: when the board joins no Wi-Fi network within about 45 s of start-up, it becomes
+  the access point `ArduDuck`.
+- **About tab**: current network, address of the pages and of the MAVLink port.
+- **MuJoCo on the host computer** with the XGO Duck model used in training, over Wi-Fi or USB.
+- **Disarm on simulator loss**: if the MuJoCo window disappears while the autopilot is armed, the board
+  disarms. Without this the autopilot would go back to commanding the real servos.
+
+### Network
+
+| Network tab | Saved networks and access point |
+|---|---|
+| ![Network tab](docs/media/arduduck/network-en.png) | ![Network setup](docs/media/arduduck/network-setup-en.png) |
+
+| | Value |
+|---|---|
+| Access point name | `ArduDuck` |
+| Access point Wi-Fi password | `runrunrun` (WPA2; can be changed in the Network tab) |
+| Board address as access point | `10.42.0.1` |
+| Login for the network settings | user `arduduck`, password `runrun` (initial; can be changed in the Network tab) |
+| Web pages | `http://<board address>:9527` |
+| MAVLink (QGroundControl, Mission Planner, MAVProxy) | TCP `<board address>:5760`, one client at a time |
+| MuJoCo on the host | TCP `<board address>:7000` |
+
+First connection without a known network: power the board, wait about 45 s, join the Wi-Fi network `ArduDuck`
+from a phone or computer, open `http://10.42.0.1:9527`, go to **Network**, log in and choose the Wi-Fi network.
+The board leaves the access point and joins it; its new address is shown in **Network** and **About**.
+
+Two modes, chosen in the Network tab: **Wi-Fi with access point as fallback** (default) and **access point
+only**, where the board ignores the saved networks. The mode survives a reboot.
+
+The pages are plain HTTP: the login and the Wi-Fi passwords travel unencrypted on the network. Change the two
+initial passwords before using the robot on a network that is not yours.
+
+![About tab](docs/media/arduduck/about-en.png)
+
+### MuJoCo runs on the host computer, not on the robot
+
+In simulation the board keeps doing everything it does on the real robot: ArduRover, the policy, the modes,
+MAVLink and the web pages all run on the Uno Q. Only the **body** is replaced. MuJoCo runs on a computer
+(the host: macOS, Windows or Linux) connected to the board over the network, and plays the role of servos and
+IMU.
+
+```
+   HOST COMPUTER (macOS / Windows / Linux)                 ARDUINO UNO Q (on the robot)
+ ┌──────────────────────────────────────┐              ┌────────────────────────────────────────┐
+ │ tools/unoq/mac_sim.py                │  TCP :7000   │ ArduRover + AP_NNMixer (policy, 50 Hz) │
+ │  MuJoCo physics + 3D window          │ ◀─────────── │  joint commands, 50 Hz                 │
+ │  XGO Duck model used in training     │ ───────────▶ │  simulated IMU + joint angles, 100 Hz  │
+ └──────────────────────────────────────┘              │                                        │
+ ┌──────────────────────────────────────┐  HTTP :9527  │ ArduDuck web pages                     │
+ │ browser (same or another device)     │ ◀──────────▶ │                                        │
+ │ ground station (optional)            │ ◀──────────▶ │ MAVLink                                │
+ └──────────────────────────────────────┘  TCP :5760   │ real servos: off while simulating      │
+                                                       └────────────────────────────────────────┘
+        Wi-Fi (same network, or the ArduDuck access point)   or   USB cable with adb forward
+```
+
+- The **host starts the connection** to the board on TCP port 7000. Nothing has to be opened on the host
+  firewall; the host only needs to reach the board's address.
+- As soon as the window connects, the board switches to **Simulation**: the autopilot reads the simulated
+  IMU and joint angles, and its commands go to the window. The real servos stay off.
+- Closing the window gives the board back to the real robot. If the autopilot was armed, it is disarmed.
+- Arm and drive from the **Control** page (or from a ground station) exactly as with the real robot.
+
+Three ways to connect host and board:
+
+| Link | Command on the host | Notes |
+|---|---|---|
+| Same Wi-Fi network | `mac_sim.py --host <board address>` | the address is in the **About** tab |
+| ArduDuck access point | `mac_sim.py --host 10.42.0.1` | the host joins the Wi-Fi network `ArduDuck`; no router needed |
+| USB cable | `adb forward tcp:7000 tcp:7000`, then `mac_sim.py` | `adb forward tcp:9527 tcp:9527` also brings the pages to `http://127.0.0.1:9527` |
+
+Measured with a Mac as host: over USB the board receives 100 Hz of state and sends 50 Hz of commands. Over
+Wi-Fi (board and Mac on the same network, ping 7–209 ms) it received 98–116 Hz of state and sent 45–50 Hz of
+commands. USB is the steadier link; on a busy Wi-Fi network the delay varies and the robot is harder to keep
+balanced.
+
+![MuJoCo with the ArduDuck model](docs/media/arduduck/mujoco-arduduck.png)
+
+*The XGO Duck model of the training stack (0.791 kg, HLS1910 servo voltage model, ±1.5° gear play, electronics
+backpack), rendered from the scene the host window uses.*
+
+### Installing MuJoCo on the host
+
+The host needs Python 3.10 or later (3.12 used here), Git, and a graphical session with OpenGL. Three Python
+packages are enough: `mujoco`, `numpy` and the servo model `better-actuator-models`. The repository
+submodules are not needed. The robot model comes from a second repository, cloned into `third_party/xgoduck_rl`
+(about 90 MB).
+
+The macOS steps were run on a clean environment. The Windows and Linux steps use the same packages and the
+same script but **have not been run** on those systems yet.
+
+**macOS** (Apple Silicon or Intel)
+
+```bash
+xcode-select --install                      # Git, if missing
+brew install python@3.12                    # or the installer from python.org
+git clone https://github.com/virtualrobotix/Ardupilot-Neural-Mixer.git arduduck
+cd arduduck
+git clone -b hd1910-standup https://github.com/ZXerniXZ/xgoduck_rl third_party/xgoduck_rl
+python3.12 -m venv .venv
+.venv/bin/pip install mujoco numpy "better-actuator-models @ git+https://github.com/Rhoban/bam.git@mjlab_frictionloss"
+.venv/bin/mjpython tools/unoq/mac_sim.py --host 192.168.1.50      # the board's address
+```
+
+On macOS the window opens only under `mjpython`, which is installed with the `mujoco` package; plain `python`
+fails.
+
+**Windows** (10 or 11, PowerShell)
+
+Install [Python 3.12](https://www.python.org/downloads/windows/) and [Git for Windows](https://git-scm.com/download/win), then:
+
+```powershell
+git clone https://github.com/virtualrobotix/Ardupilot-Neural-Mixer.git arduduck
+cd arduduck
+git clone -b hd1910-standup https://github.com/ZXerniXZ/xgoduck_rl third_party/xgoduck_rl
+py -3.12 -m venv .venv
+.venv\Scripts\pip install mujoco numpy "better-actuator-models @ git+https://github.com/Rhoban/bam.git@mjlab_frictionloss"
+.venv\Scripts\python tools\unoq\mac_sim.py --host 192.168.1.50
+```
+
+**Linux** (Ubuntu / Debian, desktop session)
+
+```bash
+sudo apt install git python3 python3-venv
+git clone https://github.com/virtualrobotix/Ardupilot-Neural-Mixer.git arduduck
+cd arduduck
+git clone -b hd1910-standup https://github.com/ZXerniXZ/xgoduck_rl third_party/xgoduck_rl
+python3 -m venv .venv
+.venv/bin/pip install mujoco numpy "better-actuator-models @ git+https://github.com/Rhoban/bam.git@mjlab_frictionloss"
+.venv/bin/python tools/unoq/mac_sim.py --host 192.168.1.50
+```
+
+**Check.** The terminal prints `collegato: l'autopilota usa questa finestra` (connected: the autopilot uses
+this window). In the **Status** page the virtual environment reads *Simulation* and the engine is the host
+MuJoCo (the label says "MuJoCo on the Mac" on every host). While the board is unreachable the script prints
+`in attesa della Uno Q su <address>:7000` and retries every second: check the address, that host and board
+are on the same network, and that the ArduDuck app is running. Guest Wi-Fi networks often isolate their
+clients; in that case use the access point or the USB cable.
+
+**USB instead of Wi-Fi.** `adb` comes with Arduino App Lab (or with Android platform-tools). With the board
+on the USB cable:
+
+```bash
+adb forward tcp:7000 tcp:7000
+adb forward tcp:9527 tcp:9527
+.venv/bin/mjpython tools/unoq/mac_sim.py        # no --host: 127.0.0.1 is the board through adb
+```
+
+### Installing the app on the board
+
+```bash
+unoq/build_ardurover.sh                 # static aarch64 ardurover, built in Docker
+.venv/bin/python tools/robots/import_xgoduck.py    # XGO Duck policies → robots/xgoduck/policies/*.nnm (kept local)
+unoq/deploy.sh                          # app, binary, robot and policies over adb; installs the network service
+adb shell arduino-app-cli app start user:arduhumanoid
+```
+
+`unoq/deploy.sh --torque-off` is for the first connection of a real robot: the autopilot never powers the
+servos while disarmed.
 
 ---
 
@@ -245,6 +429,8 @@ ArduPilot changes and results — is in the [reference document](docs/reference/
 | `tools/robots/` | catalog, upstream fetch, contract env, int8 training, export, `robot.bin` packer |
 | `tools/mocap/` | MediaPipe ground station for teleop (`mocap_gcs.py`), geometric retargeting and `frax.ik` retargeting |
 | `tools/` | MicroDuck ONNX → C export, parity checks, reference rollout |
+| `unoq/` | ArduDuck app for the Arduino Uno Q: `app/python` (relay, gateway, API, network), `app/assets` (web pages, `i18n.js`), `app/sketch` (STM32), `app/tools` (network service), `build_ardurover.sh`, `deploy.sh` |
+| `tools/unoq/` | host side: `mac_sim.py` (MuJoCo window for macOS, Windows, Linux), `xgoduck_scene.py` (XGO Duck training model), bench and gateway tests |
 | `plant/mujoco_json_plant.py` | MuJoCo plant for SITL (SIM_JSON) |
 | `scripts/` | SITL / plant launchers, demo, HIL test battery, Pixhawk HIL bridge |
 | `tests/` | `test_nnm_pipeline.py`: int8 training → `.nnm` → firmware C forward; `test_retarget_frax.py`: `motion` clips in the env, frax URDF kinematics = MuJoCo |

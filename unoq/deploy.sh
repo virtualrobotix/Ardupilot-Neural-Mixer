@@ -46,4 +46,6 @@ done
 "$ADB" shell "mkdir -p $REMOTE/data && rm -rf $REMOTE/sketch $REMOTE/python $REMOTE/assets $REMOTE/tools $REMOTE/bin $REMOTE/LICENSES"
 [[ "$SITE" == on ]] && "$ADB" shell "rm -f $REMOTE/data/site.parm"
 "$ADB" push "$APP/." "$REMOTE/" | tail -1
+# network helper outside the container: Wi-Fi setup from the pages, access point "ArduDuck" when no network connects
+"$ADB" shell "bash $REMOTE/tools/network-setup.sh" | tail -3
 "$ADB" shell "chmod +x $REMOTE/bin/ardurover; ls $REMOTE $REMOTE/data; grep -n 'define DUCK_BRIDGE_SLOW' $REMOTE/sketch/protocol.h; cat $REMOTE/data/site.parm 2>/dev/null"

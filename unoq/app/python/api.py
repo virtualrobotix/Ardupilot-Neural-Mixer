@@ -15,6 +15,9 @@
     POST /api/service   {"action": "cal_enter"|"cal_center"|"ping"|..., "id": .., ...}
                         goto {"id", "raw": 0..4095}; run_gains {} (sends the robot's KP/KD table)
     POST /api/sim       {"mode": "off"|"simulate"|"debug", "reset": false}
+    GET  /api/network                                    Wi-Fi or access point, address (no login)
+    POST /api/network   {"user", "password", "action": "status"|"scan"|"connect" {"ssid", "psk"}|"forget"|"mode" {"mode": "auto"|"ap"}|
+                        "ap_password"|"set_password", ...}   see network.py; the only API with a login
 """
 from __future__ import annotations
 
@@ -22,12 +25,14 @@ import math
 import time
 
 from gateway import PROTECTION_CURRENT_UNIT_A, SLOT_IDS, GatewayError
+from network import LoginError, NetworkError
 from sim_link import SimError
 
 
 class Api:
-    def __init__(self, gateway, relay, supervisor, sim=None):
+    def __init__(self, gateway, relay, supervisor, sim=None, network=None):
         self.gateway, self.relay, self.supervisor, self.simlink = gateway, relay, supervisor, sim
+        self.net = network
 
     def status(self):
         link = self.relay.status()
@@ -113,6 +118,14 @@ class Api:
         except SimError as e:
             raise GatewayError(str(e))
 
+    def network_status(self):
+        return self.net.public() if self.net is not None else dict(service=False)
+
+    def network(self, body):
+        if self.net is None:
+            raise NetworkError('rete non disponibile in questo processo')
+        return self.net.handle(body)
+
     def service(self, body):
         action = body['action']
         g = self.gateway
@@ -167,12 +180,15 @@ def register(ui, api: Api):
         def handler(body: dict = None):
             try:
                 return fn(body or {})
-            except GatewayError as e:
+            except LoginError as e:
+                raise HTTPException(401, str(e))
+            except (GatewayError, NetworkError) as e:
                 raise HTTPException(400, str(e))
             except (KeyError, TypeError, ValueError) as e:
                 raise HTTPException(400, f'richiesta non valida: {e}')
         return handler
 
     ui.expose_api('GET', '/api/status', api.status)
-    for name in ('arm', 'stop', 'torque', 'motion', 'head', 'skill', 'param', 'service', 'sim'):
+    ui.expose_api('GET', '/api/network', api.network_status)
+    for name in ('arm', 'stop', 'torque', 'motion', 'head', 'skill', 'param', 'service', 'sim', 'network'):
         ui.expose_api('POST', f'/api/{name}', post(getattr(api, name)))

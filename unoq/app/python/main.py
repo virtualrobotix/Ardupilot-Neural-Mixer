@@ -10,6 +10,7 @@ relay.py       passes the sketch packets to ArduPilot's joint-bus port and back
 supervisor.py  runs ardurover and starts it again if it exits
 gateway.py     MAVLink ground station for the pages
 api.py         what the pages can ask for, on port 9527 with the pages themselves (assets/)
+network.py     Network page: login, and requests to tools/arduduck_network.py outside the container
 
 The status is also written once a second to data/status.json and logged every 10 s.
 """
@@ -27,6 +28,7 @@ from arduino.app_utils import App, Bridge
 
 from api import Api, register
 from gateway import Gateway
+from network import Network
 from relay import Relay
 from sim_link import SimLink
 from supervisor import Supervisor
@@ -39,7 +41,16 @@ relay = Relay(Bridge, sim=sim).start()
 sim.attach(relay)
 supervisor = Supervisor(APP_DIR).start()
 gateway = Gateway().start()
-api = Api(gateway, relay, supervisor, sim)
+
+
+def disarm_after_viewer_loss():
+    if gateway.armed:
+        gateway.arm(False)
+        print('ArduHumanoid: MuJoCo sul Mac perso da armato: autopilota disarmato', flush=True)
+
+
+relay.on_remote_lost = disarm_after_viewer_loss
+api = Api(gateway, relay, supervisor, sim, Network(APP_DIR))
 register(ui, api)
 
 

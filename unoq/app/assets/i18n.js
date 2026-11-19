@@ -1,0 +1,420 @@
+// ArduDuck pages: languages. Italian is the source text and the key; each row is [English, Deutsch, Español].
+// t('testo {n}', { n: 3 }) returns the text in the chosen language. The static text of index.html is
+// translated in place, one text node at a time, so the HTML needs no markers.
+'use strict';
+
+const LANGS = ['it', 'en', 'de', 'es'];
+const TEXTS = {
+  // ── header and tabs
+  'Stato': ['Status', 'Status', 'Estado'],
+  'Controllo': ['Control', 'Steuerung', 'Control'],
+  'Calibrazione': ['Calibration', 'Kalibrierung', 'Calibración'],
+  'Servo': ['Servos', 'Servos', 'Servos'],
+  'Info': ['About', 'Info', 'Info'],
+  'Lingua': ['Language', 'Sprache', 'Idioma'],
+  'Tema chiaro o scuro': ['Light or dark theme', 'Helles oder dunkles Design', 'Tema claro u oscuro'],
+  'Cambia tema': ['Change theme', 'Design wechseln', 'Cambiar tema'],
+  'Disarma e toglie coppia ai servo (barra spaziatrice)': ['Disarms and removes servo torque (space bar)', 'Entschärft und nimmt den Servos das Drehmoment (Leertaste)', 'Desarma y quita el par a los servos (barra espaciadora)'],
+  'STOP · coppia off': ['STOP · torque off', 'STOPP · Drehmoment aus', 'STOP · par off'],
+  'NON COLLEGATO': ['NOT CONNECTED', 'NICHT VERBUNDEN', 'SIN CONEXIÓN'],
+  'ARMATO': ['ARMED', 'SCHARF', 'ARMADO'],
+  'DISARMATO': ['DISARMED', 'ENTSCHÄRFT', 'DESARMADO'],
+
+  // ── status cards
+  'Autopilota': ['Autopilot', 'Autopilot', 'Piloto automático'],
+  'Microcontrollore': ['Microcontroller', 'Mikrocontroller', 'Microcontrolador'],
+  'Fermo': ['Stopped', 'Gestoppt', 'Parado'],
+  'Senza MAVLink': ['No MAVLink', 'Kein MAVLink', 'Sin MAVLink'],
+  'Armato': ['Armed', 'Scharf', 'Armado'],
+  'Disarmato': ['Disarmed', 'Entschärft', 'Desarmado'],
+  'ardurover non è in esecuzione': ['ardurover is not running', 'ardurover läuft nicht', 'ardurover no está en ejecución'],
+  'ardurover · modo {mode}': ['ardurover · mode {mode}', 'ardurover · Modus {mode}', 'ardurover · modo {mode}'],
+  'Non risponde': ['Not answering', 'Antwortet nicht', 'No responde'],
+  'stato ridotto: router a 115200': ['reduced state rate: router at 115200', 'reduzierte Statusrate: Router auf 115200', 'estado reducido: router a 115200'],
+  'stato dallo sketch': ['state from the sketch', 'Status vom Sketch', 'estado desde el sketch'],
+  'sketch o router fermi': ['sketch or router stopped', 'Sketch oder Router gestoppt', 'sketch o router parados'],
+  'stato da MuJoCo': ['state from MuJoCo', 'Status von MuJoCo', 'estado desde MuJoCo'],
+  'Assente': ['Missing', 'Fehlt', 'Ausente'],
+  'inclinazione {deg}°': ['tilt {deg}°', 'Neigung {deg}°', 'inclinación {deg}°'],
+  'SPI risponde {id}': ['SPI answers {id}', 'SPI antwortet {id}', 'SPI responde {id}'],
+  'nessun sensore trovato': ['no sensor found', 'kein Sensor gefunden', 'ningún sensor encontrado'],
+  '{min}–{max} V · coppia {state}': ['{min}–{max} V · torque {state}', '{min}–{max} V · Drehmoment {state}', '{min}–{max} V · par {state}'],
+  'nessuna tensione letta · coppia {state}': ['no voltage read · torque {state}', 'keine Spannung gelesen · Drehmoment {state}', 'ninguna tensión leída · par {state}'],
+  'catena {chain} · {hz} Hz': ['{chain} chain · {hz} Hz', 'Kette {chain} · {hz} Hz', 'cadena {chain} · {hz} Hz'],
+  'nessuna telemetria': ['no telemetry', 'keine Telemetrie', 'sin telemetría'],
+
+  // ── alerts
+  "La pagina non riceve più dati dall'app sulla scheda.": ['The page no longer receives data from the app on the board.', 'Die Seite empfängt keine Daten mehr von der App auf dem Board.', 'La página ya no recibe datos de la app de la placa.'],
+  'ardurover non è in esecuzione. {error}': ['ardurover is not running. {error}', 'ardurover läuft nicht. {error}', 'ardurover no está en ejecución. {error}'],
+  'ardurover è in esecuzione ma non risponde su MAVLink.': ['ardurover is running but does not answer on MAVLink.', 'ardurover läuft, antwortet aber nicht über MAVLink.', 'ardurover está en ejecución pero no responde por MAVLink.'],
+  'Simulazione MuJoCo: IMU e servo arrivano dalla scena. I motori reali sono spenti.': ['MuJoCo simulation: IMU and servos come from the scene. The real motors are off.', 'MuJoCo-Simulation: IMU und Servos kommen aus der Szene. Die echten Motoren sind aus.', 'Simulación MuJoCo: la IMU y los servos vienen de la escena. Los motores reales están apagados.'],
+  'Debug MuJoCo: il robot reale comanda. La colonna Sim ripete gli stessi comandi nella scena.': ['MuJoCo debug: the real robot is in command. The Sim column repeats the same commands in the scene.', 'MuJoCo-Debug: der echte Roboter führt. Die Spalte Sim wiederholt dieselben Befehle in der Szene.', 'Debug MuJoCo: manda el robot real. La columna Sim repite los mismos comandos en la escena.'],
+  'Lo sketch sul microcontrollore non manda lo stato: nessun dato da IMU e servo.': ['The sketch on the microcontroller sends no state: no data from IMU and servos.', 'Der Sketch auf dem Mikrocontroller sendet keinen Status: keine Daten von IMU und Servos.', 'El sketch del microcontrolador no envía el estado: ningún dato de la IMU ni de los servos.'],
+  'Il micro manda lo stato a {hz} Hz invece di 100: il router della scheda è a 115200 baud. Per camminare serve «sudo bash tools/router-2m.sh» e lo sketch a piena velocità.': ['The microcontroller sends state at {hz} Hz instead of 100: the board router is at 115200 baud. Walking needs «sudo bash tools/router-2m.sh» and the full-speed sketch.', 'Der Mikrocontroller sendet den Status mit {hz} Hz statt 100: der Router des Boards läuft mit 115200 Baud. Zum Laufen sind «sudo bash tools/router-2m.sh» und der Sketch mit voller Geschwindigkeit nötig.', 'El microcontrolador envía el estado a {hz} Hz en vez de 100: el router de la placa está a 115200 baudios. Para caminar hacen falta «sudo bash tools/router-2m.sh» y el sketch a plena velocidad.'],
+  "L'IMU non risponde: il microcontrollore non dà coppia ai servo.": ['The IMU does not answer: the microcontroller gives the servos no torque.', 'Die IMU antwortet nicht: der Mikrocontroller gibt den Servos kein Drehmoment.', 'La IMU no responde: el microcontrolador no da par a los servos.'],
+  "Per l'IMU il robot è inclinato di {deg}°: da armato partirebbe la rialzata. Se il robot è in piedi, il sensore è montato con un altro orientamento.": ['The IMU reads a tilt of {deg}°: when armed the get-up would start. If the robot is standing, the sensor is mounted with a different orientation.', 'Laut IMU ist der Roboter um {deg}° geneigt: scharf geschaltet würde das Aufstehen starten. Steht der Roboter, ist der Sensor anders ausgerichtet montiert.', 'Según la IMU el robot está inclinado {deg}°: al armar empezaría la maniobra de levantarse. Si el robot está de pie, el sensor está montado con otra orientación.'],
+  'Rispondono {n} servo su {total} (mancano gli ID {ids}).': ['{n} of {total} servos answer (IDs {ids} are missing).', '{n} von {total} Servos antworten (es fehlen die IDs {ids}).', 'Responden {n} servos de {total} (faltan los ID {ids}).'],
+  'Nessun servo risponde sul bus: alimentazione o collegamento del bus (D0/D1).': ['No servo answers on the bus: power supply or bus wiring (D0/D1).', 'Kein Servo antwortet am Bus: Stromversorgung oder Busverkabelung (D0/D1).', 'Ningún servo responde en el bus: alimentación o conexión del bus (D0/D1).'],
+  'Il microcontrollore ha tolto coppia da solo: comandi mancanti per troppo tempo.': ['The microcontroller removed torque by itself: commands were missing for too long.', 'Der Mikrocontroller hat das Drehmoment selbst abgeschaltet: zu lange keine Befehle.', 'El microcontrolador ha quitado el par por sí solo: faltaron comandos demasiado tiempo.'],
+  'Collegamento autopilota–micro: {refused} comandi rifiutati, {crc} errori CRC.': ['Autopilot–microcontroller link: {refused} commands refused, {crc} CRC errors.', 'Verbindung Autopilot–Mikrocontroller: {refused} Befehle abgelehnt, {crc} CRC-Fehler.', 'Enlace piloto automático–micro: {refused} comandos rechazados, {crc} errores CRC.'],
+
+  // ── IMU panel
+  'Direzione della gravità vista dal sensore': ['Direction of gravity as seen by the sensor', 'Richtung der Schwerkraft aus Sicht des Sensors', 'Dirección de la gravedad vista por el sensor'],
+  'Accelerometro': ['Accelerometer', 'Beschleunigungssensor', 'Acelerómetro'],
+  'Giroscopio': ['Gyroscope', 'Gyroskop', 'Giroscopio'],
+  'Inclinazione': ['Tilt', 'Neigung', 'Inclinación'],
+  'Assetto ArduPilot': ['ArduPilot attitude', 'ArduPilot-Lage', 'Actitud de ArduPilot'],
+  'Sensore': ['Sensor', 'Sensor', 'Sensor'],
+  'Robot in piedi e in piano: accelerometro (0, 0, −1) g, inclinazione 0°, punto al centro.': ['Robot standing on level ground: accelerometer (0, 0, −1) g, tilt 0°, dot in the centre.', 'Roboter steht auf ebener Fläche: Beschleunigungssensor (0, 0, −1) g, Neigung 0°, Punkt in der Mitte.', 'Robot de pie y en llano: acelerómetro (0, 0, −1) g, inclinación 0°, punto en el centro.'],
+  'rollio {r}°  beccheggio {p}°  imbardata {y}°': ['roll {r}°  pitch {p}°  yaw {y}°', 'Rollen {r}°  Nicken {p}°  Gieren {y}°', 'alabeo {r}°  cabeceo {p}°  guiñada {y}°'],
+
+  // ── links panel
+  'Collegamenti': ['Links', 'Verbindungen', 'Enlaces'],
+  'Ground station': ['Ground station', 'Bodenstation', 'Estación de tierra'],
+  'Stato dal micro': ['State from the microcontroller', 'Status vom Mikrocontroller', 'Estado desde el micro'],
+  'Comandi al micro': ['Commands to the microcontroller', 'Befehle an den Mikrocontroller', 'Comandos al micro'],
+  'Anello servo (micro)': ['Servo loop (microcontroller)', 'Servo-Regelschleife (Mikrocontroller)', 'Bucle de servos (micro)'],
+  'Task della policy': ['Policy task', 'Policy-Task', 'Tarea de la policy'],
+  'Errori': ['Errors', 'Fehler', 'Errores'],
+  'in esecuzione (avvii: {n})': ['running (starts: {n})', 'läuft (Starts: {n})', 'en ejecución (arranques: {n})'],
+  'fermo': ['stopped', 'gestoppt', 'parado'],
+  'collegato · modo {mode}': ['connected · mode {mode}', 'verbunden · Modus {mode}', 'conectado · modo {mode}'],
+  'nessun heartbeat': ['no heartbeat', 'kein Heartbeat', 'sin heartbeat'],
+  'MAVLink 2 su TCP {host}:{port}': ['MAVLink 2 on TCP {host}:{port}', 'MAVLink 2 über TCP {host}:{port}', 'MAVLink 2 por TCP {host}:{port}'],
+  'non attiva': ['not active', 'nicht aktiv', 'no activa'],
+  "{a} Hz al relay · {b} Hz all'autopilota": ['{a} Hz to the relay · {b} Hz to the autopilot', '{a} Hz zum Relay · {b} Hz zum Autopilot', '{a} Hz al relay · {b} Hz al piloto automático'],
+  '{hz} Hz · ultimo: {mode}': ['{hz} Hz · last: {mode}', '{hz} Hz · letzter: {mode}', '{hz} Hz · último: {mode}'],
+  'periodo {p} ms · lavoro {w} ms · {n} sforamenti': ['period {p} ms · work {w} ms · {n} overruns', 'Periode {p} ms · Arbeit {w} ms · {n} Überläufe', 'periodo {p} ms · trabajo {w} ms · {n} desbordes'],
+  '{hz} Hz · intervallo più lungo {gap} ms · inferenza {inf} ms': ['{hz} Hz · longest gap {gap} ms · inference {inf} ms', '{hz} Hz · längste Lücke {gap} ms · Inferenz {inf} ms', '{hz} Hz · intervalo más largo {gap} ms · inferencia {inf} ms'],
+  'CRC {crc} · comandi rifiutati {bad} · invii falliti {send}': ['CRC {crc} · commands refused {bad} · failed sends {send}', 'CRC {crc} · abgelehnte Befehle {bad} · fehlgeschlagene Sendungen {send}', 'CRC {crc} · comandos rechazados {bad} · envíos fallidos {send}'],
+
+  // ── virtual environment
+  'Ambiente virtuale': ['Virtual environment', 'Virtuelle Umgebung', 'Entorno virtual'],
+  'spento': ['off', 'aus', 'apagado'],
+  'simulazione': ['simulation', 'Simulation', 'simulación'],
+  'debug': ['debug', 'Debug', 'debug'],
+  'Spento': ['Off', 'Aus', 'Apagado'],
+  'Simulazione': ['Simulation', 'Simulation', 'Simulación'],
+  'Ricomincia la scena': ['Restart the scene', 'Szene neu starten', 'Reiniciar la escena'],
+  "Simulazione: se la finestra MuJoCo è aperta sul Mac, l'autopilota usa quella. Altrimenti usa la scena sulla scheda. In entrambi i casi i motori reali restano spenti. Debug: il robot reale resta collegato e la scena sulla scheda ripete gli stessi comandi.": ['Simulation: if the MuJoCo window is open on the Mac, the autopilot uses it. Otherwise it uses the scene on the board. In both cases the real motors stay off. Debug: the real robot stays connected and the scene on the board repeats the same commands.', 'Simulation: Ist das MuJoCo-Fenster auf dem Mac geöffnet, nutzt der Autopilot dieses. Sonst nutzt er die Szene auf dem Board. In beiden Fällen bleiben die echten Motoren aus. Debug: der echte Roboter bleibt verbunden und die Szene auf dem Board wiederholt dieselben Befehle.', 'Simulación: si la ventana de MuJoCo está abierta en el Mac, el piloto automático usa esa. Si no, usa la escena de la placa. En ambos casos los motores reales siguen apagados. Debug: el robot real sigue conectado y la escena de la placa repite los mismos comandos.'],
+  "Sul Mac la scena è l'XGO Duck usato in addestramento, con il modello di tensione dei servo HLS1910. Sulla scheda la scena è MicroDuck, con gli stessi 14 giunti e attuatori di posizione.": ['On the Mac the scene is the XGO Duck used in training, with the voltage model of the HLS1910 servos. On the board the scene is MicroDuck, with the same 14 joints and position actuators.', 'Auf dem Mac ist die Szene der im Training verwendete XGO Duck, mit dem Spannungsmodell der HLS1910-Servos. Auf dem Board ist die Szene MicroDuck, mit denselben 14 Gelenken und Positionsaktoren.', 'En el Mac la escena es el XGO Duck usado en el entrenamiento, con el modelo de tensión de los servos HLS1910. En la placa la escena es MicroDuck, con las mismas 14 articulaciones y actuadores de posición.'],
+  'Ambiente virtuale spento.': ['Virtual environment off.', 'Virtuelle Umgebung aus.', 'Entorno virtual apagado.'],
+  'Simulazione attiva: i motori reali sono spenti.': ['Simulation active: the real motors are off.', 'Simulation aktiv: die echten Motoren sind aus.', 'Simulación activa: los motores reales están apagados.'],
+  'Debug attivo: la scena segue i comandi del robot.': ["Debug active: the scene follows the robot's commands.", 'Debug aktiv: die Szene folgt den Befehlen des Roboters.', 'Debug activo: la escena sigue los comandos del robot.'],
+  'Scena riportata in piedi.': ['Scene reset to standing.', 'Szene wieder aufgestellt.', 'Escena puesta de nuevo en pie.'],
+  'MuJoCo non è disponibile su questa scheda.': ['MuJoCo is not available on this board.', 'MuJoCo ist auf diesem Board nicht verfügbar.', 'MuJoCo no está disponible en esta placa.'],
+  'Modello MuJoCo non trovato.': ['MuJoCo model not found.', 'MuJoCo-Modell nicht gefunden.', 'Modelo MuJoCo no encontrado.'],
+  'MuJoCo sul Mac': ['MuJoCo on the Mac', 'MuJoCo auf dem Mac', 'MuJoCo en el Mac'],
+  'Pronto · {engine} · {model}': ['Ready · {engine} · {model}', 'Bereit · {engine} · {model}', 'Listo · {engine} · {model}'],
+  'scena': ['scene', 'Szene', 'escena'],
+  '{engine} · t {t} s · inclinazione {tilt}° · gravità {g} g': ['{engine} · t {t} s · tilt {tilt}° · gravity {g} g', '{engine} · t {t} s · Neigung {tilt}° · Schwerkraft {g} g', '{engine} · t {t} s · inclinación {tilt}° · gravedad {g} g'],
+
+  // ── joints
+  'Giunti': ['Joints', 'Gelenke', 'Articulaciones'],
+  'Giunto': ['Joint', 'Gelenk', 'Articulación'],
+  'Angolo °': ['Angle °', 'Winkel °', 'Ángulo °'],
+  'Comando °': ['Command °', 'Sollwert °', 'Comando °'],
+  'Tensione V': ['Voltage V', 'Spannung V', 'Tensión V'],
+  'presente': ['present', 'vorhanden', 'presente'],
+  'assente': ['missing', 'fehlt', 'ausente'],
+  "Messaggi dell'autopilota": ['Autopilot messages', 'Meldungen des Autopiloten', 'Mensajes del piloto automático'],
+  'Nessun messaggio.': ['No messages.', 'Keine Meldungen.', 'Ningún mensaje.'],
+  'Anca sx · imbardata': ['Left hip · yaw', 'Hüfte li · Gieren', 'Cadera izq · guiñada'],
+  'Anca sx · rollio': ['Left hip · roll', 'Hüfte li · Rollen', 'Cadera izq · alabeo'],
+  'Anca sx · beccheggio': ['Left hip · pitch', 'Hüfte li · Nicken', 'Cadera izq · cabeceo'],
+  'Ginocchio sx': ['Left knee', 'Knie li', 'Rodilla izq'],
+  'Caviglia sx': ['Left ankle', 'Knöchel li', 'Tobillo izq'],
+  'Anca dx · imbardata': ['Right hip · yaw', 'Hüfte re · Gieren', 'Cadera der · guiñada'],
+  'Anca dx · rollio': ['Right hip · roll', 'Hüfte re · Rollen', 'Cadera der · alabeo'],
+  'Anca dx · beccheggio': ['Right hip · pitch', 'Hüfte re · Nicken', 'Cadera der · cabeceo'],
+  'Ginocchio dx': ['Right knee', 'Knie re', 'Rodilla der'],
+  'Caviglia dx': ['Right ankle', 'Knöchel re', 'Tobillo der'],
+  'Collo': ['Neck', 'Hals', 'Cuello'],
+  'Testa · beccheggio': ['Head · pitch', 'Kopf · Nicken', 'Cabeza · cabeceo'],
+  'Testa · imbardata': ['Head · yaw', 'Kopf · Gieren', 'Cabeza · guiñada'],
+  'Testa · rollio': ['Head · roll', 'Kopf · Rollen', 'Cabeza · alabeo'],
+  'Bocca': ['Mouth', 'Mund', 'Boca'],
+
+  // ── control: arming
+  'Armamento': ['Arming', 'Scharfschaltung', 'Armado'],
+  'Arma': ['Arm', 'Scharf schalten', 'Armar'],
+  'Disarma': ['Disarm', 'Entschärfen', 'Desarmar'],
+  'Armato: la policy comanda i servo. Disarmato: i servo tengono la posa di equilibrio, oppure sono liberi (vedi sotto).': ['Armed: the policy drives the servos. Disarmed: the servos hold the balance pose, or are free (see below).', 'Scharf: die Policy steuert die Servos. Entschärft: die Servos halten die Gleichgewichtspose oder sind frei (siehe unten).', 'Armado: la policy manda en los servos. Desarmado: los servos mantienen la postura de equilibrio, o están libres (ver abajo).'],
+  'Da disarmato': ['When disarmed', 'Im entschärften Zustand', 'Desarmado'],
+  'Posa di equilibrio con i servo in coppia': ['Balance pose with servo torque on', 'Gleichgewichtspose mit Servos unter Drehmoment', 'Postura de equilibrio con los servos con par'],
+  'Rilascia i servo': ['Release the servos', 'Servos freigeben', 'Liberar los servos'],
+  'Torna in posa': ['Back to the pose', 'Zurück in die Pose', 'Volver a la postura'],
+  'servo liberi': ['servos free', 'Servos frei', 'servos libres'],
+  'rilasciati su richiesta': ['released on request', 'auf Anforderung freigegeben', 'liberados a petición'],
+  'attiva': ['active', 'aktiv', 'activa'],
+  'Armare il robot?': ['Arm the robot?', 'Roboter scharf schalten?', '¿Armar el robot?'],
+  'La policy comincia a comandare i servo: il robot deve essere a terra, libero di muoversi, con spazio intorno.': ['The policy starts driving the servos: the robot must be on the ground, free to move, with space around it.', 'Die Policy beginnt, die Servos zu steuern: der Roboter muss am Boden stehen, sich frei bewegen können und Platz um sich haben.', 'La policy empieza a mandar en los servos: el robot debe estar en el suelo, libre para moverse y con espacio alrededor.'],
+  "ATTENZIONE: per l'IMU il robot è inclinato di {deg}°, quindi partirà la rialzata.": ['WARNING: the IMU reads a tilt of {deg}°, so the get-up will start.', 'ACHTUNG: laut IMU ist der Roboter um {deg}° geneigt, daher startet das Aufstehen.', 'ATENCIÓN: según la IMU el robot está inclinado {deg}°, así que empezará a levantarse.'],
+  'Servo o IMU non rispondono: la policy girerà senza dare coppia.': ['Servos or IMU do not answer: the policy will run without torque.', 'Servos oder IMU antworten nicht: die Policy läuft ohne Drehmoment.', 'Los servos o la IMU no responden: la policy funcionará sin dar par.'],
+  'IMU non valida: la policy gira ma il microcontrollore non dà coppia': ['IMU not valid: the policy runs but the microcontroller gives no torque', 'IMU ungültig: die Policy läuft, aber der Mikrocontroller gibt kein Drehmoment', 'IMU no válida: la policy funciona pero el microcontrolador no da par'],
+  'servo assenti ({n}): la policy gira ma il microcontrollore non dà coppia': ['servos missing ({n}): the policy runs but the microcontroller gives no torque', 'fehlende Servos ({n}): die Policy läuft, aber der Mikrocontroller gibt kein Drehmoment', 'servos ausentes ({n}): la policy funciona pero el microcontrolador no da par'],
+  'Armato.': ['Armed.', 'Scharf.', 'Armado.'],
+  'Disarmato.': ['Disarmed.', 'Entschärft.', 'Desarmado.'],
+  'Disarmato, servo rilasciati.': ['Disarmed, servos released.', 'Entschärft, Servos freigegeben.', 'Desarmado, servos liberados.'],
+  'Servo rilasciati.': ['Servos released.', 'Servos freigegeben.', 'Servos liberados.'],
+  'I servo vanno in coppia e portano il robot nella posa di equilibrio in un secondo. Procedo?': ['The servos take torque and bring the robot to the balance pose in one second. Proceed?', 'Die Servos bekommen Drehmoment und bringen den Roboter in einer Sekunde in die Gleichgewichtspose. Fortfahren?', 'Los servos reciben par y llevan el robot a la postura de equilibrio en un segundo. ¿Continúo?'],
+  'Posa di equilibrio richiesta.': ['Balance pose requested.', 'Gleichgewichtspose angefordert.', 'Postura de equilibrio solicitada.'],
+  'Da disarmato i servo resteranno in coppia nella posa di equilibrio, anche ai prossimi avvii. Procedo?': ['When disarmed the servos will keep torque in the balance pose, also after the next starts. Proceed?', 'Im entschärften Zustand bleiben die Servos in der Gleichgewichtspose unter Drehmoment, auch nach den nächsten Starts. Fortfahren?', 'Desarmado, los servos seguirán con par en la postura de equilibrio, también en los próximos arranques. ¿Continúo?'],
+  'Posa di equilibrio da disarmato: attiva.': ['Balance pose when disarmed: active.', 'Gleichgewichtspose im entschärften Zustand: aktiv.', 'Postura de equilibrio desarmado: activa.'],
+  'Da disarmato i servo restano liberi.': ['When disarmed the servos stay free.', 'Im entschärften Zustand bleiben die Servos frei.', 'Desarmado, los servos quedan libres.'],
+  'errore {n}': ['error {n}', 'Fehler {n}', 'error {n}'],
+
+  // ── control: walking mode
+  'Modalità di camminata': ['Walking mode', 'Gehmodus', 'Modo de marcha'],
+  'Catena di elaborazione': ['Processing chain', 'Verarbeitungskette', 'Cadena de procesamiento'],
+  'Standard: filtri e assetto di ArduPilot. ArduDuck: stessa elaborazione del software originale del robot. Si cambia solo da disarmato.': ["Standard: ArduPilot filters and attitude. ArduDuck: same processing as the robot's original software. It can be changed only when disarmed.", 'Standard: Filter und Lage von ArduPilot. ArduDuck: dieselbe Verarbeitung wie in der Originalsoftware des Roboters. Nur im entschärften Zustand umschaltbar.', 'Standard: filtros y actitud de ArduPilot. ArduDuck: el mismo procesamiento que el software original del robot. Solo se cambia desarmado.'],
+  '{chain} in uso': ['{chain} in use', '{chain} aktiv', '{chain} en uso'],
+  'Camminata': ['Walk', 'Gehen', 'Marcha'],
+  'Pattini': ['Skates', 'Rollschuhe', 'Patines'],
+  'camminata': ['walk', 'Gehen', 'marcha'],
+  'pattini': ['skates', 'Rollschuhe', 'patines'],
+  'In esecuzione': ['Running', 'Läuft', 'En ejecución'],
+  'Rialzata': ['Get-up', 'Aufstehen', 'Levantarse'],
+  ' (ferma: disarmato)': [' (stopped: disarmed)', ' (gestoppt: entschärft)', ' (parada: desarmado)'],
+  'nessuna': ['none', 'keine', 'ninguna'],
+  'Catena': ['Chain', 'Kette', 'Cadena'],
+  'Raccolta': ['Pick-up', 'Aufheben', 'Recogida'],
+  'Seduta': ['Sit', 'Sitzen', 'Sentada'],
+  'Seduto': ['Sitting', 'Sitzt', 'Sentado'],
+  'In piedi': ['Standing', 'Steht', 'De pie'],
+  'Caduta rilevata': ['Fall detected', 'Sturz erkannt', 'Caída detectada'],
+  'Si sta rialzando': ['Getting up', 'Steht auf', 'Se está levantando'],
+  'Rialzato': ['Back up', 'Aufgestanden', 'Levantado'],
+
+  // ── control: motion, skills, head
+  'Movimento': ['Motion', 'Bewegung', 'Movimiento'],
+  'Avanti / laterale': ['Forward / sideways', 'Vorwärts / seitlich', 'Adelante / lateral'],
+  'Rotazione': ['Rotation', 'Drehung', 'Rotación'],
+  'Trascina per muovere, rilascia per fermare. Tastiera: W/S avanti e indietro, A/D laterale, Q/E rotazione, barra spaziatrice STOP.': ['Drag to move, release to stop. Keyboard: W/S forward and back, A/D sideways, Q/E rotation, space bar STOP.', 'Ziehen zum Bewegen, loslassen zum Anhalten. Tastatur: W/S vor und zurück, A/D seitlich, Q/E Drehung, Leertaste STOPP.', 'Arrastra para mover, suelta para parar. Teclado: W/S adelante y atrás, A/D lateral, Q/E rotación, barra espaciadora STOP.'],
+  'Limiti: vx ±{vx}, vy ±{vy} m/s, ωz ±{wz} rad/s.': ['Limits: vx ±{vx}, vy ±{vy} m/s, ωz ±{wz} rad/s.', 'Grenzen: vx ±{vx}, vy ±{vy} m/s, ωz ±{wz} rad/s.', 'Límites: vx ±{vx}, vy ±{vy} m/s, ωz ±{wz} rad/s.'],
+  ' Il movimento ha effetto solo da armato.': [' Motion has effect only when armed.', ' Bewegung wirkt nur im scharfen Zustand.', ' El movimiento solo tiene efecto armado.'],
+  'Raccogli': ['Pick up', 'Aufheben', 'Recoger'],
+  'Capriola': ['Roll', 'Rolle', 'Voltereta'],
+  'Siediti': ['Sit down', 'Hinsetzen', 'Siéntate'],
+  'Alzati': ['Stand up', 'Aufstehen', 'Levántate'],
+  'Calcio sinistro': ['Left kick', 'Schuss links', 'Patada izquierda'],
+  'Calcio destro': ['Right kick', 'Schuss rechts', 'Patada derecha'],
+  "Disponibili da armato, con il robot in piedi e nessun'altra skill in corso.": ['Available when armed, with the robot standing and no other skill running.', 'Verfügbar im scharfen Zustand, wenn der Roboter steht und kein anderer Skill läuft.', 'Disponibles armado, con el robot de pie y ninguna otra skill en curso.'],
+  'Skill avviata: {name}.': ['Skill started: {name}.', 'Skill gestartet: {name}.', 'Skill iniciada: {name}.'],
+  'Testa e bocca': ['Head and mouth', 'Kopf und Mund', 'Cabeza y boca'],
+  'Azzera': ['Reset', 'Nullstellen', 'Poner a cero'],
+
+  // ── calibration
+  'Centratura dei giunti': ['Joint centring', 'Zentrierung der Gelenke', 'Centrado de las articulaciones'],
+  'Serve dopo il montaggio: porta ogni giunto nella posizione di zero meccanico e premi «Centra». Il servo memorizza quella posizione come centro (2047). Si può fare solo da disarmato. Durante la sessione i servo sono liberi; dopo «Centra» quel giunto tiene la posizione con guadagni morbidi, senza cadere.': ['Needed after assembly: bring each joint to its mechanical zero and press «Centre». The servo stores that position as its centre (2047). Possible only when disarmed. During the session the servos are free; after «Centre» that joint holds its position with soft gains, without dropping.', 'Nach der Montage nötig: jedes Gelenk in die mechanische Nullstellung bringen und «Zentrieren» drücken. Der Servo speichert diese Position als Mitte (2047). Nur im entschärften Zustand möglich. Während der Sitzung sind die Servos frei; nach «Zentrieren» hält das Gelenk die Position mit weichen Verstärkungen, ohne abzusacken.', 'Hace falta tras el montaje: lleva cada articulación a su cero mecánico y pulsa «Centrar». El servo guarda esa posición como centro (2047). Solo se puede hacer desarmado. Durante la sesión los servos están libres; tras «Centrar» esa articulación mantiene la posición con ganancias suaves, sin caer.'],
+  'Inizia la calibrazione': ['Start calibration', 'Kalibrierung starten', 'Iniciar la calibración'],
+  'Termina': ['Finish', 'Beenden', 'Terminar'],
+  'Distanza dal centro': ['Distance from centre', 'Abstand zur Mitte', 'Distancia al centro'],
+  'centrato': ['centred', 'zentriert', 'centrado'],
+  'Centra': ['Centre', 'Zentrieren', 'Centrar'],
+  'sessione aperta': ['session open', 'Sitzung offen', 'sesión abierta'],
+  'chiusa': ['closed', 'geschlossen', 'cerrada'],
+  'I servo vengono rilasciati: sostieni il robot. Procedo?': ['The servos will be released: hold the robot. Proceed?', 'Die Servos werden freigegeben: Roboter festhalten. Fortfahren?', 'Los servos se liberan: sujeta el robot. ¿Continúo?'],
+  'Calibrazione aperta: i servo sono liberi.': ['Calibration open: the servos are free.', 'Kalibrierung offen: die Servos sind frei.', 'Calibración abierta: los servos están libres.'],
+  'Calibrazione chiusa.': ['Calibration closed.', 'Kalibrierung geschlossen.', 'Calibración cerrada.'],
+  'Memorizzare la posizione attuale come centro di «{name}»?': ['Store the current position as the centre of «{name}»?', 'Aktuelle Position als Mitte von «{name}» speichern?', '¿Guardar la posición actual como centro de «{name}»?'],
+  '{name}: centro memorizzato.': ['{name}: centre stored.', '{name}: Mitte gespeichert.', '{name}: centro guardado.'],
+  "{what}: rifiutato dall'autopilota.": ['{what}: refused by the autopilot.', '{what}: vom Autopiloten abgelehnt.', '{what}: rechazado por el piloto automático.'],
+  '{what}: rifiutato dal servo.': ['{what}: refused by the servo.', '{what}: vom Servo abgelehnt.', '{what}: rechazado por el servo.'],
+  'Chiusura': ['Closing', 'Schließen', 'Cierre'],
+  'Centratura': ['Centring', 'Zentrierung', 'Centrado'],
+  'Sessione servo': ['Servo session', 'Servo-Sitzung', 'Sesión de servos'],
+
+  // ── servo setup
+  'Configurazione dei servo': ['Servo setup', 'Servo-Konfiguration', 'Configuración de los servos'],
+  'Per assegnare gli ID collega': ['To assign the IDs connect', 'Für die ID-Vergabe', 'Para asignar los ID conecta'],
+  'un solo servo alla volta': ['one servo at a time', 'immer nur einen Servo anschließen', 'un solo servo cada vez'],
+  ': i servo nuovi hanno tutti lo stesso ID. Si può fare solo da disarmato. Durante la sessione i servo non hanno coppia finché non muovi uno slider; i guadagni KP/KD sono nella riga di ciascun servo.': [': new servos all have the same ID. Possible only when disarmed. During the session the servos have no torque until you move a slider; the KP/KD gains are in the row of each servo.', ': neue Servos haben alle dieselbe ID. Nur im entschärften Zustand möglich. Während der Sitzung haben die Servos kein Drehmoment, bis ein Schieberegler bewegt wird; die KP/KD-Verstärkungen stehen in der Zeile jedes Servos.', ': los servos nuevos tienen todos el mismo ID. Solo se puede hacer desarmado. Durante la sesión los servos no tienen par hasta que mueves un deslizador; las ganancias KP/KD están en la fila de cada servo.'],
+  'Apri la sessione': ['Open the session', 'Sitzung öffnen', 'Abrir la sesión'],
+  'Chiudi': ['Close', 'Schließen', 'Cerrar'],
+  'ID del servo': ['Servo ID', 'Servo-ID', 'ID del servo'],
+  'Leggi': ['Read', 'Lesen', 'Leer'],
+  'Imposta il centro qui': ['Set the centre here', 'Mitte hier setzen', 'Fijar el centro aquí'],
+  'Nuovo ID': ['New ID', 'Neue ID', 'Nuevo ID'],
+  'Cambia ID': ['Change ID', 'ID ändern', 'Cambiar ID'],
+  'ID del robot: 10–14 gamba sinistra, 20–24 gamba destra, 30–33 collo e testa, 34 bocca.': ['Robot IDs: 10–14 left leg, 20–24 right leg, 30–33 neck and head, 34 mouth.', 'IDs des Roboters: 10–14 linkes Bein, 20–24 rechtes Bein, 30–33 Hals und Kopf, 34 Mund.', 'ID del robot: 10–14 pierna izquierda, 20–24 pierna derecha, 30–33 cuello y cabeza, 34 boca.'],
+  'Scrivi i guadagni': ['Write the gains', 'Verstärkungen schreiben', 'Escribir las ganancias'],
+  'Servo configurati': ['Configured servos', 'Konfigurierte Servos', 'Servos configurados'],
+  'una riga per servo sul bus: tanti quanti ne manda il microcontrollore': ['one row per servo on the bus: as many as the microcontroller reports', 'eine Zeile pro Servo am Bus: so viele, wie der Mikrocontroller meldet', 'una fila por servo en el bus: tantos como envía el microcontrolador'],
+  'Manda al microcontrollore la tabella KP/KD del robot: li applica al prossimo armamento': ["Sends the robot's KP/KD table to the microcontroller: it applies them at the next arming", 'Sendet die KP/KD-Tabelle des Roboters an den Mikrocontroller: er wendet sie beim nächsten Scharfschalten an', 'Envía al microcontrolador la tabla KP/KD del robot: la aplica en el próximo armado'],
+  'Applica la tabella KP/KD': ['Apply the KP/KD table', 'KP/KD-Tabelle anwenden', 'Aplicar la tabla KP/KD'],
+  'Leggi tutti': ['Read all', 'Alle lesen', 'Leer todos'],
+  'Vai a (0–4095)': ['Go to (0–4095)', 'Gehe zu (0–4095)', 'Ir a (0–4095)'],
+  'Valori permanenti in EEPROM, letti con Leggi': ['Permanent values in EEPROM, read with Read', 'Dauerhafte Werte im EEPROM, mit Lesen ausgelesen', 'Valores permanentes en EEPROM, leídos con Leer'],
+  'Azioni': ['Actions', 'Aktionen', 'Acciones'],
+  'Scrivi': ['Write', 'Schreiben', 'Escribir'],
+  'Centro qui': ['Centre here', 'Mitte hier', 'Centro aquí'],
+  'Scrivi KP/KD': ['Write KP/KD', 'KP/KD schreiben', 'Escribir KP/KD'],
+  'Vai a': ['Go to', 'Gehe zu', 'Ir a'],
+  'Tutti i servo sul bus': ['All servos on the bus', 'Alle Servos am Bus', 'Todos los servos del bus'],
+  'Protezione da sovraccarico ON': ['Overload protection ON', 'Überlastschutz EIN', 'Protección de sobrecarga ON'],
+  'Corrente di protezione (A)': ['Protection current (A)', 'Schutzstrom (A)', 'Corriente de protección (A)'],
+  'Scrivi la corrente': ['Write the current', 'Strom schreiben', 'Escribir la corriente'],
+  'Nessuna operazione eseguita.': ['No operation performed yet.', 'Noch keine Operation ausgeführt.', 'Ninguna operación realizada.'],
+  'Sessione servo aperta.': ['Servo session open.', 'Servo-Sitzung offen.', 'Sesión de servos abierta.'],
+  'Sessione servo chiusa.': ['Servo session closed.', 'Servo-Sitzung geschlossen.', 'Sesión de servos cerrada.'],
+  "Cambiare l'ID del servo {id} in {new}? Deve esserci un solo servo con ID {id} sul bus.": ['Change the ID of servo {id} to {new}? There must be only one servo with ID {id} on the bus.', 'ID des Servos {id} in {new} ändern? Am Bus darf nur ein Servo mit der ID {id} sein.', '¿Cambiar el ID del servo {id} a {new}? Debe haber un solo servo con ID {id} en el bus.'],
+  'Memorizzare la posizione attuale come centro del servo {id}?': ['Store the current position as the centre of servo {id}?', 'Aktuelle Position als Mitte des Servos {id} speichern?', '¿Guardar la posición actual como centro del servo {id}?'],
+  'riuscito': ['done', 'erfolgreich', 'correcto'],
+  'NON riuscito ({why})': ['FAILED ({why})', 'FEHLGESCHLAGEN ({why})', 'FALLIDO ({why})'],
+  "rifiutato dall'autopilota": ['refused by the autopilot', 'vom Autopiloten abgelehnt', 'rechazado por el piloto automático'],
+  'nessuna risposta dal servo': ['no answer from the servo', 'keine Antwort vom Servo', 'sin respuesta del servo'],
+  'posizione {pos} · centro {center} · Kp {kp} · Kd {kd}': ['position {pos} · centre {center} · Kp {kp} · Kd {kd}', 'Position {pos} · Mitte {center} · Kp {kp} · Kd {kd}', 'posición {pos} · centro {center} · Kp {kp} · Kd {kd}'],
+  'protezione {state} · corrente {a} A': ['protection {state} · current {a} A', 'Schutz {state} · Strom {a} A', 'protección {state} · corriente {a} A'],
+  'Mandare al microcontrollore la tabella KP/KD del robot? Viene applicata al prossimo armamento.': ["Send the robot's KP/KD table to the microcontroller? It is applied at the next arming.", 'KP/KD-Tabelle des Roboters an den Mikrocontroller senden? Sie wird beim nächsten Scharfschalten angewendet.', '¿Enviar al microcontrolador la tabla KP/KD del robot? Se aplica en el próximo armado.'],
+  'Tabella KP/KD · {outcome}': ['KP/KD table · {outcome}', 'KP/KD-Tabelle · {outcome}', 'Tabla KP/KD · {outcome}'],
+  'ricevuta dal microcontrollore': ['received by the microcontroller', 'vom Mikrocontroller empfangen', 'recibida por el microcontrolador'],
+  'NON ricevuta ({why})': ['NOT received ({why})', 'NICHT empfangen ({why})', 'NO recibida ({why})'],
+  "rifiutata dall'autopilota": ['refused by the autopilot', 'vom Autopiloten abgelehnt', 'rechazada por el piloto automático'],
+  'nessuna risposta': ['no answer', 'keine Antwort', 'sin respuesta'],
+  'Letti {n} servo.': ['{n} servos read.', '{n} Servos gelesen.', '{n} servos leídos.'],
+
+  // ── network
+  'Rete': ['Network', 'Netzwerk', 'Red'],
+  'Modalità': ['Mode', 'Modus', 'Modo'],
+  'Rete Wi-Fi': ['Wi-Fi network', 'WLAN', 'Red Wi-Fi'],
+  'Indirizzo IP': ['IP address', 'IP-Adresse', 'Dirección IP'],
+  'Ultima operazione': ['Last operation', 'Letzte Operation', 'Última operación'],
+  "Se all'avvio la scheda non si collega a una rete Wi-Fi entro 45 secondi, accende l'access point «ArduDuck» (password Wi-Fi iniziale: runrunrun). Collegati a quella rete e apri http://10.42.0.1:9527.": ['If at start-up the board does not join a Wi-Fi network within 45 seconds, it turns on the access point «ArduDuck» (initial Wi-Fi password: runrunrun). Join that network and open http://10.42.0.1:9527.', 'Verbindet sich das Board beim Start nicht innerhalb von 45 Sekunden mit einem WLAN, schaltet es den Access Point «ArduDuck» ein (anfängliches WLAN-Passwort: runrunrun). Mit diesem Netz verbinden und http://10.42.0.1:9527 öffnen.', 'Si al arrancar la placa no se conecta a una red Wi-Fi en 45 segundos, enciende el punto de acceso «ArduDuck» (contraseña Wi-Fi inicial: runrunrun). Conéctate a esa red y abre http://10.42.0.1:9527.'],
+  'Accesso': ['Login', 'Anmeldung', 'Acceso'],
+  'Utente': ['User', 'Benutzer', 'Usuario'],
+  'Password': ['Password', 'Passwort', 'Contraseña'],
+  'Accedi': ['Log in', 'Anmelden', 'Entrar'],
+  'Esci': ['Log out', 'Abmelden', 'Salir'],
+  "Per cambiare la rete serve l'accesso. Lo stato qui a fianco è visibile a tutti.": ['Changing the network needs the login. The status beside is visible to everyone.', 'Zum Ändern des Netzwerks ist die Anmeldung nötig. Der Status nebenan ist für alle sichtbar.', 'Para cambiar la red hace falta el acceso. El estado de al lado es visible para todos.'],
+  'La password della pagina è ancora quella iniziale: cambiala qui sotto.': ['The page password is still the initial one: change it below.', 'Das Passwort der Seite ist noch das anfängliche: unten ändern.', 'La contraseña de la página sigue siendo la inicial: cámbiala aquí abajo.'],
+  'Collega a una rete Wi-Fi': ['Join a Wi-Fi network', 'Mit einem WLAN verbinden', 'Conectar a una red Wi-Fi'],
+  'Nome della rete (SSID)': ['Network name (SSID)', 'Netzwerkname (SSID)', 'Nombre de la red (SSID)'],
+  'Password Wi-Fi': ['Wi-Fi password', 'WLAN-Passwort', 'Contraseña Wi-Fi'],
+  'Collega': ['Connect', 'Verbinden', 'Conectar'],
+  'Cerca reti': ['Scan for networks', 'Netze suchen', 'Buscar redes'],
+  'Segnale': ['Signal', 'Signal', 'Señal'],
+  'Sicurezza': ['Security', 'Sicherheit', 'Seguridad'],
+  'Reti salvate': ['Saved networks', 'Gespeicherte Netze', 'Redes guardadas'],
+  'Access point': ['Access point', 'Access Point', 'Punto de acceso'],
+  "Nuova password Wi-Fi dell'access point": ['New Wi-Fi password of the access point', 'Neues WLAN-Passwort des Access Points', 'Nueva contraseña Wi-Fi del punto de acceso'],
+  'Cambia': ['Change', 'Ändern', 'Cambiar'],
+  'Accesso a questa pagina': ['Login to this page', 'Anmeldung an dieser Seite', 'Acceso a esta página'],
+  'Nuova password della pagina': ['New page password', 'Neues Passwort der Seite', 'Nueva contraseña de la página'],
+  'accesso eseguito': ['logged in', 'angemeldet', 'sesión iniciada'],
+  'non eseguito': ['not logged in', 'nicht angemeldet', 'sin sesión'],
+  'servizio assente': ['service missing', 'Dienst fehlt', 'servicio ausente'],
+  'Il servizio di rete non è attivo sulla scheda: esegui «bash tools/network-setup.sh».': ['The network service is not running on the board: run «bash tools/network-setup.sh».', 'Der Netzwerkdienst läuft nicht auf dem Board: «bash tools/network-setup.sh» ausführen.', 'El servicio de red no está activo en la placa: ejecuta «bash tools/network-setup.sh».'],
+  'collegata': ['connected', 'verbunden', 'conectada'],
+  'access point': ['access point', 'Access Point', 'punto de acceso'],
+  'in collegamento': ['connecting', 'verbindet', 'conectando'],
+  'non collegata': ['not connected', 'nicht verbunden', 'sin conexión'],
+  'Collegata a una rete Wi-Fi': ['Connected to a Wi-Fi network', 'Mit einem WLAN verbunden', 'Conectada a una red Wi-Fi'],
+  'In collegamento…': ['Connecting…', 'Verbindet…', 'Conectando…'],
+  'Non collegata': ['Not connected', 'Nicht verbunden', 'Sin conexión'],
+  'Collegamento a «{ssid}»': ['Connection to «{ssid}»', 'Verbindung mit «{ssid}»', 'Conexión a «{ssid}»'],
+  'Rete «{ssid}» dimenticata': ['Network «{ssid}» forgotten', 'Netz «{ssid}» vergessen', 'Red «{ssid}» olvidada'],
+  "Password dell'access point": ['Access point password', 'Passwort des Access Points', 'Contraseña del punto de acceso'],
+  'Nessuna rete: access point acceso': ['No network: access point on', 'Kein Netz: Access Point ein', 'Sin red: punto de acceso encendido'],
+  'acceso': ['on', 'ein', 'encendido'],
+  'in uso': ['in use', 'aktiv', 'en uso'],
+  'protetta': ['secured', 'gesichert', 'protegida'],
+  'aperta': ['open', 'offen', 'abierta'],
+  'Usa': ['Use', 'Wählen', 'Usar'],
+  'Nessuna rete in elenco: premi «Cerca reti».': ['No networks listed: press «Scan for networks».', 'Keine Netze in der Liste: «Netze suchen» drücken.', 'Ninguna red en la lista: pulsa «Buscar redes».'],
+  'Dimentica': ['Forget', 'Vergessen', 'Olvidar'],
+  'Nessuna rete salvata.': ['No saved networks.', 'Keine gespeicherten Netze.', 'Ninguna red guardada.'],
+  'Accesso eseguito.': ['Logged in.', 'Angemeldet.', 'Sesión iniciada.'],
+  "Collegare ArduDuck alla rete «{ssid}»? Se stai usando l'access point o un'altra rete Wi-Fi, questa pagina perde il collegamento: ritrova ArduDuck sulla nuova rete.": ['Connect ArduDuck to the network «{ssid}»? If you are using the access point or another Wi-Fi network, this page loses its link: find ArduDuck again on the new network.', 'ArduDuck mit dem Netz «{ssid}» verbinden? Wird gerade der Access Point oder ein anderes WLAN benutzt, verliert diese Seite die Verbindung: ArduDuck dann im neuen Netz suchen.', '¿Conectar ArduDuck a la red «{ssid}»? Si estás usando el punto de acceso u otra red Wi-Fi, esta página pierde la conexión: busca ArduDuck en la nueva red.'],
+  'Collegamento a «{ssid}» in corso: può servire fino a un minuto.': ['Connecting to «{ssid}»: it can take up to a minute.', 'Verbindung mit «{ssid}» läuft: das kann bis zu einer Minute dauern.', 'Conectando a «{ssid}»: puede tardar hasta un minuto.'],
+  'Trovate {n} reti.': ['{n} networks found.', '{n} Netze gefunden.', '{n} redes encontradas.'],
+  'Dimenticare la rete «{ssid}»? Se è quella in uso, ArduDuck si scollega e diventa access point.': ['Forget the network «{ssid}»? If it is the one in use, ArduDuck disconnects and becomes an access point.', 'Netz «{ssid}» vergessen? Ist es das aktive, trennt sich ArduDuck und wird Access Point.', '¿Olvidar la red «{ssid}»? Si es la que está en uso, ArduDuck se desconecta y pasa a ser punto de acceso.'],
+  'la password Wi-Fi deve avere da 8 a 63 caratteri': ['the Wi-Fi password must have 8 to 63 characters', 'das WLAN-Passwort muss 8 bis 63 Zeichen haben', 'la contraseña Wi-Fi debe tener de 8 a 63 caracteres'],
+  "Cambiare la password Wi-Fi dell'access point? Chi è collegato all'access point deve ricollegarsi con la nuova password.": ['Change the Wi-Fi password of the access point? Anyone connected to the access point must reconnect with the new password.', 'WLAN-Passwort des Access Points ändern? Wer mit dem Access Point verbunden ist, muss sich mit dem neuen Passwort neu verbinden.', '¿Cambiar la contraseña Wi-Fi del punto de acceso? Quien esté conectado al punto de acceso debe volver a conectarse con la nueva contraseña.'],
+  "Password dell'access point cambiata.": ['Access point password changed.', 'Passwort des Access Points geändert.', 'Contraseña del punto de acceso cambiada.'],
+  'Password della pagina cambiata.': ['Page password changed.', 'Passwort der Seite geändert.', 'Contraseña de la página cambiada.'],
+  'accesso negato: utente o password errati': ['access denied: wrong user or password', 'Zugriff verweigert: Benutzer oder Passwort falsch', 'acceso denegado: usuario o contraseña incorrectos'],
+  'la password della pagina deve avere da 6 a 64 caratteri': ['the page password must have 6 to 64 characters', 'das Passwort der Seite muss 6 bis 64 Zeichen haben', 'la contraseña de la página debe tener de 6 a 64 caracteres'],
+  'il servizio di rete non è attivo sulla scheda': ['the network service is not running on the board', 'der Netzwerkdienst läuft nicht auf dem Board', 'el servicio de red no está activo en la placa'],
+  'il servizio di rete non risponde': ['the network service does not answer', 'der Netzwerkdienst antwortet nicht', 'el servicio de red no responde'],
+  'nome della rete non valido': ['network name not valid', 'Netzwerkname ungültig', 'nombre de red no válido'],
+  'rete non salvata': ['network not saved', 'Netz nicht gespeichert', 'red no guardada'],
+  'operazione non riuscita': ['operation failed', 'Operation fehlgeschlagen', 'operación fallida'],
+
+  "Scegli una rete dall'elenco con «Usa», oppure scrivi il nome. Per cambiare la password di una rete salvata premi «Riconfigura». Lascia vuota la password per una rete aperta o già salvata. Durante il tentativo l'access point si spegne: se la rete non risponde, ArduDuck torna access point dopo circa un minuto.": ['Pick a network from the list with «Use», or type its name. To change the password of a saved network press «Reconfigure». Leave the password empty for an open or already saved network. During the attempt the access point turns off: if the network does not answer, ArduDuck becomes an access point again after about a minute.', 'Ein Netz mit «Wählen» aus der Liste nehmen oder den Namen eingeben. Zum Ändern des Passworts eines gespeicherten Netzes «Neu konfigurieren» drücken. Passwort leer lassen für ein offenes oder bereits gespeichertes Netz. Während des Versuchs schaltet sich der Access Point aus: antwortet das Netz nicht, wird ArduDuck nach etwa einer Minute wieder Access Point.', 'Elige una red de la lista con «Usar», o escribe su nombre. Para cambiar la contraseña de una red guardada pulsa «Reconfigurar». Deja vacía la contraseña para una red abierta o ya guardada. Durante el intento el punto de acceso se apaga: si la red no responde, ArduDuck vuelve a ser punto de acceso tras un minuto aproximadamente.'],
+  'Solo access point': ['Access point only', 'Nur Access Point', 'Solo punto de acceso'],
+  "Rete Wi-Fi: la scheda usa le reti salvate e accende l'access point solo se all'avvio non ne trova una. Solo access point: la scheda si stacca dal Wi-Fi e resta sempre l'access point «ArduDuck», anche dopo un riavvio.": ['Wi-Fi network: the board uses the saved networks and turns on the access point only if it finds none at start-up. Access point only: the board leaves the Wi-Fi and always stays the access point «ArduDuck», also after a reboot.', 'WLAN: das Board nutzt die gespeicherten Netze und schaltet den Access Point nur ein, wenn es beim Start keines findet. Nur Access Point: das Board trennt sich vom WLAN und bleibt immer der Access Point «ArduDuck», auch nach einem Neustart.', 'Red Wi-Fi: la placa usa las redes guardadas y enciende el punto de acceso solo si al arrancar no encuentra ninguna. Solo punto de acceso: la placa se desconecta del Wi-Fi y queda siempre como punto de acceso «ArduDuck», también tras un reinicio.'],
+  'Ritorno alla rete Wi-Fi': ['Back to the Wi-Fi network', 'Zurück zum WLAN', 'Vuelta a la red Wi-Fi'],
+  'Solo access point ArduDuck': ['ArduDuck access point only', 'Nur Access Point ArduDuck', 'Solo punto de acceso ArduDuck'],
+  'Access point ArduDuck (nessuna rete Wi-Fi trovata)': ['ArduDuck access point (no Wi-Fi network found)', 'Access Point ArduDuck (kein WLAN gefunden)', 'Punto de acceso ArduDuck (ninguna red Wi-Fi encontrada)'],
+  'Riconfigura': ['Reconfigure', 'Neu konfigurieren', 'Reconfigurar'],
+  'Scrivi la nuova password di «{ssid}» e premi «Collega».': ['Type the new password of «{ssid}» and press «Connect».', 'Neues Passwort von «{ssid}» eingeben und «Verbinden» drücken.', 'Escribe la nueva contraseña de «{ssid}» y pulsa «Conectar».'],
+  "Passare a «Solo access point»? La scheda si stacca dal Wi-Fi e resta l'access point «ArduDuck» anche dopo un riavvio: per continuare collegati alla rete ArduDuck e apri http://10.42.0.1:9527.": ['Switch to «Access point only»? The board leaves the Wi-Fi and stays the access point «ArduDuck» also after a reboot: to continue, join the ArduDuck network and open http://10.42.0.1:9527.', 'Zu «Nur Access Point» wechseln? Das Board trennt sich vom WLAN und bleibt auch nach einem Neustart der Access Point «ArduDuck»: zum Fortfahren mit dem Netz ArduDuck verbinden und http://10.42.0.1:9527 öffnen.', '¿Pasar a «Solo punto de acceso»? La placa se desconecta del Wi-Fi y queda como punto de acceso «ArduDuck» también tras un reinicio: para continuar conéctate a la red ArduDuck y abre http://10.42.0.1:9527.'],
+  "Tornare a «Rete Wi-Fi»? L'access point si spegne e la scheda prova a collegarsi a una rete salvata; se non ci riesce in 45 secondi lo riaccende.": ['Go back to «Wi-Fi network»? The access point turns off and the board tries to join a saved network; if it cannot within 45 seconds it turns it on again.', 'Zurück zu «WLAN»? Der Access Point schaltet sich aus und das Board versucht, sich mit einem gespeicherten Netz zu verbinden; gelingt das nicht in 45 Sekunden, schaltet es ihn wieder ein.', '¿Volver a «Red Wi-Fi»? El punto de acceso se apaga y la placa intenta conectarse a una red guardada; si no lo consigue en 45 segundos lo vuelve a encender.'],
+  'Cambio di modalità in corso: può servire fino a un minuto.': ['Changing mode: it can take up to a minute.', 'Moduswechsel läuft: das kann bis zu einer Minute dauern.', 'Cambiando de modo: puede tardar hasta un minuto.'],
+  'modalità non valida': ['mode not valid', 'Modus ungültig', 'modo no válido'],
+  'Rete e MAVLink': ['Network and MAVLink', 'Netzwerk und MAVLink', 'Red y MAVLink'],
+  'Pagine web': ['Web pages', 'Webseiten', 'Páginas web'],
+  'porta TCP {port}': ['TCP port {port}', 'TCP-Port {port}', 'puerto TCP {port}'],
+  "Ground station (Mission Planner, QGroundControl, MAVProxy): collegamento TCP all'indirizzo MAVLink qui sopra, un solo programma alla volta. La rete si cambia nella scheda Rete.": ['Ground station (Mission Planner, QGroundControl, MAVProxy): TCP connection to the MAVLink address above, one program at a time. The network is changed in the Network tab.', 'Bodenstation (Mission Planner, QGroundControl, MAVProxy): TCP-Verbindung zur MAVLink-Adresse oben, nur ein Programm gleichzeitig. Das Netzwerk wird im Tab Netzwerk geändert.', 'Estación de tierra (Mission Planner, QGroundControl, MAVProxy): conexión TCP a la dirección MAVLink de arriba, un solo programa a la vez. La red se cambia en la pestaña Red.'],
+
+  // ── info
+  "ArduDuck porta ArduPilot su un robot bipede. L'autopilota ArduRover gira sul lato Linux della Arduino Uno Q ed esegue le policy neurali con AP_NNMixer. Lo sketch sull'STM32 legge l'IMU e comanda i servo.": ['ArduDuck brings ArduPilot to a biped robot. The ArduRover autopilot runs on the Linux side of the Arduino Uno Q and executes the neural policies with AP_NNMixer. The sketch on the STM32 reads the IMU and drives the servos.', 'ArduDuck bringt ArduPilot auf einen zweibeinigen Roboter. Der Autopilot ArduRover läuft auf der Linux-Seite des Arduino Uno Q und führt die neuronalen Policies mit AP_NNMixer aus. Der Sketch auf dem STM32 liest die IMU und steuert die Servos.', 'ArduDuck lleva ArduPilot a un robot bípedo. El piloto automático ArduRover se ejecuta en el lado Linux de la Arduino Uno Q y ejecuta las policies neuronales con AP_NNMixer. El sketch del STM32 lee la IMU y manda en los servos.'],
+  "Queste pagine parlano con l'autopilota in MAVLink: stato, comandi, calibrazione e configurazione dei servo.": ['These pages talk to the autopilot over MAVLink: status, commands, calibration and servo setup.', 'Diese Seiten sprechen über MAVLink mit dem Autopiloten: Status, Befehle, Kalibrierung und Servo-Konfiguration.', 'Estas páginas hablan con el piloto automático por MAVLink: estado, comandos, calibración y configuración de los servos.'],
+  'Sviluppato da': ['Developed by', 'Entwickelt von', 'Desarrollado por'],
+  'Membro del Dev Team di ArduPilot dal 2007': ['Member of the ArduPilot Dev Team since 2007', 'Mitglied des ArduPilot Dev Teams seit 2007', 'Miembro del Dev Team de ArduPilot desde 2007'],
+  'Ringraziamenti': ['Acknowledgements', 'Danksagungen', 'Agradecimientos'],
+  'Pollen Robotics. Il robot e il metodo di addestramento da cui nasce questa piattaforma.': ['Pollen Robotics. The robot and the training method this platform comes from.', 'Pollen Robotics. Der Roboter und die Trainingsmethode, aus denen diese Plattform entstanden ist.', 'Pollen Robotics. El robot y el método de entrenamiento de los que nace esta plataforma.'],
+  'Luwu Dynamics. Il robot XGO Duck, il suo software per Arduino Uno Q e le policy.': ['Luwu Dynamics. The XGO Duck robot, its software for Arduino Uno Q and the policies.', 'Luwu Dynamics. Der Roboter XGO Duck, seine Software für Arduino Uno Q und die Policies.', 'Luwu Dynamics. El robot XGO Duck, su software para Arduino Uno Q y las policies.'],
+  'Supporto nello sviluppo della piattaforma.': ['Support in developing the platform.', 'Unterstützung bei der Entwicklung der Plattform.', 'Apoyo en el desarrollo de la plataforma.'],
+  'Comunità': ['Community', 'Community', 'Comunidad'],
+  'I collegamenti si aprono in una nuova scheda e richiedono una connessione a Internet.': ['The links open in a new tab and need an Internet connection.', 'Die Links öffnen sich in einem neuen Tab und benötigen eine Internetverbindung.', 'Los enlaces se abren en una pestaña nueva y requieren conexión a Internet.'],
+  "ArduDuck · ArduRover + AP_NNMixer sul lato Linux, sketch sull'STM32 ·": ['ArduDuck · ArduRover + AP_NNMixer on the Linux side, sketch on the STM32 ·', 'ArduDuck · ArduRover + AP_NNMixer auf der Linux-Seite, Sketch auf dem STM32 ·', 'ArduDuck · ArduRover + AP_NNMixer en el lado Linux, sketch en el STM32 ·'],
+};
+
+// The language: ?lang=en in the address (kept from then on), else the last one chosen, else Italian.
+let lang = new URLSearchParams(location.search).get('lang');
+if (LANGS.includes(lang)) localStorage.setItem('lang', lang);
+else lang = localStorage.getItem('lang');
+if (!LANGS.includes(lang)) lang = 'it';
+
+function t(key, vars) {
+  const row = TEXTS[key], column = LANGS.indexOf(lang) - 1;
+  let text = row && column >= 0 ? row[column] : key;
+  if (vars) text = text.replace(/\{(\w+)\}/g, (all, name) => (name in vars ? vars[name] : all));
+  return text;
+}
+
+// Static page text. Each text node keeps its Italian source, so the language can change any number of times.
+const ATTRIBUTES = ['title', 'aria-label'];
+function translatePage() {
+  document.documentElement.lang = lang;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.parentElement.closest('script, style')) continue;
+    if (node.i18nSource === undefined) {
+      const key = node.nodeValue.replace(/\s+/g, ' ').trim();
+      if (!(key in TEXTS)) continue;
+      node.i18nSource = key;
+      node.i18nPad = [/^\s*/.exec(node.nodeValue)[0], /\s*$/.exec(node.nodeValue)[0]];
+    }
+    node.nodeValue = node.i18nPad[0] + t(node.i18nSource) + node.i18nPad[1];
+  }
+  document.querySelectorAll('[title], [aria-label]').forEach((el) => {
+    el.i18nAttributes = el.i18nAttributes || {};
+    for (const name of ATTRIBUTES) {
+      if (!el.hasAttribute(name)) continue;
+      if (!(name in el.i18nAttributes)) el.i18nAttributes[name] = el.getAttribute(name);
+      el.setAttribute(name, t(el.i18nAttributes[name]));
+    }
+  });
+}
+
+const languageListeners = [];   // app.js redraws what it built itself
+function setLanguage(next) {
+  if (!LANGS.includes(next)) return;
+  lang = next;
+  localStorage.setItem('lang', lang);
+  translatePage();
+  languageListeners.forEach((redraw) => redraw());
+}

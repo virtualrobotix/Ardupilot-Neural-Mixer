@@ -3,16 +3,23 @@
 # Contact: r.navoni74@gmail.com
 # Developed by Roberto Navoni — DelphyAI LAB
 # For information: r.navoni74@gmail.com
-"""MuJoCo window on the Mac, driven by the autopilot on the Uno Q.
+"""MuJoCo window on the host computer (macOS, Windows or Linux), driven by the autopilot on the Uno Q.
 
-    .venv/bin/mjpython tools/unoq/mac_sim.py
+    .venv/bin/mjpython tools/unoq/mac_sim.py --host 192.168.1.50     macOS, board on the network
+    python tools/unoq/mac_sim.py --host 192.168.1.50                 Windows and Linux
+    .venv/bin/mjpython tools/unoq/mac_sim.py                         over USB, after: adb forward tcp:7000 tcp:7000
 
-The board listens on tcp:7000 (adb forward). This window sends the simulated IMU and joint
-angles and applies the joint commands. On macOS the window opens only under mjpython.
-Closing the window returns the board to the sketch.
+The board listens on tcp:7000. --host is its address on the Wi-Fi network (10.42.0.1 when it is the
+ArduDuck access point); without it the window connects to 127.0.0.1, which is the board through
+adb forward. This window sends the simulated IMU and joint angles and applies the joint commands.
+On macOS the window opens only under mjpython. Closing the window returns the board to the sketch.
+
+The robot is the XGO Duck of the training stack (xgoduck_scene.py): its body, the electronics
+backpack, the gear play and the HLS1910 voltage model. It needs third_party/xgoduck_rl.
 """
 from __future__ import annotations
 
+import argparse
 import socket
 import sys
 import threading
@@ -23,7 +30,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'unoq' / 'app' / 'python'))
 
 import frames  # noqa: E402
-from sim_link import COMMAND, Duck, model_path  # noqa: E402
+from sim_link import COMMAND, SimError  # noqa: E402
+from xgoduck_scene import KP_FW, VIN, XgoDuck  # noqa: E402
 
 HOST = '127.0.0.1'
 PORT = 7000
@@ -31,43 +39,12 @@ TICK_S = 0.01
 POWERED = {1, 2, 3}
 
 
-# Walk stance, policy joint order. Hips are python/stance.py BASELINE_HOME_DEG. The ankle is not:
-# the robot stands at 18 degrees, this MicroDuck body falls on its beak there and stands at 25.95.
-STANCE_DEG = (0.0, -5.0, -26.24, -0.28, 25.95, 20.0, 20.0, 0.0, 0.0, 0.0, 5.0, 26.24, 0.28, -25.95)
-# HD-1910-C001 peak stall torque at 7.4 V is 15 kg·cm. The scene file still carries the XL330 limit.
-HD1910_STALL_NM = 15.0 * 0.0980665
-# N·m/rad. The get-up policy of the getup-hd1910 branch, run alone on this scene, stands
-# from every start between 1.25 and 2.0. At the scene value 0.55 it settles crouched at
-# 40 degrees of tilt, and from 3.0 up it falls again.
-HD1910_KP = 1.5
-
-
-def use_hd1910(duck: Duck):
-    """Position servos: HD-1910 stall torque, scene stiffness. bam has no HD-1910 voltage model."""
-    m = duck.model
-    m.actuator_forcerange[:] = (-HD1910_STALL_NM, HD1910_STALL_NM)
-    m.actuator_gainprm[:, 0] = HD1910_KP
-    m.actuator_biasprm[:, 1] = -HD1910_KP
-    m.actuator_biasprm[:, 2] = 0.0
-
-
-def stand_on_stance(duck: Duck):
-    """Put the duck on the measured stance, which is the walk and get-up home."""
-    import math
-    duck.reset()
-    for joint, deg in enumerate(STANCE_DEG):
-        q = math.radians(deg)
-        duck.data.qpos[duck.qpos_idx[joint]] = q
-        duck.data.ctrl[joint] = q
-    duck.mujoco.mj_forward(duck.model, duck.data)
-    duck.targets_deg = duck._angles_deg()
-
-
 class Bus:
     """Network only. Physics stays on the viewer thread: MuJoCo is not safe to step elsewhere."""
 
-    def __init__(self, duck: Duck):
+    def __init__(self, duck: XgoDuck, host: str = HOST, port: int = PORT):
         self.duck = duck
+        self.host, self.port = host, port
         self.lock = threading.Lock()
         self.q_target = None
         self.mouth = 0.0
@@ -90,9 +67,10 @@ class Bus:
     def connect_loop(self):
         while not self.stop.is_set():
             try:
-                sock = socket.create_connection((HOST, PORT), timeout=5)
+                sock = socket.create_connection((self.host, self.port), timeout=5)
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)     # 100 Hz of small packets
             except OSError as error:
-                print(f'[mac-sim] in attesa della Uno Q su {HOST}:{PORT} ({error})', flush=True)
+                print(f'[mac-sim] in attesa della Uno Q su {self.host}:{self.port} ({error})', flush=True)
                 if self.stop.wait(1.0):
                     return
                 continue
@@ -101,7 +79,7 @@ class Bus:
             with self._send_lock:
                 self._sock = sock
             with self.lock:
-                stand_on_stance(self.duck)
+                self.duck.reset()
                 self.q_target = None
                 self.powered = False
             self._recv(sock)
@@ -145,22 +123,28 @@ class Bus:
 
 
 def main():
-    xml = model_path()
-    if xml is None:
-        sys.exit('scena MuJoCo non trovata')
+    parser = argparse.ArgumentParser(description='MuJoCo in place of the robot, for the autopilot on the Uno Q.')
+    parser.add_argument('--host', default=HOST, help='address of the board (default 127.0.0.1: adb forward tcp:7000 tcp:7000)')
+    parser.add_argument('--port', type=int, default=PORT)
+    args = parser.parse_args()
     import mujoco.viewer
-    duck = Duck(xml)
-    use_hd1910(duck)
-    stand_on_stance(duck)
-    print('[mac-sim] servo HD-1910, kp 1.5 N·m/rad, posa della scena (anca ±26°, caviglia ±26°)',
-          flush=True)
-    bus = Bus(duck)
+    try:
+        duck = XgoDuck()
+    except SimError as error:
+        sys.exit(str(error))
+    print(f'[mac-sim] XGO Duck di addestramento: {sum(duck.model.body_mass):.3f} kg, servo HLS1910 '
+          f'(BAM, guadagno {KP_FW:g}, {VIN:g} V), gioco ±1,5°, zaino elettronica', flush=True)
+    bus = Bus(duck, args.host, args.port)
     threading.Thread(target=bus.connect_loop, name='bus', daemon=True).start()
     with mujoco.viewer.launch_passive(duck.model, duck.data, show_left_ui=False, show_right_ui=False) as viewer:
-        viewer.cam.lookat[:] = (0.0, 0.0, 0.08)
+        # follow the trunk: a walking duck leaves a fixed frame in a few seconds
+        viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+        viewer.cam.trackbodyid = duck.trunk_id
         viewer.cam.distance = 0.75
         viewer.cam.azimuth = 140
         viewer.cam.elevation = -18
+        # floor (group 0) and visual meshes (group 2); the collision boxes (group 3) stay hidden
+        viewer.opt.geomgroup[:] = [1, 1, 1, 0, 0, 0]
         nxt = time.perf_counter()
         while viewer.is_running():
             nxt += TICK_S

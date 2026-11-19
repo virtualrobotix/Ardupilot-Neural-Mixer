@@ -2,21 +2,38 @@
 <html lang="it">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ArduHumanoid</title>
-<link rel="stylesheet" href="style.css?v=3">
+<title>ArduDuck</title>
+<link rel="stylesheet" href="style.css?v=9">
 
 <header class="top">
   <div class="brand">
-    <h1>ArduHumanoid</h1>
-    <small>ArduPilot · AP_NNMixer · Arduino Uno Q</small>
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <rect class="mark-bg" width="32" height="32" rx="7"/>
+      <path class="mark-fg" d="M8 22.5 16 8.5l8 14M11.4 17h9.2"/>
+    </svg>
+    <div>
+      <h1>ArduDuck</h1>
+      <small>ArduPilot · AP_NNMixer · Arduino Uno Q</small>
+    </div>
   </div>
   <nav id="tabs">
     <button data-tab="stato" class="on">Stato</button>
     <button data-tab="controllo">Controllo</button>
     <button data-tab="calibrazione">Calibrazione</button>
     <button data-tab="servo">Servo</button>
+    <button data-tab="rete">Rete</button>
+    <button data-tab="info">Info</button>
   </nav>
   <div class="top-right">
+    <select id="lang" title="Lingua" aria-label="Lingua">
+      <option value="it">Italiano</option>
+      <option value="en">English</option>
+      <option value="de">Deutsch</option>
+      <option value="es">Español</option>
+    </select>
+    <button id="theme" title="Tema chiaro o scuro" aria-label="Cambia tema">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.5 1.5M17.2 17.2l1.5 1.5M5.3 18.7l1.5-1.5M17.2 6.8l1.5-1.5"/></svg>
+    </button>
     <span id="armed-pill" class="pill">—</span>
     <button id="stop" class="danger" title="Disarma e toglie coppia ai servo (barra spaziatrice)">STOP · coppia off</button>
   </div>
@@ -79,7 +96,7 @@
     </div>
     <button id="sim-reset">Ricomincia la scena</button>
     <p class="hint">Simulazione: se la finestra MuJoCo è aperta sul Mac, l'autopilota usa quella. Altrimenti usa la scena sulla scheda. In entrambi i casi i motori reali restano spenti. Debug: il robot reale resta collegato e la scena sulla scheda ripete gli stessi comandi.</p>
-    <p class="hint" id="sim-detail">La scena è il modello MicroDuck, con gli stessi 14 giunti. Gli attuatori sono quelli di posizione del file, non il modello di tensione dei servo.</p>
+    <p class="hint" id="sim-detail">Sul Mac la scena è l'XGO Duck usato in addestramento, con il modello di tensione dei servo HLS1910. Sulla scheda la scena è MicroDuck, con gli stessi 14 giunti e attuatori di posizione.</p>
     <p id="sim-state" class="mono"></p>
   </div>
 
@@ -121,9 +138,9 @@
       <h3>Catena di elaborazione <span class="tag" id="chain-state">—</span></h3>
       <div class="segmented" id="chain">
         <button data-value="0">Standard</button>
-        <button data-value="1">XDuck</button>
+        <button data-value="1">ArduDuck</button>
       </div>
-      <p class="hint">Standard: filtri e assetto di ArduPilot. XDuck: stessa elaborazione del software originale. Si cambia solo da disarmato.</p>
+      <p class="hint">Standard: filtri e assetto di ArduPilot. ArduDuck: stessa elaborazione del software originale del robot. Si cambia solo da disarmato.</p>
       <h3>Policy <span class="tag" id="policy-state">—</span></h3>
       <div class="segmented" id="policy">
         <button data-value="0">Camminata</button>
@@ -239,8 +256,140 @@
     <pre id="servo-result" class="result">Nessuna operazione eseguita.</pre>
   </div>
 </section>
+
+<!-- ───────────────────────────── Rete ───────────────────────────── -->
+<section id="tab-rete" class="tab">
+  <div class="two">
+    <div class="panel">
+      <h2>Rete <span id="net-tag" class="tag">—</span></h2>
+      <dl class="wide">
+        <dt>Modalità</dt><dd id="net-mode">—</dd>
+        <dt>Rete Wi-Fi</dt><dd id="net-ssid">—</dd>
+        <dt>Indirizzo IP</dt><dd id="net-ip">—</dd>
+        <dt>Ultima operazione</dt><dd id="net-last">—</dd>
+      </dl>
+      <p class="hint">Se all'avvio la scheda non si collega a una rete Wi-Fi entro 45 secondi, accende l'access point «ArduDuck» (password Wi-Fi iniziale: runrunrun). Collegati a quella rete e apri http://10.42.0.1:9527.</p>
+    </div>
+    <div class="panel">
+      <h2>Accesso <span id="net-login-state" class="tag">—</span></h2>
+      <div class="form">
+        <label>Utente<input type="text" id="net-user" autocomplete="username" autocapitalize="none"></label>
+        <label>Password<input type="password" id="net-pass" autocomplete="current-password"></label>
+        <button id="net-login" class="primary">Accedi</button>
+        <button id="net-logout">Esci</button>
+      </div>
+      <p class="hint">Per cambiare la rete serve l'accesso. Lo stato qui a fianco è visibile a tutti.</p>
+      <p class="hint" id="net-initial" hidden>La password della pagina è ancora quella iniziale: cambiala qui sotto.</p>
+    </div>
+  </div>
+
+  <div id="net-config" hidden>
+    <div class="panel">
+      <h2>Collega a una rete Wi-Fi</h2>
+      <div class="form net">
+        <label>Nome della rete (SSID)<input type="text" id="net-ssid-in" autocapitalize="none" autocomplete="off"></label>
+        <label>Password Wi-Fi<input type="password" id="net-psk" autocomplete="off"></label>
+        <button id="net-connect" class="primary">Collega</button>
+        <button id="net-scan">Cerca reti</button>
+        <span class="hint">Scegli una rete dall'elenco con «Usa», oppure scrivi il nome. Per cambiare la password di una rete salvata premi «Riconfigura». Lascia vuota la password per una rete aperta o già salvata. Durante il tentativo l'access point si spegne: se la rete non risponde, ArduDuck torna access point dopo circa un minuto.</span>
+      </div>
+      <div class="table">
+        <table>
+          <thead><tr><th>Rete</th><th class="num">Segnale</th><th>Sicurezza</th><th></th></tr></thead>
+          <tbody id="net-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="two">
+      <div class="panel">
+        <h2>Reti salvate</h2>
+        <div class="table">
+          <table><tbody id="net-saved"></tbody></table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Access point <span id="net-ap-state" class="tag">—</span></h2>
+        <div class="segmented" id="net-mode-set">
+          <button data-mode="auto">Rete Wi-Fi</button>
+          <button data-mode="ap">Solo access point</button>
+        </div>
+        <p class="hint">Rete Wi-Fi: la scheda usa le reti salvate e accende l'access point solo se all'avvio non ne trova una. Solo access point: la scheda si stacca dal Wi-Fi e resta sempre l'access point «ArduDuck», anche dopo un riavvio.</p>
+        <div class="form net">
+          <label>Nuova password Wi-Fi dell'access point<input type="password" id="net-ap-psk" autocomplete="new-password"></label>
+          <button id="net-ap-save">Cambia</button>
+        </div>
+        <h3>Accesso a questa pagina</h3>
+        <div class="form net">
+          <label>Nuova password della pagina<input type="password" id="net-newpass" autocomplete="new-password"></label>
+          <button id="net-newpass-save">Cambia</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── Info ───────────────────────────── -->
+<section id="tab-info" class="tab">
+  <div class="about">
+    <div class="panel">
+      <div class="about-head">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <rect class="mark-bg" width="32" height="32" rx="7"/>
+          <path class="mark-fg" d="M8 22.5 16 8.5l8 14M11.4 17h9.2"/>
+        </svg>
+        <div>
+          <h2>ArduDuck</h2>
+          <p class="by">Sviluppato da <b>Roberto Navoni</b> <span class="handle">RedFox74</span></p>
+          <p class="role">Membro del Dev Team di ArduPilot dal 2007</p>
+        </div>
+      </div>
+      <p>ArduDuck porta ArduPilot su un robot bipede. L'autopilota ArduRover gira sul lato Linux della Arduino Uno Q ed esegue le policy neurali con AP_NNMixer. Lo sketch sull'STM32 legge l'IMU e comanda i servo.</p>
+      <p>Queste pagine parlano con l'autopilota in MAVLink: stato, comandi, calibrazione e configurazione dei servo.</p>
+      <h3>Ringraziamenti</h3>
+      <ul class="credits">
+        <li><b><a href="https://github.com/pollen-robotics/microduck" target="_blank" rel="noopener">Microduck</a></b>
+          <span>Pollen Robotics. Il robot e il metodo di addestramento da cui nasce questa piattaforma.</span></li>
+        <li><b><a href="https://github.com/LuwuDynamics/xgoduck_runtime_arduino" target="_blank" rel="noopener">XDuck</a></b>
+          <span>Luwu Dynamics. Il robot XGO Duck, il suo software per Arduino Uno Q e le policy.</span></li>
+        <li><b>Samuele Cigardi</b>
+          <span>Supporto nello sviluppo della piattaforma.</span></li>
+        <li><b>Federico Navoni</b>
+          <span>Supporto nello sviluppo della piattaforma.</span></li>
+      </ul>
+    </div>
+    <div>
+    <div class="panel">
+      <h2>Rete e MAVLink <span id="info-net-tag" class="tag">—</span></h2>
+      <dl class="wide">
+        <dt>Modalità</dt><dd id="info-net-mode">—</dd>
+        <dt>Rete Wi-Fi</dt><dd id="info-net-ssid">—</dd>
+        <dt>Indirizzo IP</dt><dd id="info-net-ip">—</dd>
+        <dt>Pagine web</dt><dd id="info-net-web">—</dd>
+        <dt>MAVLink</dt><dd id="info-net-mav">—</dd>
+        <dt>Access point</dt><dd id="info-net-ap">—</dd>
+      </dl>
+      <p class="hint">Ground station (Mission Planner, QGroundControl, MAVProxy): collegamento TCP all'indirizzo MAVLink qui sopra, un solo programma alla volta. La rete si cambia nella scheda Rete.</p>
+    </div>
+    <div class="panel">
+      <h2>Comunità</h2>
+      <div class="links">
+        <a href="https://github.com/virtualrobotix/Ardupilot-Neural-Mixer" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+          <div><b>GitHub</b><span>virtualrobotix/Ardupilot-Neural-Mixer</span></div>
+        </a>
+        <a href="https://discord.gg/B9yjnbxYGn" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.6 5.6A17 17 0 0 0 15.4 4.3l-.2.4c-.2.3-.3.6-.4.9a15.800 15.800 0 0 0-5.600 0 9 9 0 0 0-.6-1.300 17 17 0 0 0-4.200 1.300C1.700 9.500 1 13.300 1.300 17a17 17 0 0 0 5.200 2.600c.4-.6.800-1.200 1.100-1.800-.6-.2-1.200-.5-1.700-.8l.4-.3a12.200 12.200 0 0 0 11.400 0l.4.3c-.5.3-1.100.6-1.700.8.300.6.700 1.200 1.100 1.800a17 17 0 0 0 5.200-2.600c.4-4.300-.7-8.100-3.100-11.400ZM8.700 14.700c-1 0-1.800-.9-1.800-2s.8-2 1.800-2 1.800.9 1.800 2-.8 2-1.800 2Zm6.600 0c-1 0-1.800-.9-1.800-2s.8-2 1.800-2 1.800.9 1.800 2-.8 2-1.800 2Z"/></svg>
+          <div><b>Discord</b><span>discord.gg/B9yjnbxYGn</span></div>
+        </a>
+      </div>
+      <p class="hint">I collegamenti si aprono in una nuova scheda e richiedono una connessione a Internet.</p>
+    </div>
+    </div>
+  </div>
+</section>
 </main>
 
-<footer>ArduRover + AP_NNMixer sul lato Linux, sketch sull'STM32 · le pagine parlano con l'autopilota in MAVLink · <span id="clock">—</span></footer>
-<script src="app.js?v=6"></script>
+<footer>ArduDuck · ArduRover + AP_NNMixer sul lato Linux, sketch sull'STM32 · <span id="clock">—</span></footer>
+<script src="i18n.js?v=6"></script>
+<script src="app.js?v=11"></script>
 </html>
