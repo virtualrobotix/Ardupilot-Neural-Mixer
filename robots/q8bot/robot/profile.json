@@ -1,0 +1,93 @@
+{
+  "robot_id": "q8bot",
+  "nnm_robot": 22,
+  "class": "quadruped",
+  "display_name": "Q8bot",
+  "n_joints": 8,
+  "obs_dim": 33,
+  "rate_hz": 50,
+  "q0": [
+    -0.882751,
+    0.882752,
+    -0.882751,
+    0.882752,
+    -0.882751,
+    0.882752,
+    -0.882751,
+    0.882752
+  ],
+  "joint_names": [
+    "FL_q1",
+    "FL_q2",
+    "FR_q1",
+    "FR_q2",
+    "BL_q1",
+    "BL_q2",
+    "BR_q1",
+    "BR_q2"
+  ],
+  "servo_fn0": 94,
+  "servos": "8× Feetech HD-1910M (HD-1910-C001), lo stesso servo di MicroDuck / XGO Duck, al posto degli XL330-M077-T del progetto originale. Bus seriale Feetech a 1 Mbps, 7,4 V, ID 11–18 nell'ordine dei giunti (FL, FR, BL, BR; q1 poi q2). Squadretta montata con l'asta verso terra a centro corsa: conteggio = 2048 + θ × 4096/360. MCU di bordo upstream: Seeed XIAO ESP32C3",
+  "link": "bus",
+  "status": "needs-training-handmade",
+  "upstream": {
+    "repo": "https://github.com/EricYufengWu/q8bot",
+    "branch": "main",
+    "license": "MIT",
+    "sim_model_note": "nessun MJCF, URDF o mesh nel git (STEP, STL e Gerber stanno nelle release hardware): il modello robots/q8bot/robot/q8bot.xml è costruito da tools/robots/q8bot_mjcf.py e versionato in questo repo. Le visuali sono le parti dell'assieme STEP della release hw-v2.5 (telaio, PCB, celle, aste, cuscinetti, viti), esportate con le loro pose da tools/robots/q8bot_step_export.py in robots/q8bot/robot/meshes. Ogni zampa è un pentagono articolato chiuso (due motori, interasse 19,5 mm, aste 25 e 40 mm: il CAD e python-tools/q8bot/kinematics_solver.py coincidono) chiuso con un `equality connect` sul piede; i giunti comandati sono i due angoli motore del firmware, riferiti alla verticale (θ = q − 90°). I servo sono Feetech HD-1910M al posto degli XL330: dinamica dal modello BAM `hd1910_m6.json` (xgoduck_rl, Apache 2.0), massa 21 g l'uno; sono disegnati con il corpo CAD dell'XL330 (stessa faccia 34 × 20 mm, 3 mm più profondo). Per cambiare masse, servo o misure si modifica lo script e si rigenera: `.venv/bin/python tools/robots/q8bot_mjcf.py --demo`",
+    "cad": "STEP e STL nella release hardware (https://github.com/EricYufengWu/q8bot/releases), cartella hw-vx.x/CAD; parti da stampare Q8bt_Frame ×2, Q8bot_LL_Left/Right ×4, Q8bot_UL1/UL2 ×4",
+    "bom": "foglio https://docs.google.com/spreadsheets/d/1M1K_Dghia-Mn2t4RStW8juN6r4e3I3OBy6M_fPFHzs8 e docs/instructions/sourcing_components.md: 8× XL330-M077-T, 12 cuscinetti 692ZZ, 2× 14500 1000 mAh, PCB con XIAO ESP32C3. Costo dichiarato 300–400 $",
+    "training": "non c'è un training: i passi (trotto, camminata, crawl, bound, pronk) sono traiettorie IK precalcolate in gait_generator.py e suonate a 200 Hz da operate.py (pygame SPEED). Il salto è una sequenza nel firmware (idle 30°/150°, basso −40°/220°, alto 90°/90°)",
+    "published_policy": "nessuna"
+  },
+  "sim": {
+    "actuator": "bam",
+    "bam_params": "hd1910_m6.json",
+    "bam_kp_fw": 5.0,
+    "bam_vin": 7.4,
+    "mjcf": "q8bot.xml",
+    "trunk_body": "trunk",
+    "freejoint": "floating_base",
+    "gyro_sensor": "imu_gyro",
+    "accel_sensor": "imu_acc",
+    "home_z": 0.0484,
+    "feet": [
+      {
+        "site": "FL_foot",
+        "body": "FL_lowA",
+        "geom": "FL_foot"
+      },
+      {
+        "site": "FR_foot",
+        "body": "FR_lowA",
+        "geom": "FR_foot"
+      },
+      {
+        "site": "BL_foot",
+        "body": "BL_lowA",
+        "geom": "BL_foot"
+      },
+      {
+        "site": "BR_foot",
+        "body": "BR_lowA",
+        "geom": "BR_foot"
+      }
+    ],
+    "trot_pairs": [
+      [
+        0,
+        3
+      ],
+      [
+        1,
+        2
+      ]
+    ],
+    "footfall_cycle": [
+      2,
+      0,
+      3,
+      1
+    ]
+  }
+}

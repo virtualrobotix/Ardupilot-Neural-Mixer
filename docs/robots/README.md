@@ -31,10 +31,12 @@ Tutti i robot usano la stessa architettura PPO di MicroDuck (MLP 512-256-128 ELU
 | 18 | <a href="phonebot.md"><img src="img/phonebot.jpg" alt="PhoneBot" width="110"></a> | [PhoneBot](phonebot.md) | bipede | 13 | 50 | 50 | bus | `walk.nnm`, `walk_air.nnm`, `walk_fwd.nnm`, `walk_fwd_it0800.nnm`, `walk_natural.nnm`, `walk_slow.nnm`, `walk_steps.nnm`, `walk_steps2.nnm`, `walk_track.nnm` | — | scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare |
 | 19 |  | [PhoneBot invertito](phonebot_rev.md) | bipede | 13 | 50 | 50 | bus | `walk.nnm`, `walk_it1800.nnm` | — | scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare |
 | 20 |  | [Sprite (Sprite0825)](open_sprite.md) | bipede | 31 | 102 | 50 | bus | — | — | manca una scena MuJoCo pronta per il training |
+| 21 | <a href="xgoduck.md"><img src="img/xgoduck.jpg" alt="XGO Duck (Arduino Uno Q)" width="110"></a> | [XGO Duck (Arduino Uno Q)](xgoduck.md) | bipede | 14 | 61 | 50 | xduck | `0_walk.nnm`, `1_getup.nnm`, `2_roller.nnm`, `3_pick.nnm`, `4_roulade.nnm`, `5_sitstand.nnm`, `6_kick_left.nnm`, `7_kick_right.nnm` | — | policy upstream convertite in .nnm con parità numerica verificata; non simulate in questo repo |
+| 22 | <a href="q8bot.md"><img src="img/q8bot.jpg" alt="Q8bot" width="110"></a> | [Q8bot](q8bot.md) | quadrupede | 8 | 33 | 50 | bus | — | [`modello (trotto upstream open-loop, servo HD-1910M)` it. —](q8bot.md#risultati-per-versione-di-ambiente-ed-epoca) | scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare |
 
 Le foto vengono dai repository originali; fonte sotto l'immagine in ogni scheda.
 
-Collegamento: `bus` = servo su bus seriale: serve il backend bus nel firmware (non ancora scritto); `pwm` = servo PWM: collegabili alle uscite dell'autopilota; `can` = attuatori CAN-FD mjbots: serve un backend dedicato; `sim` = nessun hardware: modello di sola simulazione (SITL e HIL).
+Collegamento: `bus` = servo su bus seriale: serve il backend bus nel firmware (non ancora scritto); `pwm` = servo PWM: collegabili alle uscite dell'autopilota; `can` = attuatori CAN-FD mjbots: serve un backend dedicato; `sim` = nessun hardware: modello di sola simulazione (SITL e HIL); `xduck` = servo su bus seriale dietro lo sketch XDuck dell'Uno Q: backend `AP_JointBus` (`NNM_OUT 1`).
 
 ## Struttura dei file (repo e microSD)
 

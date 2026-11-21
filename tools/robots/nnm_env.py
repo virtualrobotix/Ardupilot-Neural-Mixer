@@ -257,7 +257,7 @@ class NNMixerEnv:
                 spec.add_sensor(name=acc_name, type=mujoco.mjtSensor.mjSENS_ACCELEROMETER,
                                 objtype=mujoco.mjtObj.mjOBJ_SITE, objname=site.name)
         self.bam = None
-        if self.actuator == "bam_xl330":
+        if self.actuator in ("bam_xl330", "bam"):
             sys.path.insert(0, str(REPO_ROOT / "plant"))
             from mujoco_json_plant import BAM_KP_FW, BAM_VIN, BAM_VIN_MIN, load_with_bam  # noqa: E402
             # load_with_bam compiles from file; write the augmented spec next to it
@@ -266,7 +266,10 @@ class NNMixerEnv:
             tmp.write_text(spec.to_xml())
             try:
                 kp_fw = float(self.sim.get("bam_kp_fw", BAM_KP_FW))
-                self.model, self.data, self.bam = load_with_bam(tmp, BAM_VIN, kp_fw)
+                # sim.bam_params: BAM JSON of the servo, next to the MJCF (default: the bundled XL330)
+                params = path.parent / self.sim["bam_params"] if self.sim.get("bam_params") else None
+                self.model, self.data, self.bam = load_with_bam(tmp, float(self.sim.get("bam_vin", BAM_VIN)),
+                                                                kp_fw, params=params)
             finally:
                 tmp.unlink(missing_ok=True)
             _ = BAM_VIN_MIN
@@ -998,6 +1001,8 @@ class NNMixerEnv:
             self.bam.q_target[:] = 0.0
             self.bam.q_target[self.act_idx] = q_ref
             self.bam.last_ts = d.time
+            # Feetech actuator of BAM (sim.bam_params): the slew-limited target starts on the encoder
+            self.bam.model.actuator.q_target_smooth = d.qpos[self.bam.qpos_indexes].copy()
             d.ctrl[:] = 0.0
         mujoco.mj_forward(m, d)
         root = d.qpos[self.free_qpos:self.free_qpos + 7].copy()
@@ -1154,6 +1159,8 @@ class NNMixerEnv:
             self.bam.q_target[:] = 0.0
             self.bam.q_target[self.act_idx] = c.q0
             self.bam.last_ts = d.time
+            # Feetech actuator of BAM (sim.bam_params): the slew-limited target starts on the encoder
+            self.bam.model.actuator.q_target_smooth = d.qpos[self.bam.qpos_indexes].copy()
             d.ctrl[:] = 0.0
         mujoco.mj_forward(m, d)
         self.gravity = dc.GravityFilter(c.att_tau)

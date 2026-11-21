@@ -71,11 +71,12 @@ BAM_STIFF_SOLREF_FRICTION = (-5.0e4, -2.0e2)
 BAM_STIFF_SOLIMP_FRICTION = (0.99, 0.9999, 0.001, 0.5, 2.0)
 
 
-def load_with_bam(xml_path: Path, vin: float, kp_fw: float):
+def load_with_bam(xml_path: Path, vin: float, kp_fw: float, params: Path | None = None):
+    """`params`: BAM JSON of another servo (e.g. robots/q8bot/robot/hd1910_m6.json); default the bundled XL330."""
     from bam.model import load_model
     from bam.mujoco import MujocoController
 
-    bam_model = load_model(motor_name="xl330", model="m6")
+    bam_model = load_model(str(params)) if params else load_model(motor_name="xl330", model="m6")
     bam_model.actuator.kp = kp_fw
     bam_model.actuator.vin = vin
     bam_model.actuator.max_current = None

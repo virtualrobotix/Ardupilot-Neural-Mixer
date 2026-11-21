@@ -63,6 +63,14 @@ def robot_page(rid: str, r: dict, status_text: dict, link_text: dict, repo_root:
             f"*{r['display_name']}, {caption}. Foto: [{src.split('://', 1)[1]}]({src}).*",
             "",
         ]
+    for rd in r.get("renders", []):
+        if (repo_root / "docs" / "robots" / "img" / rd["file"]).is_file():
+            lines += [
+                f'<img src="img/{rd["file"]}" alt="{r["display_name"]}, render" width="720">',
+                "",
+                f"*{rd['caption']}*",
+                "",
+            ]
     lines += [
         "| | |",
         "|---|---|",
