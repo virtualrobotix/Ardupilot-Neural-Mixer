@@ -122,6 +122,13 @@ def robot_page(rid: str, r: dict, status_text: dict, link_text: dict, repo_root:
             "pavimento, IMU sul tronco e attuatori di posizione.",
             "",
         ]
+    fl = r.get("flight")
+    if fl:
+        lines += ["## Volo", "", fl["summary"], "", "| | |", "|---|---|"]
+        lines += [f"| {k} | {v} |" for k, v in fl["table"]]
+        lines.append("")
+        if fl.get("video") and (repo_root / "docs" / "media" / fl["video"]).is_file():
+            lines += [f"Video del volo simulato: [`docs/media/{fl['video']}`](../media/{fl['video']}).", ""]
     lines += [
         "## Topologia",
         "",

@@ -53,6 +53,7 @@ def profile_for(rid: str, r: dict) -> dict:
         "sim": r["sim"],
         # optional deployment extras, packed into skills.bin by pack_robot_bin.py
         **{k: r[k] for k in ("pose_limits", "aux_max", "deploy", "skills", "servo_gains") if k in r},
+        **({"flight": r["flight"]["pack"]} if r.get("flight") else {}),
     }
 
 
@@ -67,6 +68,7 @@ def ppo_for(rid: str, r: dict) -> dict:
         },
         "quantization": {"weights": "int8_per_row", "qat": True, "activations": "float32"},
         "ppo": {**PPO_DEFAULTS, **r.get("ppo", {})},
+        **({"stances": r["stances"]} if r.get("stances") else {}),
         "env": {**{
             "policy_hz": r["rate_hz"], "loop_hz": 200, "gravity_source": "ap_imu_filter",
             "att_tau": 0.5, "act_max": 2.0, "pwm_quantization": True,
@@ -77,7 +79,6 @@ def ppo_for(rid: str, r: dict) -> dict:
                           "action_rate": -0.8, "tracking_sigma": 0.05, "tracking_sigma_ang": 0.25},
                        **r.get("reward", {})},
         }, **r.get("env", {})},
-        **({"stances": r["stances"]} if r.get("stances") else {}),
     }
 
 

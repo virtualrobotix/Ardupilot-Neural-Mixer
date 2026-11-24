@@ -2429,6 +2429,106 @@ ROBOTS["q8bot"] = {
     ],
 }
 
+# Flying ArduDuck: the ArduDuck (XGO Duck on the Arduino Uno Q) with the flight pack of the CMU MicroDuck fork
+# (qilinxiaoxiang/microduck_rl, cmu/finetune/flight): four EDFs, two flight batteries, a wing plate, 936 g.
+# Same 14-joint contract and 61-value observation as xgoduck, so the walk policies of the ArduDuck load unchanged;
+# the EDFs are driven by the autopilot mixer (four motor outputs), not by the network. The pack CAD and manifests
+# live in another repository of the CMU project, so geometry and thrust are stated assumptions
+# (tools/robots/flying_arduduck_mjcf.py): replace them with the measured numbers.
+ROBOTS["flying_arduduck"] = {
+    "index": 23,
+    "class": "biped",
+    "display_name": "Flying ArduDuck",
+    "maker": "ArduDuck (XGO Duck su Arduino Uno Q) con il pacco di volo del fork CMU di microduck_rl",
+    "status": "model-flight",
+    "joint_names": list(ROBOTS["xgoduck"]["joint_names"]),
+    "q0": list(ROBOTS["xgoduck"]["q0"]),
+    "extra_cmd_dim": 10,
+    "extra_cmd_desc": "come `xgoduck`: orologio 2 + comando testa 4 (`NNM_POSE`) + 4 canali non usati",
+    "rate_hz": 50,
+    "command_ranges": {"vx": [-0.2, 0.2], "vy": [-0.3, 0.3], "wz": [-1.0, 1.0]},
+    "upstream": {
+        "repo": "https://github.com/qilinxiaoxiang/microduck_rl",
+        "branch": "main",
+        "model_repo": "https://github.com/ZXerniXZ/xgoduck_rl",
+        "license": "microduck_rl: Apache-2.0 (Pollen Robotics) con il layer CMU in `cmu/`; xgoduck_rl: Apache-2.0",
+        "cad": "il CAD del pacco (`extensions/flight-20261110`) non è nel fork: sta nel repo `microduck-sim` del "
+               "progetto CMU. Qui il pacco è ricostruito con scatole e cilindri",
+        "bom": "pacco 936 g (fork): 2 batterie di volo da 151 g, 4 EDF, piastra alare, vassoi e flight "
+               "controller. Il fork dichiara 1,899 kg per il robot CMU con il pacco (0,963 kg senza)",
+        "training": "`cmu/finetune/flight/`: fine-tune di walk61, stand61 e groundpick61 con il carico sul dorso "
+                    "(massa 1,70–2,10 kg randomizzata, COM ±12 mm, costo di coppia sui servo). Non addestra il "
+                    "volo: le EDF non hanno un modello di spinta nel fork",
+        "published_policy": "nessuna per il pacco (nel fork ci sono solo gli script `cmu/finetune/flight/*.py`)",
+        "sim_model_note": "il modello `robots/flying_arduduck/robot/flying_arduduck.xml` è generato da "
+                          "`tools/robots/flying_arduduck_mjcf.py`: parte dal XGO Duck di `xgoduck_rl` (branch "
+                          "hd1910-standup, 0,791 kg, contatti e massa dello stack elettronico come nel training) "
+                          "e aggiunge il pacco: ali laterali libere dalla testa, barra posteriore, due batterie "
+                          "sul dorso, flight controller e quattro EDF a X con asse verso l'alto. Le EDF sono "
+                          "attuatori di spinta sui `site` `thrust_*` (filtro del primo ordine 50 ms, coppia di "
+                          "reazione 0,02 N·m per N con rotazioni alternate). I servo delle gambe hanno kp 3 "
+                          "N·m/rad con il limite di coppia 1,04 N·m del modello. Le EDF sono spostate fino a "
+                          "far coincidere il centroide delle spinte con il baricentro in posa di stand. "
+                          "Rigenerare: `.venv/bin/python tools/robots/flying_arduduck_mjcf.py --write`",
+    },
+    "sim": {"actuator": "position", "mjcf": "flying_arduduck.xml", "trunk_body": "trunk_base",
+            "freejoint": "trunk_base_freejoint", "gyro_sensor": "imu_ang_vel", "accel_sensor": "imu_accel",
+            "home_z": 0.1418},
+    "servos": "15 servo su bus seriale come l'ArduDuck (14 giunti + bocca) e quattro EDF pilotate dalle uscite "
+              "motore dell'autopilota (mixer a X)",
+    "link": "xduck",
+    "policies": {},
+    "flight": {
+        "pack": {"mass_kg": 0.936, "battery_kg": [0.151, 0.151], "edf_count": 4, "layout": "X",
+                 "edf_mass_kg": 0.085, "edf_thrust_max_n": 6.4, "edf_tau_s": 0.05, "edf_yaw_k": 0.02,
+                 "edf_xy_m": [0.075, 0.125], "robot_mass_kg": 1.727, "thrust_to_weight": 1.51,
+                 "source": "massa del pacco, batterie e numero di EDF dal fork; spinta, massa EDF e geometria "
+                           "sono ipotesi"},
+        "summary": "Il fork `qilinxiaoxiang/microduck_rl` contiene in `cmu/finetune/flight` la pipeline di "
+                   "fine-tune per un **pacco di volo** (estensione `flight-20261110`: 936 g, quattro EDF, due "
+                   "batterie, piastra alare) che raddoppia la massa del robot. Il fork non include né il CAD né "
+                   "il modello di spinta, quindi qui il pacco è ricostruito sul XGO Duck con le sole cifre "
+                   "dichiarate (massa, batterie, numero di EDF) e con ipotesi esplicite per il resto. Il volo "
+                   "mostrato è un hover con controllore a cascata (quota, posizione, assetto, mixer a X), "
+                   "non una policy addestrata.",
+        "table": [
+            ("Massa robot / pacco", "1,727 kg (XGO Duck 0,791 kg + pacco 0,936 kg)"),
+            ("Spinta massima", "4 × 6,4 N = 25,6 N (ipotesi): spinta/peso 1,51"),
+            ("Layout EDF", "X, quadrato 0,15 × 0,25 m, asse verso l'alto, rotazioni alternate"),
+            ("Quota di hover", "0,60 m (tronco), tenuta entro 0,3 mm"),
+            ("Inclinazione massima", "3,8° in tutto il volo (decollo, 0,6 m avanti, 0,4 m laterale, 90° di imbardata, salita a 0,85 m)"),
+            ("Manette in volo", "0,64–0,69 (le quattro EDF quasi uguali: spinta allineata al baricentro)"),
+            ("Atterraggio", "a 59 mm dal punto di partenza, sulle suole"),
+        ],
+        "video": "flying_arduduck_hover.mp4",
+    },
+    "renders": [
+        {"file": "flying_arduduck_3q.png", "caption": "Modello MuJoCo: XGO Duck con il pacco di volo sul dorso "
+                                                      "(piastra, due batterie blu, flight controller verde, "
+                                                      "quattro EDF), vista 3/4 a terra."},
+        {"file": "flying_arduduck_hover.png", "caption": "Hover a 0,60 m (t = 5,4 s del volo simulato)."},
+        {"file": "flying_arduduck_flight.png", "caption": "Volo simulato: quota e posizione, assetto, imbardata e "
+                                                          "manette delle quattro EDF."},
+    ],
+    "notes": [
+        "Contratto uguale a `xgoduck` (14 giunti, 61 valori): le otto policy dell'app XDuck si caricano senza "
+        "cambiare nulla. Le EDF non fanno parte della rete: le comanda l'autopilota con il mixer a X "
+        "(quattro uscite motore), come un multirotore.",
+        "Le gambe non sono addestrate per il pacco. Il fork lo fa per il MicroDuck CMU (`walk61`, `stand61`, "
+        "`groundpick61` con carico 1,70–2,10 kg randomizzato): per il Flying ArduDuck servono lo stesso "
+        "fine-tune sul modello `flying_arduduck.xml` e il manifest vero del pacco.",
+        "Ipotesi da sostituire con misure: spinta 6,4 N per EDF (circa 0,65 kgf), massa EDF 85 g, costante di "
+        "tempo 50 ms, coppia di reazione 0,02 N·m per N, geometria di piastra, vassoio e gondole. Il baricentro "
+        "dei servo in volo e la curva spinta/PWM reali cambiano i guadagni del controllore.",
+        "Nel modello i servo delle gambe tengono la posa di stand con kp 3 N·m/rad (il modello da sola "
+        "visualizzazione di `xgoduck_rl` usa 0,84 e cede sotto 1,7 kg). Il training usa BAM; qui non serve.",
+        "Il volo è un hover con controllore a cascata nel loop a 200 Hz: quota PD con peso in feed-forward, "
+        "posizione PD su un riferimento di inclinazione, assetto PD con integrale, mixer a X con coppia di "
+        "imbardata dalle rotazioni alternate. Provarlo: `.venv/bin/mjpython "
+        "tools/robots/flying_arduduck_mjcf.py --view`.",
+    ],
+}
+
 # docs/robots/img/<id>.jpg, resized copies of the photo each upstream README shows; credit and source
 # are printed under the image on the robot page.
 PHOTOS = {
@@ -2467,6 +2567,7 @@ STATUS_TEXT = {
     "policy-upstream": "policy upstream convertita in .nnm e verificata nell'ambiente a contratto; da rifinire o riaddestrare sul contratto",
     "policy-sim": "policy int8 addestrata in simulazione; video dei checkpoint nella scheda",
     "policy-import": "policy upstream convertite in .nnm con parità numerica verificata; non simulate in questo repo",
+    "model-flight": "modello MuJoCo con pacco di volo (4 EDF) e hover simulato con controllore a cascata; policy delle gambe per il pacco da addestrare",
     "needs-training": "scena MuJoCo generata dall'URDF; policy da addestrare",
     "needs-training-mjcf": "scena MuJoCo nativa pronta; policy da addestrare",
     "needs-training-handmade": "scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare",

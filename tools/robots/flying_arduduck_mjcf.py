@@ -56,7 +56,7 @@ EDF_THRUST_N = 6.4                     # assumed, max thrust of one EDF
 EDF_TAU_S = 0.05                       # assumed, spool lag
 EDF_YAW_K = 0.02                       # assumed, N m of reaction torque per N of thrust
 EDF_XY = 0.075, 0.125                  # half spacing of the X layout (x, y) from the centre of mass
-PLATE_Z = 0.200                        # plate height in the trunk frame (the trunk top is at 0.174)
+PLATE_Z = 0.075                        # plate height in the trunk frame (the trunk top is at +0.045)
 KP_POS, KD_POS = 0.9, 2.2             # horizontal position loop (m/s^2 per m, per m/s)
 LEG_KP = 3.0                           # N m/rad, leg servos (torque limit 1.04 N m unchanged)
 KP_ATT, KD_ATT, KI_ATT = 36.0, 14.0, 40.0   # attitude loop (s^-2, s^-1, s^-3 times the inertia)
@@ -123,7 +123,7 @@ def build_spec(xc: float | None = None, xt: float | None = None):
     # flight batteries on the back of the trunk, under the plate
     half = (0.037, 0.017, 0.010)
     for side, sy in (("L", 1), ("R", -1)):
-        _add_part(trunk, f"battery_{side}", (xc - 0.005, sy * 0.019, 0.186), BATTERY_KG,
+        _add_part(trunk, f"battery_{side}", (xc - 0.005, sy * 0.019, PLATE_Z - 0.017), BATTERY_KG,
                   _box_inertia(BATTERY_KG, half), [0.15, 0.30, 0.75, 1.0], [(box, half, (0, 0, 0))])
     half = (0.020, 0.020, 0.004)
     _add_part(trunk, "flight_controller", (xc - 0.065, 0.0, PLATE_Z + 0.007), m_fc, _box_inertia(m_fc, half),

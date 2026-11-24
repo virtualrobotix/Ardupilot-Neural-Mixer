@@ -1,0 +1,85 @@
+{
+  "robot_id": "flying_arduduck",
+  "nnm_robot": 23,
+  "class": "biped",
+  "display_name": "Flying ArduDuck",
+  "n_joints": 14,
+  "obs_dim": 61,
+  "rate_hz": 50,
+  "q0": [
+    0.0,
+    -0.087266,
+    -0.383972,
+    0.0,
+    0.383972,
+    0.349066,
+    0.349066,
+    0.0,
+    0.0,
+    0.0,
+    0.087266,
+    0.383972,
+    0.0,
+    -0.383972
+  ],
+  "joint_names": [
+    "left_hip_yaw",
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee",
+    "left_ankle",
+    "neck_pitch",
+    "head_pitch",
+    "head_yaw",
+    "head_roll",
+    "right_hip_yaw",
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee",
+    "right_ankle"
+  ],
+  "servo_fn0": 94,
+  "servos": "15 servo su bus seriale come l'ArduDuck (14 giunti + bocca) e quattro EDF pilotate dalle uscite motore dell'autopilota (mixer a X)",
+  "link": "xduck",
+  "status": "model-flight",
+  "upstream": {
+    "repo": "https://github.com/qilinxiaoxiang/microduck_rl",
+    "branch": "main",
+    "model_repo": "https://github.com/ZXerniXZ/xgoduck_rl",
+    "license": "microduck_rl: Apache-2.0 (Pollen Robotics) con il layer CMU in `cmu/`; xgoduck_rl: Apache-2.0",
+    "cad": "il CAD del pacco (`extensions/flight-20261110`) non è nel fork: sta nel repo `microduck-sim` del progetto CMU. Qui il pacco è ricostruito con scatole e cilindri",
+    "bom": "pacco 936 g (fork): 2 batterie di volo da 151 g, 4 EDF, piastra alare, vassoi e flight controller. Il fork dichiara 1,899 kg per il robot CMU con il pacco (0,963 kg senza)",
+    "training": "`cmu/finetune/flight/`: fine-tune di walk61, stand61 e groundpick61 con il carico sul dorso (massa 1,70–2,10 kg randomizzata, COM ±12 mm, costo di coppia sui servo). Non addestra il volo: le EDF non hanno un modello di spinta nel fork",
+    "published_policy": "nessuna per il pacco (nel fork ci sono solo gli script `cmu/finetune/flight/*.py`)",
+    "sim_model_note": "il modello `robots/flying_arduduck/robot/flying_arduduck.xml` è generato da `tools/robots/flying_arduduck_mjcf.py`: parte dal XGO Duck di `xgoduck_rl` (branch hd1910-standup, 0,791 kg, contatti e massa dello stack elettronico come nel training) e aggiunge il pacco: ali laterali libere dalla testa, barra posteriore, due batterie sul dorso, flight controller e quattro EDF a X con asse verso l'alto. Le EDF sono attuatori di spinta sui `site` `thrust_*` (filtro del primo ordine 50 ms, coppia di reazione 0,02 N·m per N con rotazioni alternate). I servo delle gambe hanno kp 3 N·m/rad con il limite di coppia 1,04 N·m del modello. Le EDF sono spostate fino a far coincidere il centroide delle spinte con il baricentro in posa di stand. Rigenerare: `.venv/bin/python tools/robots/flying_arduduck_mjcf.py --write`"
+  },
+  "sim": {
+    "actuator": "position",
+    "mjcf": "flying_arduduck.xml",
+    "trunk_body": "trunk_base",
+    "freejoint": "trunk_base_freejoint",
+    "gyro_sensor": "imu_ang_vel",
+    "accel_sensor": "imu_accel",
+    "home_z": 0.1418
+  },
+  "flight": {
+    "mass_kg": 0.936,
+    "battery_kg": [
+      0.151,
+      0.151
+    ],
+    "edf_count": 4,
+    "layout": "X",
+    "edf_mass_kg": 0.085,
+    "edf_thrust_max_n": 6.4,
+    "edf_tau_s": 0.05,
+    "edf_yaw_k": 0.02,
+    "edf_xy_m": [
+      0.075,
+      0.125
+    ],
+    "robot_mass_kg": 1.727,
+    "thrust_to_weight": 1.51,
+    "source": "massa del pacco, batterie e numero di EDF dal fork; spinta, massa EDF e geometria sono ipotesi"
+  }
+}
