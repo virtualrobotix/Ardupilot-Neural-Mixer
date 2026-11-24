@@ -129,6 +129,9 @@ class RewardWeights:
     upright_std: float | None = None        # exp(-|g_xy|^2 / std^2) on the true trunk orientation
     pose_std_standing: dict | None = None   # variable_posture: per-joint std (regex -> std)
     pose_std_walking: dict | None = None
+    # regex -> rad: shifts the pose-term reference away from the contract q0 (stance variants such as a
+    # crouched trunk); the contract q0 stays the firmware one, so networks can be crossfaded in the loop
+    pose_ref_offset: dict | None = None
     walking_threshold: float = 0.01
     self_collisions: float = 0.0
     dof_pos_limits: float = 0.0
@@ -354,6 +357,9 @@ class NNMixerEnv:
             return np.array(out)
         self.pose_std_stand = stds(self.w.pose_std_standing)
         self.pose_std_walk = stds(self.w.pose_std_walking)
+        off = self.w.pose_ref_offset or {}
+        self.pose_ref_off = np.array([next((v for pat, v in off.items() if re.fullmatch(pat, n)), 0.0)
+                                      for n in names], dtype=np.float64)
         dev = self.posture_limits.get("max_dev")
         self.max_dev = None
         if dev:
@@ -943,7 +949,7 @@ class NNMixerEnv:
         ref = np.array(self.contract.q0, dtype=np.float64, copy=True)
         spec = self.gesture_spec
         if spec is None:
-            return ref
+            return ref + self.pose_ref_off
         if self.pose_cmd:
             self._apply_pose_offsets(ref, self.pose_cmd_cur)
             return ref
@@ -1714,7 +1720,7 @@ class NNMixerEnv:
         if self.gesture_ids is not None:
             pose_sel[self.gesture_ids] = False
         q_pose = q[pose_sel]
-        ref_pose = np.asarray(self.contract.q0, dtype=np.float64)[pose_sel]
+        ref_pose = (np.asarray(self.contract.q0, dtype=np.float64) + self.pose_ref_off)[pose_sel]
         if q_pose.size == 0:
             pose = 1.0
             pose_l2 = 0.0
@@ -1956,14 +1962,33 @@ class NNMixerEnv:
         return sum(terms.values()), info
 
 
-def load_ppo_config(robot_id: str) -> dict[str, Any]:
+def apply_stance(cfg: dict[str, Any], stance: str | None) -> dict[str, Any]:
+    """Merge ppo.yaml `stances.<name>` into the config: `reward` keys go into env.reward, other `env`
+    keys override env (posture_limits merged), and cfg["stance"] records the choice."""
+    if not stance:
+        return cfg
+    st = (cfg.get("stances") or {}).get(stance)
+    if st is None:
+        raise KeyError(f"stance '{stance}' not in ppo.yaml (have: {sorted((cfg.get('stances') or {}))})")
+    env = cfg.setdefault("env", {})
+    env.setdefault("reward", {}).update(st.get("reward", {}))
+    for k, v in (st.get("env") or {}).items():
+        if isinstance(v, dict) and isinstance(env.get(k), dict):
+            env[k] = {**env[k], **v}
+        else:
+            env[k] = v
+    cfg["stance"] = stance
+    return cfg
+
+
+def load_ppo_config(robot_id: str, stance: str | None = None) -> dict[str, Any]:
     import yaml
 
     from common import robot_dir
     p = robot_dir(robot_id) / "robot" / "ppo.yaml"
     if not p.is_file():
         raise FileNotFoundError(p)
-    return yaml.safe_load(p.read_text())
+    return apply_stance(yaml.safe_load(p.read_text()), stance)
 
 
 if __name__ == "__main__":

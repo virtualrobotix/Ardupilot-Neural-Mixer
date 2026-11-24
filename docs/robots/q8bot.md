@@ -20,7 +20,7 @@
 | `NNM_ROBOT` | **22** |
 | Classe | quadrupede |
 | Progetto | Yufeng (Eric) Wu, UCLA RoMeLa |
-| Stato | scena MuJoCo ricostruita dalla cinematica upstream; policy da addestrare |
+| Stato | policy int8 addestrata in simulazione; video dei checkpoint nella scheda |
 | Giunti comandati | 8 |
 | Osservazione | 33 valori |
 | Frequenza policy | 50 Hz |
@@ -87,7 +87,10 @@ File: [`robots/q8bot/robot/ppo.yaml`](../../robots/q8bot/robot/ppo.yaml). Stessa
 
 Cartella: [`robots/q8bot/policies/`](../../robots/q8bot/policies/) → sulla microSD `/APM/nnm/q8bot/policies/`. `NNM_POLICY` = indice del file in ordine alfabetico.
 
-Nessuna policy ancora: va addestrata (sezione successiva).
+| File | Dimensione | Descrizione |
+|---|---:|---|
+| `walk_low.nnm` | 185 KB | camminata in posa bassa, stesso contratto, stessa q0 e stessa origine delle azioni di walk_v1: il riferimento di posa è la q0 più un offset (q1 −0,507, q2 +0,507 rad, la IK TROT_LOW). Addestrata con `train_velocity.py --stance low`, partendo dal checkpoint 600 di walk_v1, 800 iterazioni. Avanti 0,075 m/s a 0,08, indietro 0,061, rotazione 0,601 rad/s a 0,6; sopravvivenza 100 %. Il tronco sta a 34-35 mm, non ai 27 mm del target: il riferimento di posa è raggiunto solo in parte. Si passa da una rete all'altra con un crossfade delle azioni di 1,5 s (`policy_viewer.py --low-dir`); sul robot il firmware deve fare lo stesso. |
+| `walk_v1.nnm` | 185 KB | camminata in posa alta (trunk a 48 mm), comando vx ±0,09 m/s e wz ±0,9 rad/s, senza laterale. 512 env × 2000 iterazioni (circa 41 minuti su 8 processi), int8 per riga, reward della ricetta Freenove walk_v23 adattata ai giunti q1/q2 con orologio di passo per le coppie diagonali. Checkpoint 2000. Nel modello con servo HD-1910M: avanti 0,086 m/s a comando 0,08, indietro 0,090, rotazione 0,618 rad/s a 0,6; sopravvivenza 100 % in tutte le modalità; tronco a 45-49 mm. |
 
 ### Risultati per versione di ambiente ed epoca
 
@@ -128,6 +131,7 @@ Parametri: `NNM_ENABLE 1`, `NNM_ROBOT 22` (riavvio), `NNM_POLICY 0`, `SERVO1..8_
 - Zampe planari: niente velocità laterale. La rotazione upstream è un passo più corto da un lato (gait `fl_0.75`, `fr_0.5`, …), non un'abduzione.
 - Scena MuJoCo `q8bot.xml`: le parti dell'assieme CAD hw-v2.5 nelle loro pose (telaio in due metà, PCB, due celle 14500, otto servo, aste, cuscinetti e viti), 245 g. I due motori A (q1, davanti) e B (q2, dietro) stanno a 19,5 mm; θ = 0 è l'asta verso terra, θ positivo la porta indietro. Toccano il pavimento solo il tronco e il piede (sfera r 5 mm sul pivot); le aste non si urtano tra loro. Le collisioni sono capsule e una sfera, le masse stanno su scatole grandi come le parti.
 - Servo HD-1910M al posto degli XL330: 21 g, 1,47 N·m di stallo e 11,8 rad/s a vuoto a 7,4 V. Otto volte la coppia, meno di metà della velocità. In simulazione usano il modello BAM identificato sul 1910 per XGO Duck (`hd1910_m6.json`, guadagno firmware 5), lo stesso di `xgoduck`.
+- Policy addestrate in questo repo: `walk_v1` (posa alta) e `walk_low` (posa bassa), con lo switch tra le due nel visualizzatore (`tools/robots/policy_viewer.py --low-dir`). Nel training la valutazione non misura l'altezza del tronco e tutti i checkpoint hanno punteggio 1,000: la scelta automatica prende il più vecchio, che per walk_low è l'iterazione 0, cioè i pesi di partenza. Le policy pubblicate sono quindi i checkpoint finali, scelti a mano.
 - Prova della scena (`q8bot_mjcf.py --demo`): il trotto upstream a 200 campioni/s avanza a 10,8 cm/s, arretra a 10,5 cm/s e ruota a 66°/s; nella posa bassa (`TROT_LOW`) 5,7 cm/s, 5,5 cm/s e 40°/s. L'originale con gli XL330 fa circa 29 cm/s: il 1910 è più lento e insegue la traiettoria con circa 20° di ritardo medio, quindi il passo si accorcia. Alzare il guadagno del servo non aiuta: con guadagno 16 a questa cadenza il robot si ribalta in rotazione. Pentagono chiuso entro 0,34 mm in marcia, 0,09 mm da fermo.
 - Da verificare sul robot. Il telaio e la PCB della release sono fatti per l'XL330 (20 × 34 × 26 mm, innesto diretto sulla scheda): l'HD-1910M è 34 × 20 × 23 mm con altri fori e un altro connettore, quindi il telaio va ridisegnato e nel modello il servo ha ancora la forma dell'XL330. Le due celle vanno in serie per i 7,4 V. Sono stime anche la massa delle celle (21 g), il riempimento PLA (il resto dei 221 g pubblicati ripartito sui volumi del CAD) e l'attrito dei cuscinetti.
 - Bus Feetech, lo stesso di MicroDuck e XGO Duck: sul robot vale lo stesso backend. Gli 8 servo stanno nelle 16 funzioni Scripting, quindi SITL e HIL non aspettano il backend.

@@ -407,7 +407,9 @@ def train(args) -> None:
     from plot_training import plot_run
 
     torch.set_num_threads(max(1, args.torch_threads))
-    cfg = load_ppo_config(args.robot)
+    cfg = load_ppo_config(args.robot, args.stance)
+    if args.stance:
+        print(f"stance {args.stance}: posture reference and height target from ppo.yaml stances.{args.stance}")
     if args.gesture:
         cfg.setdefault("env", {})["gesture"] = args.gesture
     if args.gesture == "motion":
@@ -960,6 +962,8 @@ def main() -> None:
     ap.add_argument("--steps", type=int, default=0, help="steps per env per iteration (default from ppo.yaml)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--name", default="walk_cpu")
+    ap.add_argument("--stance", default=None,
+                    help="train a stance variant of ppo.yaml (stances.<name>), e.g. low: crouched trunk")
     ap.add_argument("--out", default=None)
     ap.add_argument("--save-every", type=int, default=100, help="checkpoint .nnm/.pt every N iterations")
     ap.add_argument("--eval-every", type=int, default=0, help="stand/walk eval at checkpoints (multiple of save-every)")
@@ -1001,7 +1005,7 @@ def main() -> None:
                     help="with --gesture --resume: keep the checkpoint's std instead of the gesture template")
     args = ap.parse_args()
     if args.eval:
-        cfg = load_ppo_config(args.robot)
+        cfg = load_ppo_config(args.robot, args.stance)
         pk = unpack_nnm(args.eval.read_bytes())
         if pk["robot_id"] != args.robot:
             raise SystemExit(f"refusing: {args.eval} is for robot {pk['robot_id']!r}, not {args.robot!r}")

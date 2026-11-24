@@ -34,6 +34,17 @@ ppo:
   num_learning_epochs: 5
   num_mini_batches: 4
   max_grad_norm: 1.0
+stances:
+  low:
+    reward:
+      pose_ref_offset:
+        .*q1: -0.507
+        .*q2: 0.507
+      base_height_target_m: 0.027
+      base_height_std_m: 0.006
+    env:
+      posture_limits:
+        min_height_m: 0.018
 env:
   policy_hz: 50
   loop_hz: 200
@@ -51,7 +62,7 @@ env:
     wz:
     - -0.9
     - 0.9
-  p_zero_command: 0.2
+  p_zero_command: 0.05
   p_no_lateral: 0.3
   episode_s: 20.0
   fall_tilt_deg: 60.0
@@ -59,10 +70,78 @@ env:
   accel_noise: 0.05
   obs_delay_steps_max: 1
   reward:
-    track_lin_vel: 2.0
-    track_ang_vel: 2.0
-    upright: 2.0
-    pose: 1.0
-    action_rate: -0.8
-    tracking_sigma: 0.05
-    tracking_sigma_ang: 0.25
+    track_lin_vel: 8.0
+    track_ang_vel: 5.0
+    upright: 0.0
+    pose: 0.3
+    action_rate: -0.1
+    tracking_sigma: 0.01
+    tracking_sigma_ang: 0.15
+    only_positive: true
+    tracking_filter_s: 0.25
+    tracking_lin_z: 0.0
+    tracking_ang_rp: 0.0
+    no_progress: -2.5
+    orientation: -5.0
+    walking_threshold: 0.01
+    pose_std_standing:
+      .*q1: 0.1
+      .*q2: 0.1
+    pose_std_walking:
+      .*q1: 0.35
+      .*q2: 0.35
+    pose_l2: -0.3
+    stand_still: -1.0
+    alive: 0.0
+    body_ang_vel: -0.1
+    dof_pos_limits: -10.0
+    self_collisions: -1.0
+    joint_torque: -0.05
+    joint_vel: -0.003
+    air_time: 2.0
+    air_time_mode: touchdown
+    air_time_min_s: 0.12
+    air_time_max_s: 0.4
+    air_time_debounce_s: 0.03
+    foot_hold: -2.0
+    air_time_variance: -1.0
+    foot_clearance: -2.0
+    foot_swing_height: -1.0
+    swing_height_m: 0.015
+    foot_slip: -0.1
+    feet_swing: 5.0
+    alternation_min_air_s: 0.1
+    alternation_min_height_frac: 0.5
+    undesired_contacts: -1.0
+    base_height: 0.3
+    base_height_target_m: 0.048
+    base_height_std_m: 0.01
+  eval_modes:
+    stand:
+    - 0.0
+    - 0.0
+    - 0.0
+    forward_0.08:
+    - 0.08
+    - 0.0
+    - 0.0
+    backward_0.08:
+    - -0.08
+    - 0.0
+    - 0.0
+    turn_0.6:
+    - 0.0
+    - 0.0
+    - 0.6
+  gait_clock:
+    hz_range:
+    - 1.4
+    - 2.2
+    swing_phase:
+    - 0.25
+    - 0.75
+    - 0.75
+    - 0.25
+    swing_period: 0.4
+  posture_limits:
+    min_height_m: 0.03

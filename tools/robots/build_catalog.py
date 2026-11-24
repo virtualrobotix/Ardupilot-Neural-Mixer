@@ -77,6 +77,7 @@ def ppo_for(rid: str, r: dict) -> dict:
                           "action_rate": -0.8, "tracking_sigma": 0.05, "tracking_sigma_ang": 0.25},
                        **r.get("reward", {})},
         }, **r.get("env", {})},
+        **({"stances": r["stances"]} if r.get("stances") else {}),
     }
 
 

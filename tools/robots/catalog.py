@@ -2221,7 +2221,7 @@ ROBOTS["q8bot"] = {
     "class": "quadruped",
     "display_name": "Q8bot",
     "maker": "Yufeng (Eric) Wu, UCLA RoMeLa",
-    "status": "needs-training-handmade",
+    "status": "policy-sim",
     "joint_names": [
         "FL_q1", "FL_q2", "FR_q1", "FR_q2",
         "BL_q1", "BL_q2", "BR_q1", "BR_q2",
@@ -2237,6 +2237,47 @@ ROBOTS["q8bot"] = {
     # no-load at 7.4 V) lags it: replayed on the scene the trunk moves at 0.105-0.108 m/s and turns at
     # 1.15 rad/s (q8bot_mjcf.py --demo). The command range is about 0.8 of that.
     "command_ranges": {"vx": [-0.09, 0.09], "vy": [0.0, 0.0], "wz": [-0.9, 0.9]},
+    # walk recipe of the Freenove walk_v23 runs, on the 5-bar legs: the joints are q1 / q2 (motor A and B),
+    # the feet are FL, FR, BL, BR, and the gait clock puts the diagonal pairs (sim.trot_pairs) in opposite
+    # phases. Commands only forward / backward / turn: no lateral axis on planar legs. The trunk height target is
+    # the stand 48 mm; the policy has no height command (extra_cmd_dim 0), so it trains the normal stance only.
+    "reward": {
+        "only_positive": True,
+        "track_lin_vel": 8.0, "tracking_sigma": 0.01, "tracking_filter_s": 0.25,
+        "track_ang_vel": 5.0, "tracking_sigma_ang": 0.15,
+        "tracking_lin_z": 0.0, "tracking_ang_rp": 0.0,
+        "no_progress": -2.5, "upright": 0.0, "orientation": -5.0,
+        "pose": 0.3, "walking_threshold": 0.01,
+        "pose_std_standing": {".*q1": 0.1, ".*q2": 0.1},
+        "pose_std_walking": {".*q1": 0.35, ".*q2": 0.35},
+        "pose_l2": -0.3, "stand_still": -1.0,
+        "action_rate": -0.1, "alive": 0.0,
+        "body_ang_vel": -0.1, "dof_pos_limits": -10.0, "self_collisions": -1.0,
+        "joint_torque": -0.05, "joint_vel": -0.003,
+        "air_time": 2.0, "air_time_mode": "touchdown", "air_time_min_s": 0.12, "air_time_max_s": 0.4,
+        "air_time_debounce_s": 0.03, "foot_hold": -2.0, "air_time_variance": -1.0,
+        "foot_clearance": -2.0, "foot_swing_height": -1.0, "swing_height_m": 0.015, "foot_slip": -0.1,
+        "feet_swing": 5.0, "alternation_min_air_s": 0.1, "alternation_min_height_frac": 0.5,
+        "undesired_contacts": -1.0,
+        "base_height": 0.3, "base_height_target_m": 0.048, "base_height_std_m": 0.01,
+    },
+    # second policy of the Q8bot: the low stance (TROT_LOW, trunk 27 mm). Same q0 and action origin as the high
+    # one (q1 -0.507, q2 +0.507 rad from the stand, the IK of the two foot heights), so the two networks switch
+    # on the same robot. Trained with `train_velocity.py --stance low`.
+    "stances": {
+        "low": {
+            "reward": {"pose_ref_offset": {".*q1": -0.507, ".*q2": 0.507},
+                       "base_height_target_m": 0.027, "base_height_std_m": 0.006},
+            "env": {"posture_limits": {"min_height_m": 0.018}},
+        },
+    },
+    "env": {
+        "p_zero_command": 0.05,
+        "eval_modes": {"stand": [0.0, 0.0, 0.0], "forward_0.08": [0.08, 0.0, 0.0],
+                       "backward_0.08": [-0.08, 0.0, 0.0], "turn_0.6": [0.0, 0.0, 0.6]},
+        "gait_clock": {"hz_range": [1.4, 2.2], "swing_phase": [0.25, 0.75, 0.75, 0.25], "swing_period": 0.4},
+        "posture_limits": {"min_height_m": 0.03},
+    },
     "upstream": {
         "repo": "https://github.com/EricYufengWu/q8bot",
         "branch": "main",
@@ -2300,7 +2341,22 @@ ROBOTS["q8bot"] = {
               "dei giunti (FL, FR, BL, BR; q1 poi q2). Squadretta montata con l'asta verso terra a centro "
               "corsa: conteggio = 2048 + θ × 4096/360. MCU di bordo upstream: Seeed XIAO ESP32C3",
     "link": "bus",
-    "policies": {},
+    "policies": {
+        "walk_v1.nnm": "camminata in posa alta (trunk a 48 mm), comando vx ±0,09 m/s e wz ±0,9 rad/s, senza "
+                       "laterale. 512 env × 2000 iterazioni (circa 41 minuti su 8 processi), int8 per riga, "
+                       "reward della ricetta Freenove walk_v23 adattata ai giunti q1/q2 con orologio di passo "
+                       "per le coppie diagonali. Checkpoint 2000. Nel modello con servo HD-1910M: avanti "
+                       "0,086 m/s a comando 0,08, indietro 0,090, rotazione 0,618 rad/s a 0,6; sopravvivenza "
+                       "100 % in tutte le modalità; tronco a 45-49 mm.",
+        "walk_low.nnm": "camminata in posa bassa, stesso contratto, stessa q0 e stessa origine delle azioni di "
+                        "walk_v1: il riferimento di posa è la q0 più un offset (q1 −0,507, q2 +0,507 rad, la IK "
+                        "TROT_LOW). Addestrata con `train_velocity.py --stance low`, partendo dal checkpoint "
+                        "600 di walk_v1, 800 iterazioni. Avanti 0,075 m/s a 0,08, indietro 0,061, rotazione "
+                        "0,601 rad/s a 0,6; sopravvivenza 100 %. Il tronco sta a 34-35 mm, non ai 27 mm del "
+                        "target: il riferimento di posa è raggiunto solo in parte. Si passa da una rete all'altra "
+                        "con un crossfade delle azioni di 1,5 s (`policy_viewer.py --low-dir`); sul robot il "
+                        "firmware deve fare lo stesso.",
+    },
     "mechanics": {
         "compare_with": "Petoi Bittle (OpenCat)",
         "rows": [
@@ -2350,6 +2406,11 @@ ROBOTS["q8bot"] = {
         "Servo HD-1910M al posto degli XL330: 21 g, 1,47 N·m di stallo e 11,8 rad/s a vuoto a 7,4 V. Otto "
         "volte la coppia, meno di metà della velocità. In simulazione usano il modello BAM identificato sul "
         "1910 per XGO Duck (`hd1910_m6.json`, guadagno firmware 5), lo stesso di `xgoduck`.",
+        "Policy addestrate in questo repo: `walk_v1` (posa alta) e `walk_low` (posa bassa), con lo switch tra "
+        "le due nel visualizzatore (`tools/robots/policy_viewer.py --low-dir`). Nel training la valutazione "
+        "non misura l'altezza del tronco e tutti i checkpoint hanno punteggio 1,000: la scelta automatica "
+        "prende il più vecchio, che per walk_low è l'iterazione 0, cioè i pesi di partenza. Le policy "
+        "pubblicate sono quindi i checkpoint finali, scelti a mano.",
         "Prova della scena (`q8bot_mjcf.py --demo`): il trotto upstream a 200 campioni/s avanza a 10,8 cm/s, "
         "arretra a 10,5 cm/s e ruota a 66°/s; nella posa bassa (`TROT_LOW`) 5,7 cm/s, 5,5 cm/s e 40°/s. "
         "L'originale con gli XL330 fa circa 29 cm/s: il 1910 è più lento e insegue la traiettoria con circa "

@@ -2,4 +2,5 @@
 
 Solo policy per `q8bot` (8 giunti, osservazione 33). Sulla microSD: `/APM/nnm/q8bot/policies/`.
 
-Nessuna policy ancora. Addestrare con `tools/robots/train_velocity.py --robot q8bot` (vedi docs/robots/q8bot.md).
+- `walk_low.nnm` — camminata in posa bassa, stesso contratto, stessa q0 e stessa origine delle azioni di walk_v1: il riferimento di posa è la q0 più un offset (q1 −0,507, q2 +0,507 rad, la IK TROT_LOW). Addestrata con `train_velocity.py --stance low`, partendo dal checkpoint 600 di walk_v1, 800 iterazioni. Avanti 0,075 m/s a 0,08, indietro 0,061, rotazione 0,601 rad/s a 0,6; sopravvivenza 100 %. Il tronco sta a 34-35 mm, non ai 27 mm del target: il riferimento di posa è raggiunto solo in parte. Si passa da una rete all'altra con un crossfade delle azioni di 1,5 s (`policy_viewer.py --low-dir`); sul robot il firmware deve fare lo stesso.
+- `walk_v1.nnm` — camminata in posa alta (trunk a 48 mm), comando vx ±0,09 m/s e wz ±0,9 rad/s, senza laterale. 512 env × 2000 iterazioni (circa 41 minuti su 8 processi), int8 per riga, reward della ricetta Freenove walk_v23 adattata ai giunti q1/q2 con orologio di passo per le coppie diagonali. Checkpoint 2000. Nel modello con servo HD-1910M: avanti 0,086 m/s a comando 0,08, indietro 0,090, rotazione 0,618 rad/s a 0,6; sopravvivenza 100 % in tutte le modalità; tronco a 45-49 mm.

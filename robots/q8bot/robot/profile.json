@@ -29,7 +29,7 @@
   "servo_fn0": 94,
   "servos": "8× Feetech HD-1910M (HD-1910-C001), lo stesso servo di MicroDuck / XGO Duck, al posto degli XL330-M077-T del progetto originale. Bus seriale Feetech a 1 Mbps, 7,4 V, ID 11–18 nell'ordine dei giunti (FL, FR, BL, BR; q1 poi q2). Squadretta montata con l'asta verso terra a centro corsa: conteggio = 2048 + θ × 4096/360. MCU di bordo upstream: Seeed XIAO ESP32C3",
   "link": "bus",
-  "status": "needs-training-handmade",
+  "status": "policy-sim",
   "upstream": {
     "repo": "https://github.com/EricYufengWu/q8bot",
     "branch": "main",
