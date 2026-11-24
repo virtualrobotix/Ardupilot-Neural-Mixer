@@ -54,7 +54,10 @@ SWITCH = [
 
 
 def scan(run_dir: Path) -> list[Path]:
-    """Checkpoints of a run in training order: itNNNN ascending, then the final one."""
+    """Checkpoints of a run in training order: itNNNN ascending, then the final one.
+    A single .nnm file is accepted too (one checkpoint)."""
+    if run_dir.is_file():
+        return [run_dir]
     its = sorted((p for p in run_dir.glob("*_it*.nnm") if re.search(r"_it\d+\.nnm$", p.name)),
                  key=lambda p: int(re.search(r"_it(\d+)\.nnm$", p.name).group(1)))
     return its + sorted(run_dir.glob("*_final.nnm"))
